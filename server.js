@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 const path      = require('path');
 
 // ── CONFIG ──────────────────────────────────────
-const GLOBAL_SECRET = 'driveos2secret';
+const GLOBAL_SECRET = process.env.DRIVEOS_SECRET || 'driveos2secret';
 const PORT          = process.env.PORT || 3000;
 
 // ── STATE ───────────────────────────────────────
