@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<title>DriveOS 2.0 · Passenger Nexus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  /* ── RESET & BASE ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0a;
+    --bg2:       #0d0d0f;
+    --cyan:      #00F5FF;
+    --cyan-dim:  #00c8d4;
+    --cyan-glow: rgba(0,245,255,0.18);
+    --cyan-soft: rgba(0,245,255,0.08);
+    --slate:     #64748b;
+    --slate-lt:  #94a3b8;
+    --red:       #ff2244;
+    --red-glow:  rgba(255,34,68,0.25);
+    --glass-bg:  rgba(255,255,255,0.03);
+    --glass-border: rgba(0,245,255,0.18);
+    --font: 'JetBrains Mono', 'Roboto Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--cyan);
+    font-family: var(--font);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    position: relative;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* ── AMBIENT GRID BG ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── GLASS PANEL ── */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow:
+      0 0 20px rgba(0,245,255,0.05),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* ═══════════════════════════════════════
+     HEADER
+  ═══════════════════════════════════════ */
+  #header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0,245,255,0.1);
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .brand {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+
+  .brand span { color: var(--slate); font-weight: 400; }
+
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+
+  .conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--slate);
+    transition: background 0.4s, box-shadow 0.4s;
+    flex-shrink: 0;
+  }
+  .conn-dot.active {
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan), 0 0 12px var(--cyan);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .conn-dot.error  { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .conn-dot.warn   { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: pulse-dot 1s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:0.5; transform:scale(0.8); }
+  }
+
+  /* Vehicle ID block – top right */
+  .vehicle-id {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .vid-device {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .vid-odo-label {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .vid-odo-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cyan);
+    letter-spacing: 0.05em;
+  }
+
+  /* ═══════════════════════════════════════
+     MAIN CONTENT
+  ═══════════════════════════════════════ */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 14px 8px;
+    position: relative;
+    z-index: 2;
+    overflow-y: auto;
+  }
+
+  /* ── SPEEDOMETER ── */
+  .speed-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .speed-label {
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    color: var(--slate);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .speed-value {
+    font-size: clamp(72px, 22vw, 110px);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--cyan);
+    letter-spacing: -2px;
+    position: relative;
+    text-shadow:
+      0 0 30px rgba(0,245,255,0.6),
+      0 0 60px rgba(0,245,255,0.3),
+      0 0 100px rgba(0,245,255,0.15);
+    animation: shimmer 4s linear infinite;
+    background: linear-gradient(
+      90deg,
+      var(--cyan) 0%,
+      #ffffff 45%,
+      var(--cyan-dim) 55%,
+      var(--cyan) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% center; }
+    100% { background-position: -200% center; }
+  }
+
+  .speed-unit {
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--slate-lt);
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  /* Decorative arc lines behind speedometer */
+  .speed-arc {
+    position: absolute;
+    width: 220px;
+    height: 110px;
+    border-radius: 220px 220px 0 0;
+    border: 1px solid rgba(0,245,255,0.08);
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .speed-arc:nth-child(2) { width:180px; height:90px; border-color:rgba(0,245,255,0.05); bottom:14px; }
+  .speed-arc:nth-child(3) { width:140px; height:70px; border-color:rgba(0,245,255,0.04); bottom:18px; }
+
+  /* ── TELEMETRY GRID ── */
+  .telem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .telem-tile {
+    padding: 14px 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .telem-tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.5;
+  }
+
+  .tile-label {
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+
+  .tile-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(0,245,255,0.4);
+  }
+
+  .tile-unit {
+    font-size: 9px;
+    color: var(--slate);
+    letter-spacing: 0.2em;
+    margin-left: 2px;
+  }
+
+  /* G-Force stability bar */
+  .gforce-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .gforce-bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .gforce-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+    border-radius: 2px;
+    box-shadow: 0 0 6px var(--cyan);
+    transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1), background 0.4s;
+  }
+  .gforce-bar-fill.high { background: linear-gradient(90deg, #f59e0b, var(--red)); box-shadow: 0 0 8px var(--red); }
+  .gforce-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 7px;
+    color: var(--slate);
+    letter-spacing: 0.1em;
+  }
+  .stability-tag {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  .stability-tag.warn { color: #f59e0b; }
+  .stability-tag.crit { color: var(--red); }
+
+  /* Acceleration boost indicator */
+  .boost-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .boost-seg {
+    height: 6px;
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    transition: background 0.3s, box-shadow 0.3s;
+    min-width: 8px;
+  }
+  .boost-seg.lit {
+    background: var(--cyan);
+    box-shadow: 0 0 4px var(--cyan);
+  }
+  .boost-seg.lit.high { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+  .boost-seg.lit.max  { background: var(--red);  box-shadow: 0 0 8px var(--red); }
+
+  /* Fuel bar – full width tile */
+  .fuel-tile {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+  }
+  .fuel-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 80px;
+  }
+  .fuel-val-row {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .fuel-big { font-size: 22px; font-weight: 700; color: var(--cyan); line-height: 1; }
+  .fuel-big.warn { color: #f59e0b; text-shadow: 0 0 10px #f59e0b; }
+  .fuel-big.crit { color: var(--red);  text-shadow: 0 0 10px var(--red); }
+
+  .fuel-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .fuel-bar-track {
+    height: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid rgba(0,245,255,0.1);
+  }
+  .fuel-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+    border-radius: 5px;
+    box-shadow: 0 0 8px var(--cyan);
+    transition: width 0.6s ease, background 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+  .fuel-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: fuel-shine 2.5s ease-in-out infinite;
+  }
+  @keyframes fuel-shine {
+    0%   { left: -60%; }
+    100% { left: 120%; }
+  }
+  .fuel-bar-fill.warn { background: linear-gradient(90deg, #b45309, #f59e0b); box-shadow: 0 0 8px #f59e0b; }
+  .fuel-bar-fill.crit { background: linear-gradient(90deg, #991b1b, var(--red));  box-shadow: 0 0 10px var(--red); }
+  .fuel-tick-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 7px;
+    color: rgba(100,116,139,0.5);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── MEDIA CENTER ── */
+  .media-panel {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Visualizer */
+  .visualizer {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  .vis-bar {
+    width: 4px;
+    border-radius: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 4px var(--cyan);
+    transform-origin: bottom;
+    transition: height 0.15s ease;
+  }
+
+  .vis-bar.playing { animation: vis-bounce var(--dur, 0.6s) ease-in-out infinite alternate; }
+  .vis-bar.paused  { animation: vis-breathe 3s ease-in-out infinite; height: 3px !important; }
+
+  @keyframes vis-bounce {
+    0%   { height: var(--min-h, 4px); }
+    100% { height: var(--max-h, 32px); }
+  }
+  @keyframes vis-breathe {
+    0%,100% { opacity: 0.3; }
+    50%      { opacity: 0.7; }
+  }
+
+  .media-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .media-sync-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .sync-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--cyan);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  .sync-dot.paused { background: var(--slate); animation: none; }
+
+  .media-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--cyan);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+  }
+  .media-title.scrolling { animation: marquee 8s linear infinite; }
+
+  @keyframes marquee {
+    0%,15%  { transform: translateX(0); }
+    85%,100%{ transform: translateX(calc(-100% + 180px)); }
+  }
+
+  .media-artist {
+    font-size: 11px;
+    color: var(--slate-lt);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.05em;
+  }
+
+  .media-state {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--slate);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .media-state.on  { color: var(--cyan); }
+  .media-state.off { color: var(--slate); }
+
+  /* ═══════════════════════════════════════
+     FOOTER — SYSTEM LOG
+  ═══════════════════════════════════════ */
+  #footer {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    border-top: 1px solid rgba(0,245,255,0.1);
+    background: rgba(10,10,10,0.9);
+    backdrop-filter: blur(20px);
+    padding: 0;
+    height: 90px;
+    overflow: hidden;
+  }
+
+  .log-header {
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    color: var(--slate);
+    text-transform: uppercase;
+    padding: 6px 14px 4px;
+    border-bottom: 1px solid rgba(0,245,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .log-header::before {
+    content: '▶';
+    font-size: 6px;
+    color: var(--cyan);
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  #log-stream {
+    height: 68px;
+    overflow: hidden;
+    padding: 4px 14px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+  }
+
+  .log-line {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transform: translateY(4px);
+    animation: log-in 0.3s forwards;
+    flex-shrink: 0;
+  }
+  @keyframes log-in {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .log-line .tag-sys  { color: var(--cyan); }
+  .log-line .tag-sens { color: #a78bfa; }
+  .log-line .tag-med  { color: #34d399; }
+  .log-line .tag-err  { color: var(--red); }
+  .log-line .tag-warn { color: #f59e0b; }
+  .log-line .tag-link { color: #f472b6; }
+  .log-msg { color: var(--slate-lt); }
+
+  /* ═══════════════════════════════════════
+     ACCESS DENIED SCREEN
+  ═══════════════════════════════════════ */
+  #access-denied {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: #080000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px;
+    text-align: center;
+  }
+  #access-denied.visible { display: flex; }
+  #access-denied.flash   { animation: red-flash 0.6s ease-out; }
+
+  @keyframes red-flash {
+    0%   { background: #3b0000; }
+    40%  { background: #200000; }
+    100% { background: #080000; }
+  }
+
+  .denied-icon {
+    width: 60px; height: 60px;
+    border: 2px solid var(--red);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow);
+    animation: denied-pulse 2s ease-in-out infinite;
+  }
+  @keyframes denied-pulse {
+    0%,100% { box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow); }
+    50%      { box-shadow: 0 0 40px rgba(255,34,68,0.5), 0 0 100px rgba(255,34,68,0.2); }
+  }
+  .denied-icon svg { stroke: var(--red); }
+
+  .denied-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--red);
+    text-shadow: 0 0 20px var(--red);
+    text-transform: uppercase;
+  }
+
+  .denied-msg {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: rgba(255,34,68,0.7);
+    line-height: 1.9;
+    max-width: 320px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,34,68,0.2);
+    border-radius: 8px;
+    padding: 16px;
+    background: rgba(255,34,68,0.04);
+  }
+
+  .denied-btn {
+    font-family: var(--font);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--red);
+    border: none;
+    border-radius: 6px;
+    padding: 12px 28px;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--red-glow);
+    transition: opacity 0.2s;
+  }
+  .denied-btn:hover { opacity: 0.85; }
+
+  /* ═══════════════════════════════════════
+     RECONNECT BANNER
+  ═══════════════════════════════════════ */
+  #reconnect-banner {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 500;
+    background: rgba(245,158,11,0.12);
+    border-bottom: 1px solid rgba(245,158,11,0.4);
+    padding: 6px 14px;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: #f59e0b;
+    text-transform: uppercase;
+    text-align: center;
+    animation: warn-slide 0.3s ease-out;
+  }
+  #reconnect-banner.visible { display: block; }
+  @keyframes warn-slide {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(0); }
+  }
+
+  /* ═══════════════════════════════════════
+     INIT LOADER
+  ═══════════════════════════════════════ */
+  #init-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8000;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.6s;
+  }
+  #init-overlay.fade { opacity: 0; pointer-events: none; }
+
+  .init-logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
+    text-transform: uppercase;
+  }
+  .init-logo span { color: var(--slate); font-weight: 300; }
+
+  .init-bar-wrap {
+    width: 200px;
+    height: 2px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .init-bar-fill {
+    height: 100%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    animation: init-load 1.4s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
+  @keyframes init-load {
+    0%   { width: 0%; }
+    60%  { width: 75%; }
+    100% { width: 100%; }
+  }
+
+  .init-status {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--slate);
+    text-transform: uppercase;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* ── NO PARAMS warning ── */
+  .no-params-msg {
+    position: fixed;
+    bottom: 100px;
+    left: 14px; right: 14px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: #f59e0b;
+    text-align: center;
+    z-index: 100;
+    text-transform: uppercase;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- INIT OVERLAY -->
+<div id="init-overlay">
+  <div class="init-logo">DriveOS <span>/ 2.0</span></div>
+  <div class="init-bar-wrap"><div class="init-bar-fill"></div></div>
+  <div class="init-status">Initializing Passenger Nexus...</div>
+</div>
+
+<!-- ACCESS DENIED -->
+<div id="access-denied">
+  <div class="denied-icon">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+  </div>
+  <div class="denied-title">Access Denied</div>
+  <div class="denied-msg">
+    [SECURITY]: AUTHENTICATION FAILURE.<br>
+    TOKEN EXPIRED OR INVALID.<br>
+    ACCESS TO VEHICLE NEXUS REVOKED.
+  </div>
+  <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
+</div>
+
+<!-- RECONNECT BANNER -->
+<div id="reconnect-banner">
+  ⚠ [LINK LOST]: Attempting to re-establish sync...
+</div>
+
+<!-- ══ HEADER ══ -->
+<header id="header">
+  <div class="header-left">
+    <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
+    <div class="conn-status">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-text">Initializing...</span>
+    </div>
+  </div>
+  <div class="vehicle-id">
+    <div class="vid-device" id="vid-device">—</div>
+    <div class="vid-odo-label">Chassis Odo</div>
+    <div class="vid-odo-val" id="vid-odo">[ — KM ]</div>
+  </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main id="main">
+
+  <!-- Speedometer -->
+  <div class="glass speed-panel">
+    <div class="speed-arc"></div>
+    <div class="speed-arc"></div>
+    <div class="speed-arc"></div>
+    <div class="speed-label">Vehicle Velocity</div>
+    <div class="speed-value" id="speed-val">000</div>
+    <div class="speed-unit">km / h</div>
+  </div>
+
+  <!-- Telemetry Grid -->
+  <div class="telem-grid">
+
+    <!-- G-Force -->
+    <div class="glass telem-tile">
+      <div class="tile-label">G-Force</div>
+      <div>
+        <span class="tile-value" id="gforce-val">0.00</span>
+        <span class="tile-unit">G</span>
+      </div>
+      <div class="gforce-bar-wrap">
+        <div class="gforce-bar-track">
+          <div class="gforce-bar-fill" id="gforce-bar"></div>
+        </div>
+        <div class="gforce-label-row">
+          <span>0.0G</span>
+          <span id="stability-tag" class="stability-tag">STABLE</span>
+          <span>2.0G</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acceleration -->
+    <div class="glass telem-tile">
+      <div class="tile-label">Acceleration</div>
+      <div>
+        <span class="tile-value" id="accel-val">0.0</span>
+        <span class="tile-unit">m/s²</span>
+      </div>
+      <div class="boost-row" id="boost-segs"></div>
+      <div class="tile-label" id="boost-label" style="color:var(--cyan)">NOMINAL</div>
+    </div>
+
+    <!-- Fuel (full width) -->
+    <div class="glass telem-tile fuel-tile">
+      <div class="fuel-info">
+        <div class="tile-label">Fuel Reserve</div>
+        <div class="fuel-val-row">
+          <span class="fuel-big" id="fuel-val">--</span>
+          <span class="tile-unit">%</span>
+        </div>
+        <div class="tile-label" id="fuel-status" style="color:var(--cyan)">NOMINAL</div>
+      </div>
+      <div class="fuel-bar-wrap">
+        <div class="fuel-bar-track">
+          <div class="fuel-bar-fill" id="fuel-bar"></div>
+        </div>
+        <div class="fuel-tick-row">
+          <span>E</span><span>25</span><span>50</span><span>75</span><span>F</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Media Center -->
+  <div class="glass media-panel">
+    <div class="visualizer" id="visualizer"></div>
+    <div class="media-info">
+      <div class="media-sync-tag">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">Freq Monitor</span>
+      </div>
+      <div class="media-title" id="media-title">No Signal</div>
+      <div class="media-artist" id="media-artist">—</div>
+      <div class="media-state off" id="media-state">[ STANDBY ]</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ FOOTER / LOG ══ -->
+<footer id="footer">
+  <div class="log-header">System Log</div>
+  <div id="log-stream"></div>
+</footer>
+
+<div class="no-params-msg" id="no-params-msg">
+  ⚠ No device/token in URL — operating in demo mode
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════════════
+const WS_URL     = 'wss://driveos-relay.onrender.com';
+const RECONNECT_INTERVAL = 5000;
+
+const params   = new URLSearchParams(location.search);
+const deviceId = params.get('device') || 'DEMO_UNIT';
+const token    = params.get('token')  || '00000000';
+const isDemo   = !params.get('device');
+
+let ws           = null;
+let reconnectTimer = null;
+let connected    = false;
+let authDenied   = false;
+let firstConnect = true;
+
+// ═══════════════════════════════════════════════
+//  ELEMENTS
+// ═══════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const connDot     = $('conn-dot');
+const connText    = $('conn-text');
+const initOverlay = $('init-overlay');
+const accessDenied= $('access-denied');
+const reconBanner = $('reconnect-banner');
+const logStream   = $('log-stream');
+
+// ═══════════════════════════════════════════════
+//  SYSTEM LOG
+// ═══════════════════════════════════════════════
+const LOG_TAGS = {
+  SYS:  'tag-sys',
+  SENS: 'tag-sens',
+  MED:  'tag-med',
+  ERR:  'tag-err',
+  WARN: 'tag-warn',
+  LINK: 'tag-link',
+};
+const MAX_LOG = 30;
+
+function sysLog(category, message) {
+  const tagClass = LOG_TAGS[category] || 'tag-sys';
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span style="color:rgba(100,116,139,0.5)">${ts}</span> <span class="${tagClass}">[${category}]</span>: <span class="log-msg">${message}</span>`;
+  logStream.prepend(line);
+  while (logStream.children.length > MAX_LOG) {
+    logStream.removeChild(logStream.lastChild);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  CONNECTION STATUS UI
+// ═══════════════════════════════════════════════
+function setStatus(state, text) {
+  connDot.className = 'conn-dot';
+  if (state === 'active') { connDot.classList.add('active'); }
+  if (state === 'error')  { connDot.classList.add('error');  }
+  if (state === 'warn')   { connDot.classList.add('warn');   }
+  connText.textContent = text;
+}
+
+// ═══════════════════════════════════════════════
+//  ACCESS DENIED
+// ═══════════════════════════════════════════════
+function showAccessDenied() {
+  authDenied = true;
+  accessDenied.classList.add('visible');
+  // trigger red flash
+  setTimeout(() => accessDenied.classList.add('flash'), 10);
+  setTimeout(() => accessDenied.classList.remove('flash'), 700);
+  sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED');
+  setStatus('error', 'Access Denied');
+}
+
+// ═══════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════
+function connect() {
+  if (authDenied) return;
+
+  try { ws = new WebSocket(WS_URL); }
+  catch(e) {
+    sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message);
+    scheduleReconnect();
+    return;
+  }
+
+  setStatus('warn', 'Connecting...');
+  sysLog('SYS', 'INITIATING SECURE CHANNEL TO RELAY NODE');
+
+  ws.addEventListener('open', () => {
+    connected = true;
+    reconBanner.classList.remove('visible');
+    setStatus('active', 'Secure Link Active');
+    sysLog('SYS', 'CHANNEL ESTABLISHED — SENDING HANDSHAKE');
+
+    ws.send(JSON.stringify({
+      type:   'guest_auth',
+      device: deviceId,
+      token:  token
+    }));
+
+    sysLog('SYS', `HANDSHAKE TRANSMITTED — DEVICE: ${deviceId.toUpperCase()}`);
+    if (firstConnect) {
+      firstConnect = false;
+      setTimeout(() => {
+        sysLog('SENS', 'TELEMETRY LINK ESTABLISHED');
+        sysLog('SENS', 'VELOCITY · G-FORCE · ACCEL CHANNELS ONLINE');
+        sysLog('MED',  'MEDIA FREQUENCY MONITOR SYNCED');
+      }, 600);
+    }
+  });
+
+  ws.addEventListener('message', e => {
+    let data;
+    try { data = JSON.parse(e.data); }
+    catch { return; }
+
+    if (data.type === 'error') {
+      sysLog('ERR', (data.message || 'SERVER REJECTED REQUEST').toUpperCase());
+      ws.close();
+      showAccessDenied();
+      return;
+    }
+
+    if (data.type === 'auth_ok' || data.type === 'handshake_ok') {
+      sysLog('SYS', 'HANDSHAKE VERIFIED — NEXUS ACCESS GRANTED');
+      return;
+    }
+
+    if (data.type === 'state') {
+      updateTelemetry(data);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    if (authDenied) return;
+    connected = false;
+    setStatus('warn', 'Link Lost — Reconnecting');
+    reconBanner.classList.add('visible');
+    sysLog('LINK', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
+    scheduleReconnect();
+  });
+
+  ws.addEventListener('error', () => {
+    sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE');
+  });
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connect, RECONNECT_INTERVAL);
+}
+
+// ═══════════════════════════════════════════════
+//  TELEMETRY UPDATE
+// ═══════════════════════════════════════════════
+function updateTelemetry(d) {
+  // ── Speed
+  if (d.speed !== undefined) {
+    const s = Math.round(d.speed);
+    $('speed-val').textContent = String(s).padStart(3,'0');
+  }
+
+  // ── Odometer
+  if (d.odometer !== undefined) {
+    const km = parseFloat(d.odometer).toLocaleString('en-US', { minimumFractionDigits:1, maximumFractionDigits:1 });
+    $('vid-odo').textContent = `[ ${km} KM ]`;
+  }
+
+  // ── G-Force
+  if (d.g_force !== undefined) {
+    const g = parseFloat(d.g_force);
+    $('gforce-val').textContent = g.toFixed(2);
+    const pct = Math.min(g / 2.0, 1) * 100;
+    const bar = $('gforce-bar');
+    bar.style.width = pct + '%';
+    const tag = $('stability-tag');
+    if (g < 0.5)       { bar.className='gforce-bar-fill'; tag.className='stability-tag'; tag.textContent='STABLE'; }
+    else if (g < 1.2)  { bar.className='gforce-bar-fill'; tag.className='stability-tag warn'; tag.textContent='MODERATE'; }
+    else               { bar.className='gforce-bar-fill high'; tag.className='stability-tag crit'; tag.textContent='HIGH-G'; }
+  }
+
+  // ── Acceleration
+  if (d.acceleration !== undefined) {
+    const a = parseFloat(d.acceleration);
+    $('accel-val').textContent = a.toFixed(1);
+    const segs = $('boost-segs');
+    const total = 10;
+    const lit = Math.round(Math.min(Math.abs(a) / 10, 1) * total);
+    segs.innerHTML = '';
+    for (let i=0; i<total; i++) {
+      const seg = document.createElement('div');
+      seg.className = 'boost-seg';
+      if (i < lit) {
+        seg.classList.add('lit');
+        if (i >= 7) seg.classList.add('max');
+        else if (i >= 5) seg.classList.add('high');
+      }
+      segs.appendChild(seg);
+    }
+    const lbl = $('boost-label');
+    if (a > 7)      { lbl.textContent='BOOST SURGE';  lbl.style.color='var(--red)'; }
+    else if (a > 4) { lbl.textContent='ACCELERATING'; lbl.style.color='#f59e0b'; }
+    else if (a < -2){ lbl.textContent='DECELERATING'; lbl.style.color='var(--slate-lt)'; }
+    else            { lbl.textContent='NOMINAL';       lbl.style.color='var(--cyan)'; }
+  }
+
+  // ── Fuel
+  if (d.fuel_percent !== undefined) {
+    const f = parseFloat(d.fuel_percent);
+    const fv = $('fuel-val');
+    const fb = $('fuel-bar');
+    const fs = $('fuel-status');
+    fv.textContent = Math.round(f);
+    fb.style.width = Math.min(f, 100) + '%';
+    fv.className='fuel-big'; fb.className='fuel-bar-fill';
+    if (f <= 10)      { fv.classList.add('crit'); fb.classList.add('crit'); fs.textContent='CRITICAL'; fs.style.color='var(--red)'; }
+    else if (f <= 25) { fv.classList.add('warn'); fb.classList.add('warn'); fs.textContent='LOW FUEL';  fs.style.color='#f59e0b'; }
+    else              { fs.textContent='NOMINAL'; fs.style.color='var(--cyan)'; }
+  }
+
+  // ── Media
+  const playing = d.music_playing === true || d.music_playing === 'true' || d.music_playing === 1;
+  if (d.music_title  !== undefined) $('media-title').textContent  = d.music_title  || 'No Signal';
+  if (d.music_artist !== undefined) $('media-artist').textContent = d.music_artist || '—';
+  updateVisualizer(playing);
+  const stateEl = $('media-state');
+  const syncDot = $('sync-dot');
+  if (playing) {
+    stateEl.textContent = '[ TRANSMITTING ]';
+    stateEl.className = 'media-state on';
+    syncDot.className = 'sync-dot';
+    $('sync-label').textContent = 'Now Syncing';
+  } else {
+    stateEl.textContent = '[ STANDBY ]';
+    stateEl.className = 'media-state off';
+    syncDot.className = 'sync-dot paused';
+    $('sync-label').textContent = 'Freq Monitor';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  VISUALIZER
+// ═══════════════════════════════════════════════
+const VIS_BARS = 14;
+const VIS_HEIGHTS = [8,16,24,32,28,20,36,24,16,30,22,10,18,26];
+
+function buildVisualizer() {
+  const wrap = $('visualizer');
+  wrap.innerHTML = '';
+  for (let i=0; i<VIS_BARS; i++) {
+    const b = document.createElement('div');
+    b.className = 'vis-bar paused';
+    const minH = 3 + Math.random()*4;
+    const maxH = 10 + Math.random()*28;
+    const dur  = 0.35 + Math.random()*0.55;
+    const del  = (Math.random()*0.4).toFixed(2);
+    b.style.setProperty('--min-h', minH+'px');
+    b.style.setProperty('--max-h', maxH+'px');
+    b.style.setProperty('--dur', dur+'s');
+    b.style.animationDelay = del+'s';
+    b.style.height = '3px';
+    wrap.appendChild(b);
+  }
+}
+
+let visPlaying = false;
+function updateVisualizer(playing) {
+  if (playing === visPlaying) return;
+  visPlaying = playing;
+  const bars = document.querySelectorAll('.vis-bar');
+  bars.forEach(b => {
+    b.className = 'vis-bar ' + (playing ? 'playing' : 'paused');
+    if (!playing) b.style.height = '3px';
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  BOOST SEGMENTS INIT
+// ═══════════════════════════════════════════════
+function initBoostSegs() {
+  const segs = $('boost-segs');
+  for (let i=0; i<10; i++) {
+    const s = document.createElement('div');
+    s.className = 'boost-seg';
+    segs.appendChild(s);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  DEMO MODE (no WS — fake data)
+// ═══════════════════════════════════════════════
+function startDemo() {
+  sysLog('WARN', 'NO AUTH PARAMS — DEMO MODE ACTIVE');
+  $('no-params-msg').style.display = 'block';
+  let t = 0;
+  setInterval(() => {
+    t += 0.05;
+    updateTelemetry({
+      speed:        Math.max(0, Math.round(60 + Math.sin(t)*45 + Math.random()*5)),
+      g_force:      parseFloat((0.3 + Math.abs(Math.sin(t*0.7))*1.4 + Math.random()*0.1).toFixed(2)),
+      acceleration: parseFloat((Math.sin(t*1.1)*8 + Math.random()*1).toFixed(1)),
+      fuel_percent: parseFloat((72 - t*0.05).toFixed(1)),
+      odometer:     parseFloat((12345.6 + t*0.1).toFixed(1)),
+      music_title:  'GHOST PROTOCOL',
+      music_artist: 'SYNTHETIC DIVISION',
+      music_playing: Math.sin(t) > -0.3,
+    });
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  buildVisualizer();
+  initBoostSegs();
+
+  $('vid-device').textContent = deviceId.toUpperCase();
+
+  // Remove init overlay after ~1.5s
+  setTimeout(() => {
+    initOverlay.classList.add('fade');
+    setTimeout(() => initOverlay.style.display='none', 650);
+    sysLog('SYS', `PASSENGER NEXUS ONLINE — UNIT ${deviceId.toUpperCase()}`);
+    sysLog('SYS', 'ENCRYPTED CHANNEL PROTOCOL ACTIVE');
+
+    if (isDemo) {
+      startDemo();
+    } else {
+      connect();
+    }
+  }, 1500);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
