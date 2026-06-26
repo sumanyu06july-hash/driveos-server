@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════
-//  DriveOS 2.0 — Relay Server
-//  Handles: WebSocket relay + /guest HTTP route
+//  DriveOS 2.0 — Relay Server v2.1
+//  - Master secret validation
+//  - Role-based access control (headunit / companion / guest)
+//  - Transparent pipe for encrypted export commands
+//  - Device-based isolation
 // ═══════════════════════════════════════════════
 
 const express   = require('express');
@@ -12,28 +15,58 @@ const path      = require('path');
 const GLOBAL_SECRET = process.env.DRIVEOS_SECRET || 'driveos2secret';
 const PORT          = process.env.PORT || 3000;
 
-// ── STATE ───────────────────────────────────────
+// Commands that must pass through untouched — no parsing, no modification
+const TRANSPARENT_PIPE_PREFIXES = [
+  'cmd_export_challenge',
+  'cmd_export_response',
+  'cmd_export_data'
+];
+
+// ── STATE ────────────────────────────────────────
 // devices['myaura001'] = {
-//   headunit:  <WebSocket>,
-//   guests:    Set<WebSocket>,
-//   tokens:    Set<string>,
-//   lastState: {}
+//   headunit:   <WebSocket> | null,
+//   companions: Set<WebSocket>,
+//   guests:     Set<WebSocket>,
+//   tokens:     Set<string>,
+//   lastState:  {} | null
 // }
 const devices = {};
 
 function getDevice(deviceId) {
   if (!devices[deviceId]) {
     devices[deviceId] = {
-      headunit:  null,
-      guests:    new Set(),
-      tokens:    new Set(),
-      lastState: null
+      headunit:   null,
+      companions: new Set(),
+      guests:     new Set(),
+      tokens:     new Set(),
+      lastState:  null
     };
   }
   return devices[deviceId];
 }
 
-// ── EXPRESS ─────────────────────────────────────
+// ── HELPERS ──────────────────────────────────────
+
+// Check if a raw message string is an encrypted export command
+// These must be forwarded as-is without JSON.parse
+function isTransparentPipe(raw) {
+  const str = raw.toString();
+  return TRANSPARENT_PIPE_PREFIXES.some(prefix => str.startsWith(prefix));
+}
+
+// Safely parse JSON — returns null if invalid
+function tryParse(raw) {
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+// Reject a connection with a reason
+function reject(ws, message, logMessage) {
+  ws.send(JSON.stringify({ type: 'error', message }));
+  ws.close();
+  console.log(`[REJECTED] ${logMessage}`);
+}
+
+// ── EXPRESS ──────────────────────────────────────
 const app    = express();
 const server = http.createServer(app);
 
@@ -45,7 +78,7 @@ app.get('/', (req, res) => {
   res.send('DriveOS 2.0 Relay — Online');
 });
 
-// ── WEBSOCKET ────────────────────────────────────
+// ── WEBSOCKET ─────────────────────────────────────
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws, req) => {
@@ -54,42 +87,77 @@ wss.on('connection', (ws, req) => {
   const device = url.searchParams.get('device');
   const secret = url.searchParams.get('secret');
 
-  // ════════════════════════════════
-  //  HEADUNIT
-  //  URL: wss://...?role=headunit&device=myaura001&secret=driveos2secret
-  // ════════════════════════════════
-  if (role === 'headunit') {
-
+  // ── STEP 1: MASTER SECRET CHECK ──
+  // Every role except guest must pass the secret
+  // Guest auth is handled via token after connection
+  if (role !== 'guest') {
     if (secret !== GLOBAL_SECRET) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid secret' }));
-      ws.close();
-      console.log(`[HEADUNIT] Rejected — bad secret. Device: ${device}`);
-      return;
+      return reject(ws,
+        'Invalid secret',
+        `role=${role} device=${device} — bad secret, connection refused`
+      );
+    }
+  }
+
+  // ── STEP 2: DEVICE CHECK ──
+  if (role !== 'guest' && !device) {
+    return reject(ws,
+      'Device ID required',
+      `role=${role} — missing device ID`
+    );
+  }
+
+  // ════════════════════════════════════════
+  //  HEADUNIT
+  //  wss://...?role=headunit&device=myaura001&secret=driveos2secret
+  //  - Only one allowed per device
+  //  - Only role allowed to PUSH state
+  //  - Transparent pipe for encrypted export commands → Companion
+  // ════════════════════════════════════════
+  if (role === 'headunit') {
+    const dev = getDevice(device);
+
+    // Only one headunit per device allowed
+    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+      return reject(ws,
+        'Headunit already connected for this device',
+        `device=${device} — duplicate headunit rejected`
+      );
     }
 
-    if (!device) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Device ID required' }));
-      ws.close();
-      return;
-    }
-
-    const dev    = getDevice(device);
     dev.headunit = ws;
     console.log(`[HEADUNIT] Connected — device: ${device}`);
     ws.send(JSON.stringify({ type: 'headunit_auth_ok', message: 'Relay active' }));
 
     ws.on('message', (raw) => {
-      let data;
-      try { data = JSON.parse(raw); } catch { return; }
 
-      // Broadcast state to all authenticated guests
+      // ── TRANSPARENT PIPE ──
+      // Encrypted export commands go straight to companions, untouched
+      if (isTransparentPipe(raw)) {
+        console.log(`[PIPE] Headunit → Companion | device: ${device} | ${raw.toString().substring(0, 30)}...`);
+        dev.companions.forEach(companion => {
+          if (companion.readyState === WebSocket.OPEN) {
+            companion.send(raw); // forward raw bytes, no modification
+          }
+        });
+        return;
+      }
+
+      const data = tryParse(raw);
+      if (!data) return;
+
+      // ── STATE BROADCAST ──
+      // Headunit pushes state → relay fans out to companions + guests
       if (data.type === 'state') {
         dev.lastState = data;
         const payload = JSON.stringify(data);
-        dev.guests.forEach(guest => {
-          if (guest.readyState === WebSocket.OPEN) {
-            guest.send(payload);
-          }
+
+        dev.companions.forEach(c => {
+          if (c.readyState === WebSocket.OPEN) c.send(payload);
+        });
+
+        dev.guests.forEach(g => {
+          if (g.readyState === WebSocket.OPEN) g.send(payload);
         });
       }
     });
@@ -97,91 +165,105 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
       dev.headunit = null;
       console.log(`[HEADUNIT] Disconnected — device: ${device}`);
-      dev.guests.forEach(guest => {
-        if (guest.readyState === WebSocket.OPEN) {
-          guest.send(JSON.stringify({
-            type: 'error',
-            message: 'Headunit disconnected'
-          }));
-        }
-      });
+
+      // Notify all connected clients
+      const notice = JSON.stringify({ type: 'error', message: 'Headunit disconnected' });
+      dev.companions.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(notice); });
+      dev.guests.forEach(g => {     if (g.readyState === WebSocket.OPEN) g.send(notice); });
     });
 
-    ws.on('error', (err) => {
+    ws.on('error', err => {
       console.error(`[HEADUNIT] Error — device: ${device}:`, err.message);
     });
 
     return;
   }
 
-  // ════════════════════════════════
+  // ════════════════════════════════════════
   //  COMPANION APP
-  //  URL: wss://...?role=companion&device=myaura001&secret=driveos2secret
-  // ════════════════════════════════
+  //  wss://...?role=companion&device=myaura001&secret=driveos2secret
+  //  - Can register guest tokens
+  //  - Can PULL state
+  //  - Receives transparent pipe commands from headunit
+  //  - CANNOT push state to car
+  // ════════════════════════════════════════
   if (role === 'companion') {
-
-    if (secret !== GLOBAL_SECRET) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid secret' }));
-      ws.close();
-      console.log(`[COMPANION] Rejected — bad secret. Device: ${device}`);
-      return;
-    }
-
-    if (!device) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Device ID required' }));
-      ws.close();
-      return;
-    }
+    const dev = getDevice(device);
+    dev.companions.add(ws);
 
     console.log(`[COMPANION] Connected — device: ${device}`);
     ws.send(JSON.stringify({ type: 'companion_auth_ok', message: 'Companion connected' }));
 
+    // Send last known state immediately
+    if (dev.lastState) {
+      ws.send(JSON.stringify(dev.lastState));
+    }
+
     ws.on('message', (raw) => {
-      let data;
-      try { data = JSON.parse(raw); } catch { return; }
+
+      // ── TRANSPARENT PIPE ──
+      // Encrypted export responses go back to headunit, untouched
+      if (isTransparentPipe(raw)) {
+        console.log(`[PIPE] Companion → Headunit | device: ${device} | ${raw.toString().substring(0, 30)}...`);
+        if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+          dev.headunit.send(raw); // forward raw bytes, no modification
+        }
+        return;
+      }
+
+      const data = tryParse(raw);
+      if (!data) return;
 
       // ── TOKEN REGISTRATION ──
-      // Companion sends: {"type":"register_token","token":"a3f9b2c1","device":"myaura001"}
+      // Companion registers a guest token before showing QR code
+      // {"type":"register_token","token":"a3f9b2c1","device":"myaura001"}
       if (data.type === 'register_token') {
         if (!data.token || !data.device) {
           ws.send(JSON.stringify({ type: 'error', message: 'Token and device required' }));
           return;
         }
-        const dev = getDevice(data.device);
-        dev.tokens.add(data.token);
+        const targetDev = getDevice(data.device);
+        targetDev.tokens.add(data.token);
         console.log(`[TOKEN] Registered — token: ${data.token} | device: ${data.device}`);
         ws.send(JSON.stringify({ type: 'token_registered', token: data.token }));
+        return;
+      }
+
+      // Block any attempt to push state from companion
+      if (data.type === 'state') {
+        ws.send(JSON.stringify({ type: 'error', message: 'Companions cannot push state' }));
         return;
       }
     });
 
     ws.on('close', () => {
+      dev.companions.delete(ws);
       console.log(`[COMPANION] Disconnected — device: ${device}`);
     });
 
-    ws.on('error', (err) => {
-      console.error(`[COMPANION] Error:`, err.message);
+    ws.on('error', err => {
+      console.error(`[COMPANION] Error — device: ${device}:`, err.message);
     });
 
     return;
   }
 
-  // ════════════════════════════════
+  // ════════════════════════════════════════
   //  GUEST PAGE
-  //  URL: wss://...?role=guest
-  //  Auth via JSON handshake after connect
-  // ════════════════════════════════
+  //  wss://...?role=guest
+  //  - Auth via JSON handshake after connect
+  //  - Can ONLY receive state — cannot send anything to car
+  //  - Token is one-time use
+  // ════════════════════════════════════════
   if (role === 'guest') {
-
     console.log(`[GUEST] Connected — awaiting auth`);
     ws._authenticated = false;
 
     ws.on('message', (raw) => {
-      let data;
-      try { data = JSON.parse(raw); } catch { return; }
+      const data = tryParse(raw);
+      if (!data) return;
 
       // ── GUEST AUTH HANDSHAKE ──
-      // Guest sends: {"type":"guest_auth","device":"myaura001","token":"a3f9b2c1"}
       if (data.type === 'guest_auth') {
         const { device: gDevice, token } = data;
 
@@ -204,7 +286,7 @@ wss.on('connection', (ws, req) => {
         ws._authenticated = true;
         ws._device        = gDevice;
         dev.guests.add(ws);
-        dev.tokens.delete(token); // one-time use — token is burned after use
+        dev.tokens.delete(token); // burned — one-time use
 
         console.log(`[GUEST] Authenticated — device: ${gDevice}`);
         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
@@ -217,11 +299,10 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // Block unauthenticated messages
-      if (!ws._authenticated) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
-        ws.close();
-      }
+      // ── BLOCK ALL OTHER MESSAGES FROM GUESTS ──
+      // Guests can ONLY receive — they cannot send commands to the car
+      ws.send(JSON.stringify({ type: 'error', message: 'Guests cannot send commands' }));
+      console.log(`[GUEST] Blocked outbound message — type: ${data.type}`);
     });
 
     ws.on('close', () => {
@@ -231,20 +312,18 @@ wss.on('connection', (ws, req) => {
       }
     });
 
-    ws.on('error', (err) => {
+    ws.on('error', err => {
       console.error(`[GUEST] Error:`, err.message);
     });
 
     return;
   }
 
-  // Unknown role
-  ws.send(JSON.stringify({ type: 'error', message: 'Unknown role' }));
-  ws.close();
-  console.log(`[CONNECTION] Rejected — unknown role: ${role}`);
+  // Unknown role — hard reject
+  return reject(ws, 'Unknown role', `Unknown role: ${role}`);
 });
 
-// ── START ────────────────────────────────────────
+// ── START ─────────────────────────────────────────
 server.listen(PORT, () => {
   console.log(`DriveOS 2.0 Relay running on port ${PORT}`);
 });
