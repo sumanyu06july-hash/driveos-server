@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════
-//  DriveOS 2.0 — Relay Server v2.3 (Production)
+//  DriveOS 2.0 — Relay Server v2.4 (Debug Mode)
 //  - Master secret validation
 //  - Role-based access control (headunit / companion / guest)
 //  - Transparent pipe for encrypted export commands
 //  - Device-based isolation
 //  - Ghost connection override fix for headunits
-//  - Companion-to-Headunit control command relay (Aligned with cmd_*)
+//  - Companion-to-Headunit control command relay
+//  - Enhanced Guest Auth Debug Logs
 // ═══════════════════════════════════════════════
 
 const express   = require('express');
@@ -17,7 +18,6 @@ const path      = require('path');
 const GLOBAL_SECRET = process.env.DRIVEOS_SECRET || 'driveos2secret';
 const PORT          = process.env.PORT || 3000;
 
-// Commands that must pass through untouched — no parsing, no modification
 const TRANSPARENT_PIPE_PREFIXES = [
   'cmd_export_challenge',
   'cmd_export_response',
@@ -77,14 +77,12 @@ wss.on('connection', (ws, req) => {
   const device = url.searchParams.get('device');
   const secret = url.searchParams.get('secret');
 
-  // ── STEP 1: MASTER SECRET CHECK ──
   if (role !== 'guest') {
     if (secret !== GLOBAL_SECRET) {
       return reject(ws, 'Invalid secret', `role=${role} device=${device} — bad secret`);
     }
   }
 
-  // ── STEP 2: DEVICE CHECK ──
   if (role !== 'guest' && !device) {
     return reject(ws, 'Device ID required', `role=${role} — missing device ID`);
   }
@@ -95,7 +93,6 @@ wss.on('connection', (ws, req) => {
   if (role === 'headunit') {
     const dev = getDevice(device);
 
-    // KICK GHOST INSTANCE
     if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
       console.log(`[CONFLICT] Ghost headunit detected for device=${device}. Terminating old instance...`);
       try {
@@ -167,7 +164,6 @@ wss.on('connection', (ws, req) => {
       const data = tryParse(raw);
       if (!data) return;
 
-      // MATCH DYNAMIC APP COMMAND ENVELOPE (cmd_*)
       if (data.type === 'control' || data.type === 'command' || (data.type && data.type.startsWith('cmd_'))) {
         if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
           console.log(`[CONTROL] Relaying companion action (${data.type}) to headunit for device: ${device}`);
@@ -178,11 +174,11 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // REGISTER GUEST TOKEN
       if (data.type === 'register_token') {
         if (!data.token || !data.device) return;
         const targetDev = getDevice(data.device);
         targetDev.tokens.add(data.token);
+        console.log(`[TOKEN_REGISTERED] Saved token: ${data.token} for device: ${data.device}`);
         ws.send(JSON.stringify({ type: 'token_registered', token: data.token }));
         return;
       }
@@ -206,16 +202,30 @@ wss.on('connection', (ws, req) => {
   // ════════════════════════════════════════
   if (role === 'guest') {
     ws._authenticated = false;
+    console.log(`[GUEST] Socket connected, awaiting handshake authentication payload...`);
+
     ws.on('message', (raw) => {
       const data = tryParse(raw);
-      if (!data) return;
+      if (!data) {
+        console.log(`[GUEST_DEBUG] Failed to parse raw message: ${raw.toString()}`);
+        return;
+      }
 
       if (data.type === 'guest_auth') {
         const { device: gDevice, token } = data;
-        if (!gDevice || !token) return ws.close();
+        console.log(`[GUEST_AUTH_ATTEMPT] Checking device: "${gDevice}" with token: "${token}"`);
+
+        if (!gDevice || !token) {
+          console.log(`[GUEST_DEBUG] Missing parameter. device=${gDevice}, token=${token}`);
+          ws.send(JSON.stringify({ type: 'error', message: 'Device and token required' }));
+          return ws.close();
+        }
+
         const dev = getDevice(gDevice);
+        console.log(`[GUEST_DEBUG] Active valid tokens in server memory for ${gDevice}:`, Array.from(dev.tokens));
 
         if (!dev.tokens.has(token)) {
+          console.log(`[GUEST_AUTH_FAIL] Token matching failed. "${token}" not found in server list.`);
           ws.send(JSON.stringify({ type: 'error', message: 'Invalid Token' }));
           return ws.close();
         }
@@ -223,8 +233,11 @@ wss.on('connection', (ws, req) => {
         ws._authenticated = true;
         ws._device        = gDevice;
         dev.guests.add(ws);
-        dev.tokens.delete(token);
+        
+        // Temporarily commented out to allow easier debugging and prevent accidental double-loads burning the token
+        // dev.tokens.delete(token);
 
+        console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${gDevice}`);
         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
         return;
@@ -234,6 +247,7 @@ wss.on('connection', (ws, req) => {
 
     ws.on('close', () => {
       if (ws._device) getDevice(ws._device).guests.delete(ws);
+      console.log(`[GUEST] Socket connection closed.`);
     });
     return;
   }
