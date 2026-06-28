@@ -1,260 +1,270 @@
-// ═══════════════════════════════════════════════
-//  DriveOS 2.0 — Relay Server v2.4 (Debug Mode)
-//  - Master secret validation
-//  - Role-based access control (headunit / companion / guest)
-//  - Transparent pipe for encrypted export commands
-//  - Device-based isolation
-//  - Ghost connection override fix for headunits
-//  - Companion-to-Headunit control command relay
-//  - Enhanced Guest Auth Debug Logs
-// ═══════════════════════════════════════════════
-
-const express   = require('express');
-const http      = require('http');
+const express = require('express');
+const http = require('http');
 const WebSocket = require('ws');
-const path      = require('path');
+const path = require('path');
 
-// ── CONFIG ──────────────────────────────────────
-const GLOBAL_SECRET = process.env.DRIVEOS_SECRET || 'driveos2secret';
-const PORT          = process.env.PORT || 3000;
-
-const TRANSPARENT_PIPE_PREFIXES = [
-  'cmd_export_challenge',
-  'cmd_export_response',
-  'cmd_export_data'
-];
-
-// ── STATE ────────────────────────────────────────
-const devices = {};
-
-function getDevice(deviceId) {
-  if (!devices[deviceId]) {
-    devices[deviceId] = {
-      headunit:   null,
-      companions: new Set(),
-      guests:     new Set(),
-      tokens:     new Set(),
-      lastState:  null
-    };
-  }
-  return devices[deviceId];
-}
-
-// ── HELPERS ──────────────────────────────────────
-function isTransparentPipe(raw) {
-  const str = raw.toString();
-  return TRANSPARENT_PIPE_PREFIXES.some(prefix => str.startsWith(prefix));
-}
-
-function tryParse(raw) {
-  try { return JSON.parse(raw); } catch { return null; }
-}
-
-function reject(ws, message, logMessage) {
-  ws.send(JSON.stringify({ type: 'error', message }));
-  ws.close();
-  console.log(`[REJECTED] ${logMessage}`);
-}
-
-// ── EXPRESS ──────────────────────────────────────
-const app    = express();
+const app = express();
 const server = http.createServer(app);
-
-app.get('/guest', (req, res) => {
-  res.sendFile(path.join(__dirname, 'guest.html'));
-});
-
-app.get('/', (req, res) => {
-  res.send('DriveOS 2.0 Relay — Online');
-});
-
-// ── WEBSOCKET ─────────────────────────────────────
 const wss = new WebSocket.Server({ server });
 
+const PORT = process.env.PORT || 3000;
+const GLOBAL_SECRET = 'driveos2secret';
+
+// State management for devices, live telemetry, and summary handshakes
+const devices = new Map();
+
+function getDevice(id) {
+    if (!devices.has(id)) {
+        devices.set(id, {
+            headunit: null,
+            companion: null,
+            guests: new Set(),
+            summaryClients: new Map(), // Active web browsers waiting for a specific token validation
+            summaryTokens: new Map(),  // Volatile storage for encrypted summaries mapped to tokens
+            lastState: null
+        });
+    }
+    return devices.get(id);
+}
+
+// Serve the static cyber dashboard layouts
+app.get('/guest', (req, res) => {
+    res.sendFile(path.join(__dirname, 'guest.html'));
+});
+
+app.get('/summary', (req, res) => {
+    res.sendFile(path.join(__dirname, 'summary.html'));
+});
+
+// Clean rejection pipeline
+function reject(ws, type, message) {
+    console.warn(`[REJECT] ${type} — ${message}`);
+    try {
+        ws.send(JSON.stringify({ type: 'error', message }));
+        ws.close();
+    } catch (e) {
+        console.error('[REJECT_ERR] Failed to cleanly disconnect socket:', e.message);
+    }
+}
+
+// Global WebSocket Logic Layer
 wss.on('connection', (ws, req) => {
-  const url    = new URL(req.url, 'http://localhost');
-  const role   = url.searchParams.get('role');
-  const device = url.searchParams.get('device');
-  const secret = url.searchParams.get('secret');
+    const urlParams = new URLSearchParams(req.url.split('?')[1]);
+    const role = urlParams.get('role');
+    const deviceId = urlParams.get('device') || urlParams.get('deviceId');
+    const token = urlParams.get('token');
 
-  if (role !== 'guest') {
-    if (secret !== GLOBAL_SECRET) {
-      return reject(ws, 'Invalid secret', `role=${role} device=${device} — bad secret`);
-    }
-  }
-
-  if (role !== 'guest' && !device) {
-    return reject(ws, 'Device ID required', `role=${role} — missing device ID`);
-  }
-
-  // ════════════════════════════════════════
-  //  HEADUNIT
-  // ════════════════════════════════════════
-  if (role === 'headunit') {
-    const dev = getDevice(device);
-
-    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-      console.log(`[CONFLICT] Ghost headunit detected for device=${device}. Terminating old instance...`);
-      try {
-        dev.headunit.send(JSON.stringify({ type: 'error', message: 'Newer connection instance took over' }));
-        dev.headunit.close();
-      } catch (e) {
-        console.error(`Failed to close ghost headunit: ${e.message}`);
-      }
+    if (!role || !deviceId) {
+        return reject(ws, 'BAD_HANDSHAKE', 'Missing core routing parameters (role/device).');
     }
 
-    dev.headunit = ws;
-    console.log(`[HEADUNIT] Connected — device: ${device}`);
-    ws.send(JSON.stringify({ type: 'headunit_auth_ok', message: 'Relay active' }));
+    const dev = getDevice(deviceId);
 
-    ws.on('message', (raw) => {
-      if (isTransparentPipe(raw)) {
-        dev.companions.forEach(companion => {
-          if (companion.readyState === WebSocket.OPEN) companion.send(raw);
+    // ── ROLE BRANCH: WEB SUMMARY CLIENT ─────────────────────────────────────
+    if (role === 'summary_client') {
+        if (!token) {
+            return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
+        }
+
+        // Check if the token even exists in memory first
+        if (!dev.summaryTokens.has(token)) {
+            return reject(ws, 'SUMMARY_EXPIRED', 'The snapshot verification link is invalid or has expired.');
+        }
+
+        ws._role = 'summary_client';
+        ws._device = deviceId;
+        ws._token = token;
+
+        // Register the client browser into our active gateway waiting map array
+        dev.summaryClients.set(token, ws);
+        console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for token: ${token}`);
+
+        // Immediately drop the security holding pattern frame telling the UI to show the authorization prompt
+        ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+
+        // Route a push alert down to the Companion App phone to ask for validation
+        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+            console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
+            dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
+        } else {
+            console.warn(`[GATEWAY_WARN] Companion app offline. Cannot authorize summary access for token: ${token}`);
+        }
+
+        ws.on('close', () => {
+            if (dev.summaryClients.get(token) === ws) {
+                dev.summaryClients.delete(token);
+                console.log(`[GATEWAY_LOUNGE] Browser disconnected from holding lounge for token: ${token}`);
+            }
         });
         return;
-      }
-
-      const data = tryParse(raw);
-      if (!data) return;
-
-      if (data.type === 'state') {
-        dev.lastState = data;
-        const payload = JSON.stringify(data);
-        dev.companions.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(payload); });
-        dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(payload); });
-      }
-    });
-
-    ws.on('close', () => {
-      if (dev.headunit === ws) {
-        dev.headunit = null;
-        console.log(`[HEADUNIT] Disconnected — device: ${device}`);
-        const notice = JSON.stringify({ type: 'error', message: 'Headunit disconnected' });
-        dev.companions.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(notice); });
-        dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(notice); });
-      }
-    });
-
-    return;
-  }
-
-  // ════════════════════════════════════════
-  //  COMPANION APP
-  // ════════════════════════════════════════
-  if (role === 'companion') {
-    const dev = getDevice(device);
-    dev.companions.add(ws);
-
-    console.log(`[COMPANION] Connected — device: ${device}`);
-    ws.send(JSON.stringify({ type: 'companion_auth_ok', message: 'Companion connected' }));
-
-    if (dev.lastState) {
-      ws.send(JSON.stringify(dev.lastState));
     }
 
-    ws.on('message', (raw) => {
-      if (isTransparentPipe(raw)) {
-        if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-          dev.headunit.send(raw);
-        }
-        return;
-      }
-
-      const data = tryParse(raw);
-      if (!data) return;
-
-      if (data.type === 'control' || data.type === 'command' || (data.type && data.type.startsWith('cmd_'))) {
-        if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-          console.log(`[CONTROL] Relaying companion action (${data.type}) to headunit for device: ${device}`);
-          dev.headunit.send(JSON.stringify(data));
-        } else {
-          ws.send(JSON.stringify({ type: 'error', message: 'Headunit offline. Command undeliverable.' }));
-        }
-        return;
-      }
-
-      if (data.type === 'register_token') {
-        if (!data.token || !data.device) return;
-        const targetDev = getDevice(data.device);
-        targetDev.tokens.add(data.token);
-        console.log(`[TOKEN_REGISTERED] Saved token: ${data.token} for device: ${data.device}`);
-        ws.send(JSON.stringify({ type: 'token_registered', token: data.token }));
-        return;
-      }
-
-      if (data.type === 'state') {
-        ws.send(JSON.stringify({ type: 'error', message: 'Companions cannot push state directly' }));
-        return;
-      }
-    });
-
-    ws.on('close', () => {
-      dev.companions.delete(ws);
-      console.log(`[COMPANION] Disconnected — device: ${device}`);
-    });
-
-    return;
-  }
-
-  // ════════════════════════════════════════
-  //  GUEST PAGE
-  // ════════════════════════════════════════
-  if (role === 'guest') {
-    ws._authenticated = false;
-    console.log(`[GUEST] Socket connected, awaiting handshake authentication payload...`);
-
-    ws.on('message', (raw) => {
-      const data = tryParse(raw);
-      if (!data) {
-        console.log(`[GUEST_DEBUG] Failed to parse raw message: ${raw.toString()}`);
-        return;
-      }
-
-      if (data.type === 'guest_auth') {
-        const { device: gDevice, token } = data;
-        console.log(`[GUEST_AUTH_ATTEMPT] Checking device: "${gDevice}" with token: "${token}"`);
-
-        if (!gDevice || !token) {
-          console.log(`[GUEST_DEBUG] Missing parameter. device=${gDevice}, token=${token}`);
-          ws.send(JSON.stringify({ type: 'error', message: 'Device and token required' }));
-          return ws.close();
+    // ── ROLE BRANCH: HEADUNIT TABLET ────────────────────────────────────────
+    if (role === 'headunit') {
+        const secret = urlParams.get('secret');
+        if (secret !== GLOBAL_SECRET) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid global infrastructure handshake key.');
         }
 
-        const dev = getDevice(gDevice);
-        console.log(`[GUEST_DEBUG] Active valid tokens in server memory for ${gDevice}:`, Array.from(dev.tokens));
-
-        if (!dev.tokens.has(token)) {
-          console.log(`[GUEST_AUTH_FAIL] Token matching failed. "${token}" not found in server list.`);
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid Token' }));
-          return ws.close();
+        if (dev.headunit) {
+            console.log(`[CONFLICT] Ghost headunit detected for device=${deviceId}. Terminating old instance...`);
+            dev.headunit.send(JSON.stringify({ type: 'error', message: 'Newer connection instance took over.' }));
+            dev.headunit.close();
         }
 
-        ws._authenticated = true;
-        ws._device        = gDevice;
-        dev.guests.add(ws);
-        
-        // Temporarily commented out to allow easier debugging and prevent accidental double-loads burning the token
-         dev.tokens.delete(token);
+        dev.headunit = ws;
+        ws._device = deviceId;
+        console.log(`[HEADUNIT] Connected — device: ${deviceId}`);
 
-        console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${gDevice}`);
-        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
-        if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
+        ws.on('message', (message) => {
+            try {
+                const msg = JSON.parse(message);
+
+                // Handle inbound payload caching requests from vehicle logs
+                if (msg.type === 'register_summary_token') {
+                    const targetToken = msg.token;
+                    const encryptedData = msg.data;
+
+                    if (!targetToken || !encryptedData) {
+                        console.warn('[SUMMARY_REJECT] Inbound snapshot data missing token or structural payload blocks.');
+                        return;
+                    }
+
+                    // Save raw data directly into state map memory tracking array
+                    dev.summaryTokens.set(targetToken, encryptedData);
+                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
+                    
+                    // Set a proactive 30-minute volatile sweep rule to prevent memory leaks from forgotten codes
+                    setTimeout(() => {
+                        if (dev.summaryTokens.has(targetToken)) {
+                            dev.summaryTokens.delete(targetToken);
+                            dev.summaryClients.delete(targetToken);
+                            console.log(`[SUMMARY_PURGE] Token ${targetToken} automatically swept after 30 minute lifespan window expiring.`);
+                        }
+                    }, 30 * 60 * 1000);
+                    return;
+                }
+
+                // Standard real-time dashboard telemetry streams
+                if (msg.type === 'state') {
+                    dev.lastState = msg;
+                    dev.guests.forEach(guest => {
+                        if (guest.readyState === WebSocket.OPEN) {
+                            guest.send(JSON.stringify(msg));
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('[HEADUNIT_MSG_ERR] Error parsing frame payload data:', err.message);
+            }
+        });
+
+        ws.on('close', () => {
+            if (dev.headunit === ws) dev.headunit = null;
+            console.log(`[HEADUNIT] Device connection dropped for identity: ${deviceId}`);
+        });
         return;
-      }
-      ws.send(JSON.stringify({ type: 'error', message: 'Guests cannot send commands' }));
-    });
+    }
 
-    ws.on('close', () => {
-      if (ws._device) getDevice(ws._device).guests.delete(ws);
-      console.log(`[GUEST] Socket connection closed.`);
-    });
-    return;
-  }
+    // ── ROLE BRANCH: COMPANION APP PHONE ────────────────────────────────────
+    if (role === 'companion') {
+        const secret = urlParams.get('secret');
+        if (secret !== GLOBAL_SECRET) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid global infrastructure companion access authorization.');
+        }
 
-  return reject(ws, 'Unknown role', `Unknown role: ${role}`);
+        if (dev.companion) {
+            console.log(`[CONFLICT] Ghost companion detected for device=${deviceId}. Swapping routing sockets...`);
+            dev.companion.close();
+        }
+
+        dev.companion = ws;
+        ws._device = deviceId;
+        console.log(`[COMPANION] Connected — remote device handler: ${deviceId}`);
+
+        ws.on('message', (message) => {
+            try {
+                const msg = JSON.parse(message);
+
+                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE
+                if (msg.type === 'approve_summary_access') {
+                    const targetToken = msg.token;
+                    console.log(`[GATEWAY_SIGNAL] Companion explicitly APPROVED web browser access request for token: ${targetToken}`);
+
+                    const browserClient = dev.summaryClients.get(targetToken);
+                    const cachedDataString = dev.summaryTokens.get(targetToken);
+
+                    if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
+                        // Forward the data down the line to match the contract
+                        browserClient.send(JSON.stringify({
+                            type: 'summary_payload',
+                            data: cachedDataString
+                        }));
+                        console.log(`[GATEWAY_RELEASE] Dispatched secure ciphertext payload out to target client screen. Firing Burn Rule.`);
+                    } else {
+                        console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing during verification.`);
+                    }
+
+                    // Strict immediate execution of Single-Use destruction protocol
+                    dev.summaryTokens.delete(targetToken);
+                    dev.summaryClients.delete(targetToken);
+                    return;
+                }
+
+                // Forward operational commands to tablet layout line
+                if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                    dev.headunit.send(JSON.stringify(msg));
+                }
+            } catch (err) {
+                console.error('[COMPANION_MSG_ERR] Error extracting companion control frame array:', err.message);
+            }
+        });
+
+        ws.on('close', () => {
+            if (dev.companion === ws) dev.companion = null;
+            console.log(`[COMPANION] Controller phone layer detached for: ${deviceId}`);
+        });
+        return;
+    }
+
+    // ── ROLE BRANCH: PASSENGER LIVE GUEST LAYOUT ─────────────────────────────
+    if (role === 'guest') {
+        ws._authenticated = false;
+        ws._device = deviceId;
+
+        ws.on('message', (message) => {
+            try {
+                const msg = JSON.parse(message);
+                if (msg.type === 'guest_auth') {
+                    const targetToken = msg.token;
+                    if (dev.summaryTokens.has(targetToken)) {
+                        ws._authenticated = true;
+                        dev.guests.add(ws);
+                        dev.summaryTokens.delete(targetToken); // Burn on usage
+
+                        console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${deviceId}`);
+                        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
+                        if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
+                        return;
+                    }
+                    return reject(ws, 'AUTH_FAILED', 'Invalid verification sequence mapping keys.');
+                }
+                ws.send(JSON.stringify({ type: 'error', message: 'Guests cannot broadcast functional control commands.' }));
+            } catch (err) {
+                return reject(ws, 'PARSE_ERROR', 'Malformed data frame mapping properties array.');
+            }
+        });
+
+        ws.on('close', () => {
+            dev.guests.delete(ws);
+            console.log(`[GUEST] Socket connection closed cleanly.`);
+        });
+        return;
+    }
+
+    return reject(ws, 'UNKNOWN_ROLE', `Passed system identifier string role variant is unmapped: ${role}`);
 });
 
 server.listen(PORT, () => {
-  console.log(`DriveOS 2.0 Relay running on port ${PORT}`);
+    console.log(`DriveOS 2.0 Central Hybrid Relay running on configuration port ${PORT}`);
 });
