@@ -240,8 +240,8 @@ wss.on('connection', (ws, req) => {
                     if (dev.summaryTokens.has(targetToken)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
-                        dev.summaryTokens.delete(targetToken); // Burn on usage
 
+                        // FIX: Token is preserved here. It will only be destroyed upon explicit Companion approval.
                         console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${deviceId}`);
                         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
