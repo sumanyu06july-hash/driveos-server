@@ -914,7 +914,9 @@
 // ═══════════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════════
-const WS_URL     = 'wss://driveos-relay.onrender.com';
+// Dynamic WS URL calculation based on the current domain
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
 
 const params   = new URLSearchParams(location.search);
