@@ -66,7 +66,6 @@ wss.on('connection', (ws, req) => {
             return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
         }
 
-        // Check if the token even exists in memory first
         if (!dev.summaryTokens.has(token)) {
             return reject(ws, 'SUMMARY_EXPIRED', 'The snapshot verification link is invalid or has expired.');
         }
@@ -75,14 +74,11 @@ wss.on('connection', (ws, req) => {
         ws._device = deviceId;
         ws._token = token;
 
-        // Register the client browser into our active gateway waiting map array
         dev.summaryClients.set(token, ws);
         console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for token: ${token}`);
 
-        // Immediately drop the security holding pattern frame telling the UI to show the authorization prompt
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
 
-        // Route a push alert down to the Companion App phone to ask for validation
         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
             console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
             dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
@@ -120,23 +116,17 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
 
-                // Handle inbound payload caching requests from vehicle logs
                 if (msg.type === 'register_summary_token') {
                     const targetToken = msg.token;
                     const encryptedData = msg.data;
 
-                    if (!targetToken || !encryptedData) {
-                        console.warn('[SUMMARY_REJECT] Inbound snapshot data missing token or structural payload blocks.');
-                        return;
-                    }
+                    if (!targetToken || !encryptedData) return;
 
-                    // Save raw data directly into state map memory tracking array
                     dev.summaryTokens.set(targetToken, encryptedData);
-                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
+                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary data against token: ${targetToken}`);
                     return;
                 }
 
-                // Standard real-time dashboard telemetry streams
                 if (msg.type === 'state') {
                     dev.lastState = msg;
                     dev.guests.forEach(guest => {
@@ -177,7 +167,6 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
 
-                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE
                 if (msg.type === 'approve_summary_access') {
                     const targetToken = msg.token;
                     console.log(`[GATEWAY_SIGNAL] Companion explicitly APPROVED web browser access request for token: ${targetToken}`);
@@ -186,23 +175,21 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
-                        // Forward the data down the line to match the contract
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
                         }));
                         console.log(`[GATEWAY_RELEASE] Dispatched secure ciphertext payload out to target client screen. Firing Burn Rule.`);
                     } else {
-                        console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing during verification.`);
+                        console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
-                    // Strict immediate execution of Single-Use destruction protocol
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
-                    return;
+                    return; // Explicit stop to prevent passing to tablet line
                 }
 
-                // Forward operational commands to tablet layout line
+                // Only forward non-auth actions down to tablet layout line
                 if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                     dev.headunit.send(JSON.stringify(msg));
                 }
@@ -231,8 +218,6 @@ wss.on('connection', (ws, req) => {
                     if (dev.summaryTokens.has(targetToken)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
-
-                        // TOKEN SAFELY PRESERVED: Left fully intact for summary_client access loop.
                         console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${deviceId}`);
                         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0 Live Passenger Stream' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
