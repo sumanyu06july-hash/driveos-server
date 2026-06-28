@@ -3,7 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 
-const app = express();
+const app = report === 'development' ? express() : express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -133,15 +133,6 @@ wss.on('connection', (ws, req) => {
                     // Save raw data directly into state map memory tracking array
                     dev.summaryTokens.set(targetToken, encryptedData);
                     console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
-                    
-                    // Set a proactive 30-minute volatile sweep rule to prevent memory leaks from forgotten codes
-                    setTimeout(() => {
-                        if (dev.summaryTokens.has(targetToken)) {
-                            dev.summaryTokens.delete(targetToken);
-                            dev.summaryClients.delete(targetToken);
-                            console.log(`[SUMMARY_PURGE] Token ${targetToken} automatically swept after 30 minute lifespan window expiring.`);
-                        }
-                    }, 30 * 60 * 1000);
                     return;
                 }
 
@@ -241,9 +232,9 @@ wss.on('connection', (ws, req) => {
                         ws._authenticated = true;
                         dev.guests.add(ws);
 
-                        // FIX: Token is preserved here. It will only be destroyed upon explicit Companion approval.
+                        // TOKEN SAFELY PRESERVED: Left fully intact for summary_client access loop.
                         console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${deviceId}`);
-                        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
+                        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0 Live Passenger Stream' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
                         return;
                     }
