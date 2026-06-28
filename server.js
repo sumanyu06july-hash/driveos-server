@@ -235,7 +235,7 @@ wss.on('connection', (ws, req) => {
         dev.guests.add(ws);
         
         // Temporarily commented out to allow easier debugging and prevent accidental double-loads burning the token
-        // dev.tokens.delete(token);
+         dev.tokens.delete(token);
 
         console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${gDevice}`);
         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0' }));
