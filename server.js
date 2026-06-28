@@ -20,7 +20,8 @@ function getDevice(id) {
             companion: null,
             guests: new Set(),
             summaryClients: new Map(), // Active web browsers waiting for a specific token validation
-            summaryTokens: new Map(),  // Volatile storage for encrypted summaries mapped to tokens
+            summaryTokens: new Map(),  // Volatile storage for encrypted owner trip summaries
+            guestTokens: new Map(),    // ISOLATED DATA POOL: Dedicated map for passenger live streams
             lastState: null
         });
     }
@@ -123,7 +124,7 @@ wss.on('connection', (ws, req) => {
                     if (!targetToken || !encryptedData) return;
 
                     dev.summaryTokens.set(targetToken, encryptedData);
-                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary data against token: ${targetToken}`);
+                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
                     return;
                 }
 
@@ -167,6 +168,22 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
 
+                // INTERCEPT LOCAL GUEST PASSENGER QR REQUESTS
+                if (msg.type === 'request_guest_token') {
+                    const guestToken = Math.random().toString(36).substring(2, 18);
+                    
+                    // Save exclusively into isolated passenger map array layer
+                    dev.guestTokens.set(guestToken, true);
+                    console.log(`[GUEST_TOKEN_GEN] Isolated passenger stream route token compiled: ${guestToken}`);
+                    
+                    ws.send(JSON.stringify({
+                        type: 'token_registered',
+                        token: guestToken
+                    }));
+                    return;
+                }
+
+                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE
                 if (msg.type === 'approve_summary_access') {
                     const targetToken = msg.token;
                     console.log(`[GATEWAY_SIGNAL] Companion explicitly APPROVED web browser access request for token: ${targetToken}`);
@@ -186,7 +203,7 @@ wss.on('connection', (ws, req) => {
 
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
-                    return; // Explicit stop to prevent passing to tablet line
+                    return; 
                 }
 
                 // Only forward non-auth actions down to tablet layout line
@@ -215,15 +232,17 @@ wss.on('connection', (ws, req) => {
                 const msg = JSON.parse(message);
                 if (msg.type === 'guest_auth') {
                     const targetToken = msg.token;
-                    if (dev.summaryTokens.has(targetToken)) {
+                    
+                    // Validate strictly against the independent guest token data pool
+                    if (dev.guestTokens.has(targetToken)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
-                        console.log(`[GUEST_SUCCESS] Authenticated successfully — device: ${deviceId}`);
+                        console.log(`[GUEST_SUCCESS] Passenger successfully authenticated via isolated token mapping layout.`);
                         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0 Live Passenger Stream' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
                         return;
                     }
-                    return reject(ws, 'AUTH_FAILED', 'Invalid verification sequence mapping keys.');
+                    return reject(ws, 'AUTH_FAILED', 'Invalid passenger validation keys.');
                 }
                 ws.send(JSON.stringify({ type: 'error', message: 'Guests cannot broadcast functional control commands.' }));
             } catch (err) {
