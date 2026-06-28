@@ -172,7 +172,6 @@ wss.on('connection', (ws, req) => {
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 18);
                     
-                    // Save exclusively into isolated passenger map array layer
                     dev.guestTokens.set(guestToken, true);
                     console.log(`[GUEST_TOKEN_GEN] Isolated passenger stream route token compiled: ${guestToken}`);
                     
@@ -183,7 +182,7 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
-                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE
+                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (APPROVE)
                 if (msg.type === 'approve_summary_access') {
                     const targetToken = msg.token;
                     console.log(`[GATEWAY_SIGNAL] Companion explicitly APPROVED web browser access request for token: ${targetToken}`);
@@ -204,6 +203,28 @@ wss.on('connection', (ws, req) => {
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
                     return; 
+                }
+
+                // NEW: HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (DENY)
+                if (msg.type === 'deny_summary_access') {
+                    const targetToken = msg.token;
+                    console.log(`[GATEWAY_SIGNAL] Companion explicitly DENIED web browser access request for token: ${targetToken}`);
+
+                    const browserClient = dev.summaryClients.get(targetToken);
+
+                    if (browserClient && browserClient.readyState === WebSocket.OPEN) {
+                        browserClient.send(JSON.stringify({
+                            type: 'error',
+                            message: 'ACCESS_DENIED_BY_OWNER'
+                        }));
+                        console.log(`[GATEWAY_KICK] Notified browser client of denial configuration context.`);
+                    }
+
+                    // BURN RULE: Instantly wipe maps clean so token can never be processed or accessed again
+                    dev.summaryTokens.delete(targetToken);
+                    dev.summaryClients.delete(targetToken);
+                    console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps.`);
+                    return;
                 }
 
                 // Only forward non-auth actions down to tablet layout line
@@ -233,7 +254,6 @@ wss.on('connection', (ws, req) => {
                 if (msg.type === 'guest_auth') {
                     const targetToken = msg.token;
                     
-                    // Validate strictly against the independent guest token data pool
                     if (dev.guestTokens.has(targetToken)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
