@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#050508"/>
+<title>DriveOS 2.0 · Summary Nexus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #050508;
+  --bg2:         #08080d;
+  --bg3:         #0c0c14;
+  --cyan:        #00F5FF;
+  --cyan-dim:    #00c8d4;
+  --cyan-glow:   rgba(0,245,255,0.2);
+  --cyan-soft:   rgba(0,245,255,0.07);
+  --cyan-mid:    rgba(0,245,255,0.12);
+  --slate:       #5c6b7a;
+  --slate-lt:    #8fa3b3;
+  --red:         #ff2244;
+  --red-glow:    rgba(255,34,68,0.25);
+  --amber:       #f59e0b;
+  --glass-bg:    rgba(255,255,255,0.025);
+  --glass-border:rgba(0,245,255,0.14);
+  --font:        'JetBrains Mono', 'Roboto Mono', monospace;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--cyan);
+  font-family: var(--font);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  position: relative;
+}
+
+/* ── SCANLINES ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.06) 2px,
+    rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ── GRID BG ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,245,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,245,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── GLASS ── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  box-shadow:
+    0 0 24px rgba(0,245,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* ══════════════════════════════════════
+   INIT OVERLAY
+══════════════════════════════════════ */
+#init-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transition: opacity 0.7s ease;
+}
+#init-overlay.fade { opacity: 0; pointer-events: none; }
+
+.init-logo {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.45em;
+  color: var(--cyan);
+  text-shadow: 0 0 24px var(--cyan);
+  text-transform: uppercase;
+}
+.init-logo em { color: var(--slate); font-style: normal; font-weight: 300; }
+
+.init-sub {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+
+.init-bar-wrap {
+  width: 220px;
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  position: relative;
+}
+.init-bar-fill {
+  height: 100%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: init-load 1.6s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes init-load {
+  0%   { width: 0%; }
+  55%  { width: 70%; }
+  100% { width: 100%; }
+}
+
+.init-status {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+  animation: blink 1.1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ══════════════════════════════════════
+   ACCESS DENIED
+══════════════════════════════════════ */
+#access-denied {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: #060003;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px;
+  text-align: center;
+}
+#access-denied.visible { display: flex; }
+#access-denied.flash   { animation: red-flash 0.65s ease-out; }
+
+@keyframes red-flash {
+  0%   { background: #380008; }
+  35%  { background: #1c0004; }
+  100% { background: #060003; }
+}
+
+.denied-icon {
+  width: 64px;
+  height: 64px;
+  border: 1.5px solid var(--red);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 8px rgba(255,34,68,0.06),
+    0 0 30px var(--red-glow),
+    0 0 80px var(--red-glow);
+  animation: denied-pulse 2.2s ease-in-out infinite;
+}
+@keyframes denied-pulse {
+  0%,100% { box-shadow: 0 0 0 8px rgba(255,34,68,0.06), 0 0 30px var(--red-glow), 0 0 80px var(--red-glow); }
+  50%     { box-shadow: 0 0 0 12px rgba(255,34,68,0.03), 0 0 50px rgba(255,34,68,0.4), 0 0 120px rgba(255,34,68,0.15); }
+}
+.denied-icon svg { stroke: var(--red); }
+
+.denied-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--red);
+  text-shadow: 0 0 24px var(--red), 0 0 60px rgba(255,34,68,0.3);
+  text-transform: uppercase;
+}
+
+.denied-msg {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  color: rgba(255,34,68,0.65);
+  line-height: 2;
+  max-width: 310px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,34,68,0.18);
+  border-radius: 8px;
+  padding: 18px 20px;
+  background: rgba(255,34,68,0.035);
+}
+
+.denied-btn {
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #060003;
+  background: var(--red);
+  border: none;
+  border-radius: 5px;
+  padding: 13px 32px;
+  cursor: pointer;
+  box-shadow: 0 0 24px var(--red-glow);
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+.denied-btn:hover { opacity: 0.88; box-shadow: 0 0 40px rgba(255,34,68,0.5); }
+
+/* ══════════════════════════════════════
+   RECONNECT BANNER
+══════════════════════════════════════ */
+#reconnect-banner {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 500;
+  background: rgba(245,158,11,0.1);
+  border-bottom: 1px solid rgba(245,158,11,0.35);
+  padding: 6px 16px;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: var(--amber);
+  text-transform: uppercase;
+  text-align: center;
+  animation: warn-slide 0.3s ease-out;
+}
+#reconnect-banner.visible { display: block; }
+@keyframes warn-slide {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════
+   HEADER
+══════════════════════════════════════ */
+#header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 18px;
+  border-bottom: 1px solid rgba(0,245,255,0.09);
+  background: rgba(5,5,8,0.9);
+  backdrop-filter: blur(24px);
+  flex-shrink: 0;
+}
+
+.header-left { display: flex; flex-direction: column; gap: 3px; }
+
+.brand {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+.brand em { color: var(--slate); font-style: normal; font-weight: 400; }
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+.conn-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--slate);
+  flex-shrink: 0;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.conn-dot.active { background: var(--cyan); box-shadow: 0 0 6px var(--cyan), 0 0 14px var(--cyan); animation: pulse-dot 2s ease-in-out infinite; }
+.conn-dot.error  { background: var(--red);  box-shadow: 0 0 8px var(--red); }
+.conn-dot.warn   { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse-dot 1s ease-in-out infinite; }
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%     { opacity: 0.45; transform: scale(0.75); }
+}
+
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+
+.device-id {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.12em;
+}
+.device-label {
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════
+   MAIN LAYOUT
+══════════════════════════════════════ */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  position: relative;
+  z-index: 2;
+  overflow-y: auto;
+}
+
+/* ── SECTION EYEBROW ── */
+.section-eye {
+  font-size: 7px;
+  letter-spacing: 0.3em;
+  color: var(--slate);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.section-eye::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0,245,255,0.15), transparent);
+}
+
+/* ══════════════════════════════════════
+   TELEMETRY HEADER — device + status
+══════════════════════════════════════ */
+.telem-header-panel {
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.telem-header-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.4;
+}
+
+.th-left { display: flex; flex-direction: column; gap: 4px; }
+.th-label {
+  font-size: 7px;
+  letter-spacing: 0.28em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+.th-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.12em;
+}
+.th-sub {
+  font-size: 8px;
+  color: var(--slate);
+  letter-spacing: 0.1em;
+}
+
+.th-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid rgba(0,245,255,0.2);
+  border-radius: 20px;
+  background: rgba(0,245,255,0.04);
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.status-badge.error  { border-color: rgba(255,34,68,0.3); color: var(--red); background: rgba(255,34,68,0.04); }
+.status-badge.warn   { border-color: rgba(245,158,11,0.3); color: var(--amber); background: rgba(245,158,11,0.04); }
+
+.session-id {
+  font-size: 7px;
+  letter-spacing: 0.15em;
+  color: var(--slate);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.th-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+/* ══════════════════════════════════════
+   PRIMARY METRICS — four big readouts
+══════════════════════════════════════ */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.metric-card {
+  padding: 20px 18px 16px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* accent bar top */
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.45;
+}
+
+/* corner brackets */
+.metric-card::after {
+  content: '';
+  position: absolute;
+  bottom: 8px; right: 8px;
+  width: 12px; height: 12px;
+  border-bottom: 1px solid rgba(0,245,255,0.2);
+  border-right: 1px solid rgba(0,245,255,0.2);
+}
+
+.metric-label {
+  font-size: 7px;
+  letter-spacing: 0.28em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+
+.metric-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1;
+}
+
+.metric-value {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: -1px;
+  text-shadow:
+    0 0 24px rgba(0,245,255,0.5),
+    0 0 60px rgba(0,245,255,0.2);
+  /* shimmer animation */
+  background: linear-gradient(
+    90deg,
+    var(--cyan) 0%,
+    #c8feff 40%,
+    var(--cyan-dim) 55%,
+    var(--cyan) 100%
+  );
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 5s linear infinite;
+  transition: all 0.4s ease;
+}
+/* scanning placeholder state */
+.metric-value.scanning {
+  opacity: 0.25;
+  animation: scan-blink 0.7s step-end infinite;
+  -webkit-text-fill-color: var(--cyan);
+  background: none;
+}
+@keyframes scan-blink { 0%,100%{opacity:0.25} 50%{opacity:0.5} }
+@keyframes shimmer {
+  0%   { background-position: 250% center; }
+  100% { background-position: -250% center; }
+}
+
+.metric-unit {
+  font-size: 10px;
+  color: var(--slate);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+
+.metric-delta {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: var(--slate);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ══════════════════════════════════════
+   GEO DATA DRAWER — coords / elevation / mileage
+══════════════════════════════════════ */
+.geo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.geo-card {
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.geo-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+  opacity: 0.3;
+}
+
+.geo-card-title {
+  font-size: 7px;
+  letter-spacing: 0.28em;
+  color: var(--slate);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.geo-card-title::before {
+  content: '';
+  width: 4px; height: 4px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 4px var(--cyan);
+  flex-shrink: 0;
+}
+
+.coord-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coord-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.coord-key {
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.coord-val {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.coord-val.scanning {
+  opacity: 0.3;
+  animation: scan-blink 0.7s step-end infinite;
+}
+
+.coord-divider {
+  height: 1px;
+  background: rgba(0,245,255,0.06);
+  margin: 6px 0;
+}
+
+/* elevation strip */
+.elev-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.elev-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.elev-label {
+  font-size: 7px;
+  letter-spacing: 0.18em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+
+.elev-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+}
+.elev-val.scanning {
+  opacity: 0.3;
+  animation: scan-blink 0.7s step-end infinite;
+}
+
+/* elevation bar */
+.elev-bar-wrap {
+  margin-top: 4px;
+}
+.elev-bar-track {
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.elev-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  border-radius: 2px;
+  box-shadow: 0 0 5px var(--cyan);
+  transition: width 1.2s cubic-bezier(0.34,1.2,0.64,1);
+}
+.elev-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 7px;
+  color: rgba(92,107,122,0.5);
+  letter-spacing: 0.05em;
+}
+
+/* mileage / efficiency panel — full width */
+.mileage-card {
+  grid-column: 1 / -1;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.mileage-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.25;
+}
+
+.mileage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.mileage-big {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(0,245,255,0.4);
+}
+.mileage-big.scanning { opacity: 0.25; animation: scan-blink 0.7s step-end infinite; }
+
+.mileage-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.efficiency-bar-track {
+  height: 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(0,245,255,0.08);
+  position: relative;
+}
+.efficiency-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  border-radius: 4px;
+  box-shadow: 0 0 8px var(--cyan);
+  transition: width 1.4s cubic-bezier(0.34,1.1,0.64,1);
+  position: relative;
+  overflow: hidden;
+}
+.efficiency-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -70%; width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  animation: eff-shine 3s ease-in-out infinite;
+}
+@keyframes eff-shine {
+  0%   { left: -70%; }
+  100% { left: 130%; }
+}
+
+.efficiency-bar-fill.warn { background: linear-gradient(90deg, #b45309, var(--amber)); box-shadow: 0 0 8px var(--amber); }
+.efficiency-bar-fill.crit { background: linear-gradient(90deg, #991b1b, var(--red)); box-shadow: 0 0 10px var(--red); }
+
+.eff-tick-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7px;
+  color: rgba(92,107,122,0.4);
+  letter-spacing: 0.05em;
+}
+
+.eff-stats-row {
+  display: flex;
+  gap: 14px;
+}
+.eff-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eff-stat-label { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
+.eff-stat-val   { font-size: 11px; font-weight: 600; color: var(--cyan); letter-spacing: 0.05em; }
+.eff-stat-val.scanning { opacity: 0.3; animation: scan-blink 0.7s step-end infinite; }
+
+/* ══════════════════════════════════════
+   FOOTER — SYSTEM LOG
+══════════════════════════════════════ */
+#footer {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  border-top: 1px solid rgba(0,245,255,0.08);
+  background: rgba(5,5,8,0.92);
+  backdrop-filter: blur(24px);
+  height: 86px;
+  overflow: hidden;
+}
+
+.log-header {
+  font-size: 7px;
+  letter-spacing: 0.28em;
+  color: var(--slate);
+  text-transform: uppercase;
+  padding: 6px 16px 4px;
+  border-bottom: 1px solid rgba(0,245,255,0.05);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.log-header::before {
+  content: '▶';
+  font-size: 5px;
+  color: var(--cyan);
+  animation: blink 1s step-end infinite;
+}
+
+#log-stream {
+  height: 62px;
+  overflow: hidden;
+  padding: 4px 16px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.log-line {
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: log-in 0.3s forwards;
+  flex-shrink: 0;
+}
+@keyframes log-in { to { opacity: 1; transform: translateY(0); } }
+
+.log-line .ts  { color: rgba(92,107,122,0.45); }
+.log-line .tag-sys  { color: var(--cyan); }
+.log-line .tag-geo  { color: #67e8f9; }
+.log-line .tag-dec  { color: #a78bfa; }
+.log-line .tag-err  { color: var(--red); }
+.log-line .tag-warn { color: var(--amber); }
+.log-line .tag-link { color: #f472b6; }
+.log-line .tag-met  { color: #34d399; }
+.log-msg { color: var(--slate-lt); }
+
+/* ══════════════════════════════════════
+   SCANNING OVERLAY (initial state)
+══════════════════════════════════════ */
+#scan-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#scan-overlay.active { opacity: 1; }
+
+.scan-line {
+  position: fixed;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,245,255,0.6), transparent);
+  box-shadow: 0 0 20px rgba(0,245,255,0.3);
+  animation: scan-sweep 1.8s ease-in-out infinite;
+  top: 50%;
+}
+@keyframes scan-sweep {
+  0%   { top: 0%; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ══════════════════════════════════════
+   REVEAL ANIMATION — value pop-in
+══════════════════════════════════════ */
+.metric-value.revealed {
+  animation: shimmer 5s linear infinite, val-reveal 0.6s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes val-reveal {
+  0%   { transform: translateY(6px); opacity: 0; }
+  100% { transform: translateY(0);   opacity: 1; }
+}
+
+.coord-val.revealed { animation: val-reveal 0.5s cubic-bezier(0.34,1.3,0.64,1); }
+.elev-val.revealed  { animation: val-reveal 0.5s cubic-bezier(0.34,1.3,0.64,1); }
+.eff-stat-val.revealed { animation: val-reveal 0.5s cubic-bezier(0.34,1.3,0.64,1); }
+
+/* ── no-params note ── */
+.demo-note {
+  position: fixed;
+  bottom: 96px;
+  left: 14px; right: 14px;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+  color: var(--amber);
+  text-align: center;
+  z-index: 100;
+  text-transform: uppercase;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ INIT OVERLAY ══ -->
+<div id="init-overlay">
+  <div class="init-logo">DriveOS <em>/ 2.0</em></div>
+  <div class="init-sub">Summary Intelligence Framework</div>
+  <div class="init-bar-wrap"><div class="init-bar-fill"></div></div>
+  <div class="init-status">Bootstrapping Summary Nexus…</div>
+</div>
+
+<!-- ══ SCANNING OVERLAY ══ -->
+<div id="scan-overlay">
+  <div class="scan-line"></div>
+</div>
+
+<!-- ══ ACCESS DENIED ══ -->
+<div id="access-denied">
+  <div class="denied-icon">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+  </div>
+  <div class="denied-title">Access Denied</div>
+  <div class="denied-msg">
+    [SECURITY]: Authentication Failure.<br>
+    Token Expired Or Invalid.<br>
+    Access To Vehicle Nexus Revoked.
+  </div>
+  <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
+</div>
+
+<!-- ══ RECONNECT BANNER ══ -->
+<div id="reconnect-banner">⚠ [LINK LOST]: Re-establishing encrypted sync channel…</div>
+
+<!-- ══ HEADER ══ -->
+<header id="header">
+  <div class="header-left">
+    <div class="brand">Summary Nexus <em>/ DriveOS 2.0</em></div>
+    <div class="conn-status">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-text">Initializing…</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="device-id" id="hdr-device">—</div>
+    <div class="device-label">Device ID</div>
+    <div class="device-label" id="hdr-session">SESSION: —</div>
+  </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main id="main">
+
+  <!-- ── Telemetry Header Row ── -->
+  <div class="glass telem-header-panel">
+    <div class="th-left">
+      <div class="th-label">Device Node</div>
+      <div class="th-value" id="th-device">—</div>
+      <div class="th-sub" id="th-session">Session ID: —</div>
+    </div>
+    <div class="th-center">
+      <div class="status-badge" id="status-badge">
+        <div class="conn-dot" id="badge-dot"></div>
+        <span id="badge-text">Initializing</span>
+      </div>
+      <div class="session-id" id="th-timestamp">—</div>
+    </div>
+    <div class="th-right">
+      <div class="th-label">Link Protocol</div>
+      <div class="th-value" id="th-protocol">AES-CBC · 128-bit</div>
+      <div class="th-sub" id="th-connection-type">WebSocket · Encrypted</div>
+    </div>
+  </div>
+
+  <!-- ── Primary Metrics ── -->
+  <div class="section-eye">Primary Telemetry Metrics</div>
+  <div class="metrics-grid">
+
+    <div class="glass metric-card">
+      <div class="metric-label">Max Speed</div>
+      <div class="metric-readout">
+        <div class="metric-value scanning" id="m-max-speed">---</div>
+        <div class="metric-unit">km/h</div>
+      </div>
+      <div class="metric-delta" id="d-max-speed">peak recorded velocity</div>
+    </div>
+
+    <div class="glass metric-card">
+      <div class="metric-label">Average Speed</div>
+      <div class="metric-readout">
+        <div class="metric-value scanning" id="m-avg-speed">---</div>
+        <div class="metric-unit">km/h</div>
+      </div>
+      <div class="metric-delta" id="d-avg-speed">mean trip velocity</div>
+    </div>
+
+    <div class="glass metric-card">
+      <div class="metric-label">Total Distance</div>
+      <div class="metric-readout">
+        <div class="metric-value scanning" id="m-distance">---</div>
+        <div class="metric-unit">km</div>
+      </div>
+      <div class="metric-delta" id="d-distance">trip odometer</div>
+    </div>
+
+    <div class="glass metric-card">
+      <div class="metric-label">Elapsed Time</div>
+      <div class="metric-readout">
+        <div class="metric-value scanning" id="m-elapsed" style="font-size:28px;letter-spacing:-0.5px">--:--</div>
+      </div>
+      <div class="metric-delta" id="d-elapsed">total trip duration</div>
+    </div>
+
+  </div>
+
+  <!-- ── Geo Data Drawer ── -->
+  <div class="section-eye">Geo-Spatial Intelligence</div>
+  <div class="geo-grid">
+
+    <!-- Start Coordinates -->
+    <div class="glass geo-card">
+      <div class="geo-card-title">Start Coordinates</div>
+      <div class="coord-row">
+        <div class="coord-item">
+          <span class="coord-key">LAT</span>
+          <span class="coord-val scanning" id="g-start-lat">---.------°</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-key">LNG</span>
+          <span class="coord-val scanning" id="g-start-lng">---.------°</span>
+        </div>
+        <div class="coord-divider"></div>
+        <div class="coord-item">
+          <span class="coord-key">ALT</span>
+          <span class="coord-val scanning" id="g-start-alt">--- m</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-key">TIMESTAMP</span>
+          <span class="coord-val scanning" id="g-start-ts">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stop Coordinates -->
+    <div class="glass geo-card">
+      <div class="geo-card-title">Stop Coordinates</div>
+      <div class="coord-row">
+        <div class="coord-item">
+          <span class="coord-key">LAT</span>
+          <span class="coord-val scanning" id="g-stop-lat">---.------°</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-key">LNG</span>
+          <span class="coord-val scanning" id="g-stop-lng">---.------°</span>
+        </div>
+        <div class="coord-divider"></div>
+        <div class="coord-item">
+          <span class="coord-key">ALT</span>
+          <span class="coord-val scanning" id="g-stop-alt">--- m</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-key">TIMESTAMP</span>
+          <span class="coord-val scanning" id="g-stop-ts">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Elevation Metrics -->
+    <div class="glass geo-card">
+      <div class="geo-card-title">Elevation Metrics</div>
+      <div class="elev-row">
+        <div class="elev-item">
+          <span class="elev-label">Min Elevation</span>
+          <span class="elev-val scanning" id="g-elev-min">--- m</span>
+        </div>
+        <div class="elev-item">
+          <span class="elev-label">Max Elevation</span>
+          <span class="elev-val scanning" id="g-elev-max">--- m</span>
+        </div>
+        <div class="elev-item">
+          <span class="elev-label">Net Gain</span>
+          <span class="elev-val scanning" id="g-elev-gain">--- m</span>
+        </div>
+        <div class="elev-bar-wrap">
+          <div class="elev-bar-track">
+            <div class="elev-bar-fill" id="g-elev-bar"></div>
+          </div>
+          <div class="elev-bar-label">
+            <span id="g-elev-min-lbl">— m</span>
+            <span>elevation range</span>
+            <span id="g-elev-max-lbl">— m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mileage Efficiency — full width -->
+    <div class="glass geo-card mileage-card">
+      <div class="mileage-info">
+        <div class="th-label">Fuel Efficiency</div>
+        <div class="mileage-big scanning" id="g-mileage">--.-</div>
+        <div class="th-sub">km / L</div>
+      </div>
+      <div class="mileage-right">
+        <div class="eff-stats-row">
+          <div class="eff-stat">
+            <span class="eff-stat-label">Fuel Used</span>
+            <span class="eff-stat-val scanning" id="g-fuel-used">-- L</span>
+          </div>
+          <div class="eff-stat">
+            <span class="eff-stat-label">Fuel Remaining</span>
+            <span class="eff-stat-val scanning" id="g-fuel-rem">--%</span>
+          </div>
+          <div class="eff-stat">
+            <span class="eff-stat-label">Efficiency Rating</span>
+            <span class="eff-stat-val scanning" id="g-eff-rating">—</span>
+          </div>
+        </div>
+        <div class="efficiency-bar-track">
+          <div class="efficiency-bar-fill" id="g-eff-bar"></div>
+        </div>
+        <div class="eff-tick-row">
+          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ══ FOOTER ══ -->
+<footer id="footer">
+  <div class="log-header">Nexus System Log</div>
+  <div id="log-stream"></div>
+</footer>
+
+<div class="demo-note" id="demo-note">⚠ No device/token in URL — summary demo mode active</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  RETURN PROMPT — DATA OBJECT SCHEMA
+// ═══════════════════════════════════════════════
+/*
+  RETURN PROMPT: The decrypted payload from the server must conform to the
+  following JSON data object structure for summary.html to render correctly.
+
+  {
+    // ── Device / Session
+    "device_id":         string,    // e.g. "myaura001"
+    "session_id":        string,    // e.g. "SES-20240628-001"
+    "trip_start_epoch":  number,    // Unix timestamp (ms) of trip start
+    "trip_end_epoch":    number,    // Unix timestamp (ms) of trip end
+
+    // ── Primary Metrics
+    "max_speed_kmh":     number,    // e.g. 142.5
+    "avg_speed_kmh":     number,    // e.g. 78.3
+    "total_distance_km": number,    // e.g. 234.7
+    "elapsed_seconds":   number,    // e.g. 10800  (3 hours)
+
+    // ── Start Coordinates
+    "start_lat":         number,    // e.g. 37.774929
+    "start_lng":         number,    // e.g. -122.419418
+    "start_alt_m":       number,    // e.g. 52.0
+    "start_timestamp":   string,    // e.g. "08:14:32"
+
+    // ── Stop Coordinates
+    "stop_lat":          number,    // e.g. 34.052235
+    "stop_lng":          number,    // e.g. -118.243683
+    "stop_alt_m":        number,    // e.g. 71.5
+    "stop_timestamp":    string,    // e.g. "11:24:07"
+
+    // ── Elevation Metrics
+    "elevation_min_m":   number,    // e.g. 12.0
+    "elevation_max_m":   number,    // e.g. 890.5
+    "elevation_gain_m":  number,    // e.g. 342.0
+
+    // ── Mileage / Efficiency
+    "fuel_efficiency_kml": number,  // e.g. 14.8 (km per litre)
+    "fuel_used_litres":    number,  // e.g. 15.9
+    "fuel_remaining_pct":  number,  // e.g. 62 (0–100)
+    "efficiency_score_pct":number   // e.g. 74 (0–100, used for bar)
+  }
+*/
+
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const AES_KEY    = CryptoJS.enc.Utf8.parse('driveos2secret00'); // 16 bytes
+const AES_IV     = CryptoJS.enc.Hex.parse('00000000000000000000000000000000'); // static 16-byte IV
+const RECONNECT_INTERVAL = 5000;
+
+const params   = new URLSearchParams(location.search);
+const device   = params.get('device') || 'DEMO_UNIT';
+const token    = params.get('token')  || '00000000';
+const isDemo   = !params.get('device');
+
+const WS_PROTOCOL = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const WS_URL      = `${WS_PROTOCOL}${location.host}?role=summary_client&device=${device}&token=${token}`;
+
+let ws             = null;
+let reconnectTimer = null;
+let authDenied     = false;
+let firstConnect   = true;
+
+// ═══════════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+const initOverlay  = $('init-overlay');
+const accessDenied = $('access-denied');
+const reconBanner  = $('reconnect-banner');
+const scanOverlay  = $('scan-overlay');
+const logStream    = $('log-stream');
+const connDot      = $('conn-dot');
+const connText     = $('conn-text');
+const badgeDot     = $('badge-dot');
+const badgeText    = $('badge-text');
+const statusBadge  = $('status-badge');
+
+// ═══════════════════════════════════════════════
+//  SYSTEM LOG
+// ═══════════════════════════════════════════════
+const LOG_TAGS = {
+  SYS:  'tag-sys', GEO:  'tag-geo', DEC:  'tag-dec',
+  ERR:  'tag-err', WARN: 'tag-warn', LINK: 'tag-link', MET: 'tag-met'
+};
+const MAX_LOG = 40;
+
+function sysLog(cat, msg) {
+  const cls = LOG_TAGS[cat] || 'tag-sys';
+  const ts  = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const el  = document.createElement('div');
+  el.className = 'log-line';
+  el.innerHTML = `<span class="ts">${ts}</span> <span class="${cls}">[${cat}]</span>: <span class="log-msg">${msg}</span>`;
+  logStream.prepend(el);
+  while (logStream.children.length > MAX_LOG) logStream.removeChild(logStream.lastChild);
+}
+
+// ═══════════════════════════════════════════════
+//  STATUS / CONNECTION UI
+// ═══════════════════════════════════════════════
+function setStatus(state, text) {
+  // header dot
+  connDot.className = 'conn-dot';
+  badgeDot.className = 'conn-dot';
+  statusBadge.className = 'status-badge';
+  if (state === 'active') {
+    connDot.classList.add('active');
+    badgeDot.classList.add('active');
+  } else if (state === 'error') {
+    connDot.classList.add('error');
+    badgeDot.classList.add('error');
+    statusBadge.classList.add('error');
+  } else if (state === 'warn') {
+    connDot.classList.add('warn');
+    badgeDot.classList.add('warn');
+    statusBadge.classList.add('warn');
+  }
+  connText.textContent  = text;
+  badgeText.textContent = text;
+}
+
+// ═══════════════════════════════════════════════
+//  ACCESS DENIED
+// ═══════════════════════════════════════════════
+function showAccessDenied() {
+  authDenied = true;
+  accessDenied.classList.add('visible');
+  setTimeout(() => accessDenied.classList.add('flash'), 10);
+  setTimeout(() => accessDenied.classList.remove('flash'), 700);
+  setStatus('error', 'Access Denied');
+  sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED');
+}
+
+// ═══════════════════════════════════════════════
+//  AES-CBC DECRYPTION
+// ═══════════════════════════════════════════════
+function decrypt(base64Str) {
+  try {
+    const ciphertext = CryptoJS.enc.Base64.parse(base64Str);
+    const cipherParams = CryptoJS.lib.CipherParams.create({ ciphertext });
+    const decrypted = CryptoJS.AES.decrypt(cipherParams, AES_KEY, {
+      iv:      AES_IV,
+      mode:    CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
+    });
+    const raw = decrypted.toString(CryptoJS.enc.Utf8);
+    return JSON.parse(raw);
+  } catch (e) {
+    sysLog('ERR', 'DECRYPTION FAILED — ' + e.message.toUpperCase());
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SCANNING STATE HELPERS
+// ═══════════════════════════════════════════════
+function setScanState(scanning) {
+  if (scanning) {
+    scanOverlay.classList.add('active');
+  } else {
+    scanOverlay.classList.remove('active');
+  }
+}
+
+function revealEl(id, value) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove('scanning');
+  el.textContent = value;
+  // trigger reveal animation
+  el.classList.remove('revealed');
+  void el.offsetWidth; // reflow
+  el.classList.add('revealed');
+}
+
+function formatCoord(num, digits) {
+  return num !== undefined && num !== null
+    ? parseFloat(num).toFixed(digits !== undefined ? digits : 6) + '°'
+    : '—';
+}
+
+function formatTime(seconds) {
+  if (seconds === undefined || seconds === null) return '--:--';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return h > 0
+    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function effRating(score) {
+  if (score >= 80) return 'OPTIMAL';
+  if (score >= 60) return 'NOMINAL';
+  if (score >= 40) return 'MODERATE';
+  if (score >= 20) return 'REDUCED';
+  return 'CRITICAL';
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER SUMMARY PAYLOAD
+// ═══════════════════════════════════════════════
+function renderSummary(d) {
+  setScanState(false);
+
+  // ── Header info
+  const devLabel = (d.device_id || device).toUpperCase();
+  $('hdr-device').textContent  = devLabel;
+  $('hdr-session').textContent = `SESSION: ${d.session_id || '—'}`;
+  $('th-device').textContent   = devLabel;
+  $('th-session').textContent  = `Session ID: ${d.session_id || '—'}`;
+  $('th-timestamp').textContent = d.trip_start_epoch
+    ? new Date(d.trip_start_epoch).toLocaleString()
+    : '—';
+
+  sysLog('SYS', `PAYLOAD DECRYPTED — DEVICE ${devLabel}`);
+  sysLog('DEC', `SESSION ${d.session_id || '—'} · AES-CBC VERIFIED`);
+
+  // ── Primary Metrics — staggered reveal
+  const reveals = [
+    { id: 'm-max-speed',  val: parseFloat(d.max_speed_kmh  || 0).toFixed(1), delta: 'peak recorded velocity',   deltaId: 'd-max-speed'  },
+    { id: 'm-avg-speed',  val: parseFloat(d.avg_speed_kmh  || 0).toFixed(1), delta: 'mean trip velocity',       deltaId: 'd-avg-speed'  },
+    { id: 'm-distance',   val: parseFloat(d.total_distance_km || 0).toFixed(2), delta: 'total trip distance',   deltaId: 'd-distance'   },
+    { id: 'm-elapsed',    val: formatTime(d.elapsed_seconds), delta: 'total trip duration',                      deltaId: 'd-elapsed'    },
+  ];
+
+  reveals.forEach((r, i) => {
+    setTimeout(() => {
+      revealEl(r.id, r.val);
+      sysLog('MET', `${r.deltaId.replace('d-','').replace(/-/g,' ').toUpperCase()} → ${r.val}`);
+    }, 200 + i * 180);
+  });
+
+  // ── Geo: Start coords
+  setTimeout(() => {
+    revealEl('g-start-lat', formatCoord(d.start_lat));
+    revealEl('g-start-lng', formatCoord(d.start_lng));
+    revealEl('g-start-alt', (d.start_alt_m !== undefined ? parseFloat(d.start_alt_m).toFixed(1) + ' m' : '— m'));
+    revealEl('g-start-ts',  d.start_timestamp || '—');
+    sysLog('GEO', `START POINT — ${formatCoord(d.start_lat)}, ${formatCoord(d.start_lng)}`);
+  }, 900);
+
+  // ── Geo: Stop coords
+  setTimeout(() => {
+    revealEl('g-stop-lat', formatCoord(d.stop_lat));
+    revealEl('g-stop-lng', formatCoord(d.stop_lng));
+    revealEl('g-stop-alt', (d.stop_alt_m !== undefined ? parseFloat(d.stop_alt_m).toFixed(1) + ' m' : '— m'));
+    revealEl('g-stop-ts',  d.stop_timestamp || '—');
+    sysLog('GEO', `STOP POINT — ${formatCoord(d.stop_lat)}, ${formatCoord(d.stop_lng)}`);
+  }, 1100);
+
+  // ── Elevation
+  setTimeout(() => {
+    const eMin = parseFloat(d.elevation_min_m  || 0);
+    const eMax = parseFloat(d.elevation_max_m  || 0);
+    const eGain= parseFloat(d.elevation_gain_m || 0);
+    revealEl('g-elev-min',  eMin.toFixed(1)  + ' m');
+    revealEl('g-elev-max',  eMax.toFixed(1)  + ' m');
+    revealEl('g-elev-gain', (eGain >= 0 ? '+' : '') + eGain.toFixed(1) + ' m');
+    // bar: fill shows relative position of gain within range
+    const range = eMax - eMin || 1;
+    const pct = Math.min(Math.max((eGain / range) * 100, 0), 100);
+    $('g-elev-bar').style.width = pct + '%';
+    $('g-elev-min-lbl').textContent = eMin.toFixed(0) + ' m';
+    $('g-elev-max-lbl').textContent = eMax.toFixed(0) + ' m';
+    sysLog('GEO', `ELEVATION — MIN ${eMin.toFixed(0)}m · MAX ${eMax.toFixed(0)}m · GAIN ${eGain.toFixed(0)}m`);
+  }, 1300);
+
+  // ── Mileage / efficiency
+  setTimeout(() => {
+    const eff    = parseFloat(d.fuel_efficiency_kml || 0);
+    const used   = parseFloat(d.fuel_used_litres    || 0);
+    const remPct = parseFloat(d.fuel_remaining_pct  || 0);
+    const score  = parseFloat(d.efficiency_score_pct || 0);
+    const rating = effRating(score);
+
+    const mileageEl = $('g-mileage');
+    mileageEl.classList.remove('scanning');
+    mileageEl.textContent = eff.toFixed(1);
+    mileageEl.classList.remove('revealed');
+    void mileageEl.offsetWidth;
+    mileageEl.classList.add('revealed');
+
+    revealEl('g-fuel-used',  used.toFixed(1) + ' L');
+    revealEl('g-fuel-rem',   Math.round(remPct) + '%');
+    revealEl('g-eff-rating', rating);
+
+    // efficiency bar
+    const bar = $('g-eff-bar');
+    bar.style.width = Math.min(score, 100) + '%';
+    bar.className = 'efficiency-bar-fill';
+    if (score < 30) bar.classList.add('crit');
+    else if (score < 55) bar.classList.add('warn');
+
+    sysLog('MET', `EFFICIENCY ${eff.toFixed(1)} km/L · FUEL USED ${used.toFixed(1)}L · RATING ${rating}`);
+  }, 1550);
+
+  setStatus('active', 'Data Rendered');
+  sysLog('SYS', 'SUMMARY NEXUS RENDER COMPLETE');
+}
+
+// ═══════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════
+function connect() {
+  if (authDenied) return;
+
+  try { ws = new WebSocket(WS_URL); }
+  catch(e) {
+    sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message.toUpperCase());
+    scheduleReconnect();
+    return;
+  }
+
+  setStatus('warn', 'Connecting…');
+  sysLog('SYS', 'INITIATING ENCRYPTED SUMMARY CHANNEL');
+
+  ws.addEventListener('open', () => {
+    reconBanner.classList.remove('visible');
+    setStatus('warn', 'Awaiting Handshake…');
+    sysLog('SYS', 'CHANNEL OPEN — TRANSMITTING SUMMARY AUTH HANDSHAKE');
+
+    ws.send(JSON.stringify({
+      type:   'summary_auth',
+      device:  device,
+      token:   token
+    }));
+
+    sysLog('SYS', `HANDSHAKE SENT — DEVICE: ${device.toUpperCase()}`);
+
+    if (firstConnect) {
+      firstConnect = false;
+      setTimeout(() => {
+        sysLog('DEC', 'AES-CBC DECRYPTION PIPELINE ARMED');
+        sysLog('GEO', 'GEO-SPATIAL DECODER ONLINE');
+        setScanState(true);
+      }, 400);
+    }
+  });
+
+  ws.addEventListener('message', e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'error') {
+      sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
+      ws.close();
+      showAccessDenied();
+      return;
+    }
+
+    if (msg.type === 'auth_ok' || msg.type === 'handshake_ok') {
+      setStatus('active', 'Secure Link Active');
+      sysLog('SYS', 'HANDSHAKE VERIFIED — AWAITING SUMMARY PAYLOAD');
+      return;
+    }
+
+    if (msg.type === 'summary_payload') {
+      sysLog('DEC', 'ENCRYPTED SUMMARY PAYLOAD RECEIVED — DECRYPTING…');
+      const payload = decrypt(msg.data);
+      if (!payload) {
+        showAccessDenied();
+        return;
+      }
+      renderSummary(payload);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    if (authDenied) return;
+    setStatus('warn', 'Link Lost — Reconnecting');
+    reconBanner.classList.add('visible');
+    sysLog('LINK', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
+    scheduleReconnect();
+  });
+
+  ws.addEventListener('error', () => {
+    sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE');
+  });
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connect, RECONNECT_INTERVAL);
+}
+
+// ═══════════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════════
+function startDemo() {
+  sysLog('WARN', 'NO AUTH PARAMS DETECTED — DEMO MODE ACTIVE');
+  $('demo-note').style.display = 'block';
+  setScanState(true);
+  setTimeout(() => {
+    sysLog('DEC', 'GENERATING SYNTHETIC SUMMARY PAYLOAD…');
+    renderSummary({
+      device_id:              'DEMO_UNIT',
+      session_id:             'SES-DEMO-001',
+      trip_start_epoch:       Date.now() - 10800000,
+      trip_end_epoch:         Date.now(),
+      max_speed_kmh:          147.3,
+      avg_speed_kmh:          82.6,
+      total_distance_km:      247.9,
+      elapsed_seconds:        10764,
+      start_lat:              37.774929,
+      start_lng:             -122.419418,
+      start_alt_m:            52.0,
+      start_timestamp:        '08:14:32',
+      stop_lat:               34.052235,
+      stop_lng:              -118.243683,
+      stop_alt_m:             71.5,
+      stop_timestamp:         '11:23:16',
+      elevation_min_m:        12.0,
+      elevation_max_m:        890.5,
+      elevation_gain_m:       342.0,
+      fuel_efficiency_kml:    14.8,
+      fuel_used_litres:       16.7,
+      fuel_remaining_pct:     58,
+      efficiency_score_pct:   72
+    });
+  }, 1800);
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  $('hdr-device').textContent = device.toUpperCase();
+  $('th-device').textContent  = device.toUpperCase();
+
+  setTimeout(() => {
+    initOverlay.classList.add('fade');
+    setTimeout(() => initOverlay.style.display = 'none', 700);
+    sysLog('SYS', `SUMMARY NEXUS ONLINE — UNIT ${device.toUpperCase()}`);
+    sysLog('SYS', 'AES-CBC ENCRYPTED CHANNEL PROTOCOL ACTIVE');
+
+    if (isDemo) {
+      startDemo();
+    } else {
+      connect();
+    }
+  }, 1600);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
