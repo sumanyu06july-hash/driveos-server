@@ -996,13 +996,12 @@ function showAccessDenied() {
 function connect() {
   if (authDenied) return;
 
-  try { ws = new WebSocket(WS_URL); }
-  catch(e) {
-    sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message);
-    scheduleReconnect();
-    return;
-  }
-
+  try { ws = new WebSocket(`${WS_URL}?role=guest`); }
+catch(e) {
+  sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message);
+  scheduleReconnect();
+  return;
+}
   setStatus('warn', 'Connecting...');
   sysLog('SYS', 'INITIATING SECURE CHANNEL TO RELAY NODE');
 
