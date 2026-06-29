@@ -13,18 +13,18 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:        #0a0a0a;
-    --bg2:       #0d0d0f;
-    --cyan:      #00F5FF;
-    --cyan-dim:  #00c8d4;
-    --cyan-glow: rgba(0,245,255,0.18);
-    --cyan-soft: rgba(0,245,255,0.08);
-    --slate:     #64748b;
-    --slate-lt:  #94a3b8;
-    --red:       #ff2244;
-    --red-glow:  rgba(255,34,68,0.25);
-    --glass-bg:  rgba(255,255,255,0.03);
-    --glass-border: rgba(0,245,255,0.18);
+    --bg:            #0a0a0a;
+    --bg2:           #0d0d0f;
+    --cyan:          #00F5FF;
+    --cyan-dim:      #00c8d4;
+    --cyan-glow:     rgba(0,245,255,0.18);
+    --cyan-soft:     rgba(0,245,255,0.08);
+    --slate:         #64748b;
+    --slate-lt:      #94a3b8;
+    --red:           #ff2244;
+    --red-glow:      rgba(255,34,68,0.25);
+    --glass-bg:      rgba(255,255,255,0.03);
+    --glass-border:  rgba(0,245,255,0.18);
     --font: 'JetBrains Mono', 'Roboto Mono', monospace;
   }
 
@@ -86,7 +86,7 @@
   }
 
   /* ═══════════════════════════════════════
-     HEADER
+      HEADER
   ═══════════════════════════════════════ */
   #header {
     position: relative;
@@ -148,7 +148,6 @@
     50%      { opacity:0.5; transform:scale(0.8); }
   }
 
-  /* Vehicle ID block – top right */
   .vehicle-id {
     display: flex;
     flex-direction: column;
@@ -175,7 +174,7 @@
   }
 
   /* ═══════════════════════════════════════
-     MAIN CONTENT
+      MAIN CONTENT
   ═══════════════════════════════════════ */
   #main {
     flex: 1;
@@ -245,7 +244,6 @@
     text-transform: uppercase;
   }
 
-  /* Decorative arc lines behind speedometer */
   .speed-arc {
     position: absolute;
     width: 220px;
@@ -307,7 +305,6 @@
     margin-left: 2px;
   }
 
-  /* G-Force stability bar */
   .gforce-bar-wrap {
     display: flex;
     flex-direction: column;
@@ -345,7 +342,6 @@
   .stability-tag.warn { color: #f59e0b; }
   .stability-tag.crit { color: var(--red); }
 
-  /* Acceleration boost indicator */
   .boost-row {
     display: flex;
     gap: 3px;
@@ -367,7 +363,6 @@
   .boost-seg.lit.high { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
   .boost-seg.lit.max  { background: var(--red);  box-shadow: 0 0 8px var(--red); }
 
-  /* Fuel bar – full width tile */
   .fuel-tile {
     grid-column: 1 / -1;
     flex-direction: row;
@@ -444,7 +439,6 @@
     overflow: hidden;
   }
 
-  /* Visualizer */
   .visualizer {
     display: flex;
     align-items: flex-end;
@@ -508,12 +502,6 @@
     text-overflow: ellipsis;
     letter-spacing: 0.02em;
   }
-  .media-title.scrolling { animation: marquee 8s linear infinite; }
-
-  @keyframes marquee {
-    0%,15%  { transform: translateX(0); }
-    85%,100%{ transform: translateX(calc(-100% + 180px)); }
-  }
 
   .media-artist {
     font-size: 11px;
@@ -534,9 +522,7 @@
   .media-state.on  { color: var(--cyan); }
   .media-state.off { color: var(--slate); }
 
-  /* ═══════════════════════════════════════
-     FOOTER — SYSTEM LOG
-  ═══════════════════════════════════════ */
+  /* ── FOOTER / LOG ── */
   #footer {
     flex-shrink: 0;
     position: relative;
@@ -591,7 +577,7 @@
   @keyframes log-in {
     to { opacity: 1; transform: translateY(0); }
   }
-  .log-line .tag-sys  { color: var(--cyan); }
+  .log-line .tag-sys   { color: var(--cyan); }
   .log-line .tag-sens { color: #a78bfa; }
   .log-line .tag-med  { color: #34d399; }
   .log-line .tag-err  { color: var(--red); }
@@ -599,9 +585,7 @@
   .log-line .tag-link { color: #f472b6; }
   .log-msg { color: var(--slate-lt); }
 
-  /* ═══════════════════════════════════════
-     ACCESS DENIED SCREEN
-  ═══════════════════════════════════════ */
+  /* ── ACCESS DENIED SCREEN ── */
   #access-denied {
     position: fixed;
     inset: 0;
@@ -677,9 +661,7 @@
   }
   .denied-btn:hover { opacity: 0.85; }
 
-  /* ═══════════════════════════════════════
-     RECONNECT BANNER
-  ═══════════════════════════════════════ */
+  /* ── RECONNECT BANNER ── */
   #reconnect-banner {
     display: none;
     position: fixed;
@@ -701,9 +683,7 @@
     to   { transform: translateY(0); }
   }
 
-  /* ═══════════════════════════════════════
-     INIT LOADER
-  ═══════════════════════════════════════ */
+  /* ── INIT LOADER ── */
   #init-overlay {
     position: fixed;
     inset: 0;
@@ -755,7 +735,6 @@
     animation: blink 1s step-end infinite;
   }
 
-  /* ── NO PARAMS warning ── */
   .no-params-msg {
     position: fixed;
     bottom: 100px;
@@ -772,14 +751,12 @@
 </head>
 <body>
 
-<!-- INIT OVERLAY -->
 <div id="init-overlay">
   <div class="init-logo">DriveOS <span>/ 2.0</span></div>
   <div class="init-bar-wrap"><div class="init-bar-fill"></div></div>
   <div class="init-status">Initializing Passenger Nexus...</div>
 </div>
 
-<!-- ACCESS DENIED -->
 <div id="access-denied">
   <div class="denied-icon">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -795,12 +772,10 @@
   <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
 </div>
 
-<!-- RECONNECT BANNER -->
 <div id="reconnect-banner">
   ⚠ [LINK LOST]: Attempting to re-establish sync...
 </div>
 
-<!-- ══ HEADER ══ -->
 <header id="header">
   <div class="header-left">
     <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
@@ -816,10 +791,8 @@
   </div>
 </header>
 
-<!-- ══ MAIN ══ -->
 <main id="main">
 
-  <!-- Speedometer -->
   <div class="glass speed-panel">
     <div class="speed-arc"></div>
     <div class="speed-arc"></div>
@@ -829,10 +802,8 @@
     <div class="speed-unit">km / h</div>
   </div>
 
-  <!-- Telemetry Grid -->
   <div class="telem-grid">
 
-    <!-- G-Force -->
     <div class="glass telem-tile">
       <div class="tile-label">G-Force</div>
       <div>
@@ -851,7 +822,6 @@
       </div>
     </div>
 
-    <!-- Acceleration -->
     <div class="glass telem-tile">
       <div class="tile-label">Acceleration</div>
       <div>
@@ -862,7 +832,6 @@
       <div class="tile-label" id="boost-label" style="color:var(--cyan)">NOMINAL</div>
     </div>
 
-    <!-- Fuel (full width) -->
     <div class="glass telem-tile fuel-tile">
       <div class="fuel-info">
         <div class="tile-label">Fuel Reserve</div>
@@ -884,7 +853,6 @@
 
   </div>
 
-  <!-- Media Center -->
   <div class="glass media-panel">
     <div class="visualizer" id="visualizer"></div>
     <div class="media-info">
@@ -900,7 +868,6 @@
 
 </main>
 
-<!-- ══ FOOTER / LOG ══ -->
 <footer id="footer">
   <div class="log-header">System Log</div>
   <div id="log-stream"></div>
@@ -914,7 +881,6 @@
 // ═══════════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════════
-// Dynamic WS URL calculation based on the current domain
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
@@ -983,7 +949,6 @@ function setStatus(state, text) {
 function showAccessDenied() {
   authDenied = true;
   accessDenied.classList.add('visible');
-  // trigger red flash
   setTimeout(() => accessDenied.classList.add('flash'), 10);
   setTimeout(() => accessDenied.classList.remove('flash'), 700);
   sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED');
@@ -996,12 +961,13 @@ function showAccessDenied() {
 function connect() {
   if (authDenied) return;
 
-  try { ws = new WebSocket(`${WS_URL}?role=guest`); }
-catch(e) {
-  sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message);
-  scheduleReconnect();
-  return;
-}
+  try { 
+    ws = new WebSocket(`${WS_URL}?role=guest&device=${encodeURIComponent(deviceId)}&token=${encodeURIComponent(token)}`); 
+  } catch(e) {
+    sysLog('ERR', 'FAILED TO CREATE WEBSOCKET: ' + e.message);
+    scheduleReconnect();
+    return;
+  }
   setStatus('warn', 'Connecting...');
   sysLog('SYS', 'INITIATING SECURE CHANNEL TO RELAY NODE');
 
@@ -1073,19 +1039,16 @@ function scheduleReconnect() {
 //  TELEMETRY UPDATE
 // ═══════════════════════════════════════════════
 function updateTelemetry(d) {
-  // ── Speed
   if (d.speed !== undefined) {
     const s = Math.round(d.speed);
     $('speed-val').textContent = String(s).padStart(3,'0');
   }
 
-  // ── Odometer
   if (d.odometer !== undefined) {
     const km = parseFloat(d.odometer).toLocaleString('en-US', { minimumFractionDigits:1, maximumFractionDigits:1 });
     $('vid-odo').textContent = `[ ${km} KM ]`;
   }
 
-  // ── G-Force
   if (d.g_force !== undefined) {
     const g = parseFloat(d.g_force);
     $('gforce-val').textContent = g.toFixed(2);
@@ -1098,7 +1061,6 @@ function updateTelemetry(d) {
     else               { bar.className='gforce-bar-fill high'; tag.className='stability-tag crit'; tag.textContent='HIGH-G'; }
   }
 
-  // ── Acceleration
   if (d.acceleration !== undefined) {
     const a = parseFloat(d.acceleration);
     $('accel-val').textContent = a.toFixed(1);
@@ -1123,7 +1085,6 @@ function updateTelemetry(d) {
     else            { lbl.textContent='NOMINAL';       lbl.style.color='var(--cyan)'; }
   }
 
-  // ── Fuel
   if (d.fuel_percent !== undefined) {
     const f = parseFloat(d.fuel_percent);
     const fv = $('fuel-val');
@@ -1137,7 +1098,6 @@ function updateTelemetry(d) {
     else              { fs.textContent='NOMINAL'; fs.style.color='var(--cyan)'; }
   }
 
-  // ── Media
   const playing = d.music_playing === true || d.music_playing === 'true' || d.music_playing === 1;
   if (d.music_title  !== undefined) $('media-title').textContent  = d.music_title  || 'No Signal';
   if (d.music_artist !== undefined) $('media-artist').textContent = d.music_artist || '—';
@@ -1161,7 +1121,6 @@ function updateTelemetry(d) {
 //  VISUALIZER
 // ═══════════════════════════════════════════════
 const VIS_BARS = 14;
-const VIS_HEIGHTS = [8,16,24,32,28,20,36,24,16,30,22,10,18,26];
 
 function buildVisualizer() {
   const wrap = $('visualizer');
@@ -1206,7 +1165,7 @@ function initBoostSegs() {
 }
 
 // ═══════════════════════════════════════════════
-//  DEMO MODE (no WS — fake data)
+//  DEMO MODE
 // ═══════════════════════════════════════════════
 function startDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — DEMO MODE ACTIVE');
@@ -1236,7 +1195,6 @@ function init() {
 
   $('vid-device').textContent = deviceId.toUpperCase();
 
-  // Remove init overlay after ~1.5s
   setTimeout(() => {
     initOverlay.classList.add('fade');
     setTimeout(() => initOverlay.style.display='none', 650);
