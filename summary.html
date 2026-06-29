@@ -228,7 +228,7 @@ body::after {
 .approval-sub {
   font-size: 8px; letter-spacing: 0.22em;
   color: var(--slate); text-transform: uppercase;
-  animation: blink-slow 1.5s step-end infinite;
+  animation: blink-slow 1s step-end infinite;
 }
 @keyframes blink-slow { 0%,100%{opacity:1} 50%{opacity:0} }
 
@@ -239,7 +239,7 @@ body::after {
   position: fixed; inset: 0; z-index: 8000;
   background: #060003;
   display: none;
-  flex-direction: column; align-items: center; justify-content: center;
+  flex-direction: column align-items: center; justify-content: center;
   gap: 26px; padding: 40px; text-align: center;
 }
 #access-denied.visible { display: flex; }
@@ -540,7 +540,7 @@ body::after {
   filter: drop-shadow(0 0 16px rgba(0,245,255,0.45));
 }
 .fuel-big-number.scan { color: var(--slate-ghost); filter: none; animation: scan-pulse 0.8s step-end infinite; }
-.fuel-big-number.live { animation: pop-in 0.5s cubic-bezier(0.34,1.5,0.64,1); }
+.fuel-big-number.live { animation: pop-in(0.5s) cubic-bezier(0.34,1.5,0.64,1); }
 .fuel-big-number.warn { color: var(--amber); filter: drop-shadow(0 0 14px rgba(245,158,11,0.5)); }
 .fuel-big-number.crit { color: var(--red);   filter: drop-shadow(0 0 14px rgba(255,31,61,0.5)); }
 
@@ -644,6 +644,7 @@ body::after {
 </head>
 <body>
 
+<!-- ══ BOOT OVERLAY ══ -->
 <div id="boot-overlay">
   <div class="boot-logo">DriveOS <span>/ 2.0</span></div>
   <div class="boot-sub">Mission Summary Intelligence</div>
@@ -651,6 +652,7 @@ body::after {
   <div class="boot-status">Bootstrapping Summary Nexus…</div>
 </div>
 
+<!-- ══ APPROVAL HOLDING SCREEN ══ -->
 <div id="approval-screen">
   <div class="approval-ring">
     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -667,6 +669,7 @@ body::after {
   <div class="approval-sub">Holding encrypted channel open…</div>
 </div>
 
+<!-- ══ ACCESS DENIED ══ -->
 <div id="access-denied">
   <div class="denied-ring">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -684,8 +687,10 @@ body::after {
   <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
 </div>
 
+<!-- ══ RECONNECT BANNER ══ -->
 <div id="recon-banner">⚠ [LINK LOST] — Re-establishing encrypted relay…</div>
 
+<!-- HEADER -->
 <header id="header">
   <div class="hdr-left">
     <div class="brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
@@ -701,8 +706,10 @@ body::after {
   </div>
 </header>
 
+<!-- MAIN -->
 <main id="main">
 
+  <!-- PRIMARY METRICS -->
   <div class="eyebrow">Primary Performance Metrics</div>
   <div class="metrics-grid">
 
@@ -743,9 +750,11 @@ body::after {
 
   </div>
 
+  <!-- GEO DRAWER -->
   <div class="eyebrow">Geo-Spatial Intelligence</div>
   <div class="geo-grid">
 
+    <!-- Start Coordinates -->
     <div class="panel geo-tile">
       <div class="geo-heading">Start Coordinates</div>
       <div class="coord-list">
@@ -769,6 +778,7 @@ body::after {
       </div>
     </div>
 
+    <!-- Stop Coordinates -->
     <div class="panel geo-tile">
       <div class="geo-heading">Stop Coordinates</div>
       <div class="coord-list">
@@ -792,6 +802,7 @@ body::after {
       </div>
     </div>
 
+    <!-- Elevation Metrics -->
     <div class="panel geo-tile" style="grid-column: 1 / -1;">
       <div class="geo-heading">Elevation Profile</div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -819,6 +830,7 @@ body::after {
 
   </div>
 
+  <!-- FUEL & MILEAGE -->
   <div class="eyebrow">Fuel &amp; Efficiency Metrics</div>
   <div class="panel fuel-tile">
     <div class="fuel-big-wrap">
@@ -860,6 +872,7 @@ body::after {
 
 </main>
 
+<!-- FOOTER LOG -->
 <footer id="footer">
   <div class="log-hdr">Nexus System Log</div>
   <div id="log-stream"></div>
@@ -871,8 +884,8 @@ body::after {
 // ─────────────────────────────────────────
 //  CRYPTO CONFIG
 // ─────────────────────────────────────────
-const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2secret00'); // exactly 16 bytes
-const AES_IV  = CryptoJS.enc.Hex.parse('00000000000000000000000000000000'); // static 128-bit IV
+const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2secret00'); 
+const AES_IV  = CryptoJS.enc.Hex.parse('00000000000000000000000000000000'); 
 
 function aesDecrypt(base64Str) {
   try {
@@ -909,7 +922,7 @@ let ws             = null;
 let reconnectTimer = null;
 let authDenied     = false;
 let firstConnect   = true;
-let payloadReceived = false; // CRITICAL: State guard clause to defeat the Burn Rule reconnect race condition
+let payloadReceived = false; 
 
 // ─────────────────────────────────────────
 //  DOM SHORTCUTS
@@ -949,7 +962,7 @@ function sysLog(cat, msg) {
 function setStatus(state, text) {
   connDot.className = 'dot';
   if (state === 'live')  connDot.classList.add('live');
-  if (state === 'error') connDot.classList.add('error');
+  if (state === 'error') connDot.className = 'dot error';
   if (state === 'warn')  connDot.classList.add('warn');
   connText.textContent = text;
 }
@@ -1196,22 +1209,34 @@ function connect() {
     }
 
     if (msg.type === 'summary_payload') {
-      payloadReceived = true; // Lock down state engine instantly to defeat re-connect loops
-      sysLog('DEC', 'ENCRYPTED PAYLOAD RECEIVED — DECRYPTING…');
+      payloadReceived = true; 
       
-      const payload = aesDecrypt(msg.data);
-      ws.close(); // Cleanly detach now that string has landed safely
+      sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
       
-      if (!payload) {
-        showAccessDenied();
+      const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
+      
+      if (!rawCiphertext) {
+        sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
+        setStatus('error', 'Payload key structural error');
         return;
       }
+
+      sysLog('DEC', 'DECRYPTING CIPHERTEXT STRING INJECTOR...');
+      const payload = aesDecrypt(rawCiphertext);
+      
+      if (!payload) {
+        sysLog('ERR', `DECRYPTION ENGINE ERROR. Confirm symmetric key definitions.`);
+        setStatus('error', 'Decryption failed');
+        return;
+      }
+
+      ws.close(); 
       renderSummary(payload);
     }
   });
 
   ws.addEventListener('close', () => {
-    if (authDenied || payloadReceived) return; // If payload is active, ignore backend burn rule shutdowns cleanly
+    if (authDenied || payloadReceived) return; 
     setStatus('warn', 'Link Lost — Reconnecting');
     reconBanner.classList.add('visible');
     sysLog('NET', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
@@ -1231,7 +1256,7 @@ function scheduleReconnect() {
 }
 
 // ─────────────────────────────────────────
-//  DEMO MODE (no URL params)
+//  DEMO MODE
 // ─────────────────────────────────────────
 function runDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE');
