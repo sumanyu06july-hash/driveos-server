@@ -12,7 +12,7 @@
 <style>
 
 /* ─────────────────────────────────────────
-   RESET & TOKEN SYSTEM
+    RESET & TOKEN SYSTEM
 ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -76,7 +76,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   GLASSMORPHISM PANEL BASE
+    GLASSMORPHISM PANEL BASE
 ───────────────────────────────────────── */
 .panel {
   background: var(--bg-panel);
@@ -100,7 +100,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   HEADER
+    HEADER
 ───────────────────────────────────────── */
 #header {
   position: relative; z-index: 50;
@@ -146,7 +146,7 @@ body::after {
 .hdr-meta   { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
 
 /* ─────────────────────────────────────────
-   MAIN SCROLL AREA
+    MAIN SCROLL AREA
 ───────────────────────────────────────── */
 #main {
   flex: 1;
@@ -171,7 +171,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   APPROVAL HOLDING STATE
+    APPROVAL HOLDING STATE
 ───────────────────────────────────────── */
 #approval-screen {
   position: fixed; inset: 0; z-index: 7000;
@@ -233,7 +233,7 @@ body::after {
 @keyframes blink-slow { 0%,100%{opacity:1} 50%{opacity:0} }
 
 /* ─────────────────────────────────────────
-   ACCESS DENIED SCREEN
+    ACCESS DENIED SCREEN
 ───────────────────────────────────────── */
 #access-denied {
   position: fixed; inset: 0; z-index: 8000;
@@ -297,7 +297,7 @@ body::after {
 .denied-btn:hover { opacity: 0.87; box-shadow: 0 0 40px rgba(255,31,61,0.55); }
 
 /* ─────────────────────────────────────────
-   INIT / BOOT OVERLAY
+    INIT / BOOT OVERLAY
 ───────────────────────────────────────── */
 #boot-overlay {
   position: fixed; inset: 0; z-index: 6000;
@@ -346,7 +346,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   RECONNECT BANNER
+    RECONNECT BANNER
 ───────────────────────────────────────── */
 #recon-banner {
   display: none;
@@ -365,7 +365,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   PRIMARY METRICS — 4 big readouts
+    PRIMARY METRICS — 4 big readouts
 ───────────────────────────────────────── */
 .metrics-grid {
   display: grid;
@@ -401,7 +401,6 @@ body::after {
   font-size: clamp(32px, 9vw, 44px);
   font-weight: 800;
   letter-spacing: -1.5px;
-  /* shimmer gradient */
   background: linear-gradient(90deg,
     var(--cyan) 0%,
     #ccfeff    40%,
@@ -415,7 +414,6 @@ body::after {
   transition: all 0.5s ease;
 }
 
-/* scanning placeholder */
 .tile-number.scan {
   background: none;
   -webkit-text-fill-color: var(--slate-ghost);
@@ -424,7 +422,6 @@ body::after {
 }
 @keyframes scan-pulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
 
-/* revealed = shimmer on */
 .tile-number.live {
   animation: shimmer-flow 5s linear infinite, pop-in 0.5s cubic-bezier(0.34,1.6,0.64,1);
 }
@@ -450,7 +447,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   GEO PANELS — coordinates + elevation
+    GEO PANELS — coordinates + elevation
 ───────────────────────────────────────── */
 .geo-grid {
   display: grid;
@@ -501,7 +498,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   ELEVATION PANEL
+    ELEVATION PANEL
 ───────────────────────────────────────── */
 .elev-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
 .elev-key  { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
@@ -528,7 +525,7 @@ body::after {
 }
 
 /* ─────────────────────────────────────────
-   FUEL / MILEAGE PANEL (full width)
+    FUEL / MILEAGE PANEL (full width)
 ───────────────────────────────────────── */
 .fuel-tile {
   padding: 16px 20px;
@@ -588,7 +585,7 @@ body::after {
 .fuel-stat-val.live { animation: pop-in 0.4s cubic-bezier(0.34,1.4,0.64,1); }
 
 /* ─────────────────────────────────────────
-   SYSTEM LOG FOOTER
+    SYSTEM LOG FOOTER
 ───────────────────────────────────────── */
 #footer {
   flex-shrink: 0; z-index: 50;
@@ -637,7 +634,7 @@ body::after {
 .log-msg  { color: var(--slate-lt); }
 
 /* ─────────────────────────────────────────
-   REDUCED MOTION
+    REDUCED MOTION
 ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -647,7 +644,6 @@ body::after {
 </head>
 <body>
 
-<!-- ══ BOOT OVERLAY ══ -->
 <div id="boot-overlay">
   <div class="boot-logo">DriveOS <span>/ 2.0</span></div>
   <div class="boot-sub">Mission Summary Intelligence</div>
@@ -655,7 +651,6 @@ body::after {
   <div class="boot-status">Bootstrapping Summary Nexus…</div>
 </div>
 
-<!-- ══ APPROVAL HOLDING SCREEN ══ -->
 <div id="approval-screen">
   <div class="approval-ring">
     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -672,7 +667,6 @@ body::after {
   <div class="approval-sub">Holding encrypted channel open…</div>
 </div>
 
-<!-- ══ ACCESS DENIED ══ -->
 <div id="access-denied">
   <div class="denied-ring">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -690,15 +684,11 @@ body::after {
   <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
 </div>
 
-<!-- ══ RECONNECT BANNER ══ -->
 <div id="recon-banner">⚠ [LINK LOST] — Re-establishing encrypted relay…</div>
 
-<!-- ══════════════════════════════════════
-     HEADER
-══════════════════════════════════════ -->
 <header id="header">
   <div class="hdr-left">
-    <div class="hdr-brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
+    <div class="brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
     <div class="hdr-conn">
       <div class="dot" id="conn-dot"></div>
       <span id="conn-text">Initializing…</span>
@@ -711,12 +701,8 @@ body::after {
   </div>
 </header>
 
-<!-- ══════════════════════════════════════
-     MAIN
-══════════════════════════════════════ -->
 <main id="main">
 
-  <!-- PRIMARY METRICS -->
   <div class="eyebrow">Primary Performance Metrics</div>
   <div class="metrics-grid">
 
@@ -757,11 +743,9 @@ body::after {
 
   </div>
 
-  <!-- GEO DRAWER -->
   <div class="eyebrow">Geo-Spatial Intelligence</div>
   <div class="geo-grid">
 
-    <!-- Start Coordinates -->
     <div class="panel geo-tile">
       <div class="geo-heading">Start Coordinates</div>
       <div class="coord-list">
@@ -785,7 +769,6 @@ body::after {
       </div>
     </div>
 
-    <!-- Stop Coordinates -->
     <div class="panel geo-tile">
       <div class="geo-heading">Stop Coordinates</div>
       <div class="coord-list">
@@ -809,7 +792,6 @@ body::after {
       </div>
     </div>
 
-    <!-- Elevation Metrics -->
     <div class="panel geo-tile" style="grid-column: 1 / -1;">
       <div class="geo-heading">Elevation Profile</div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -837,7 +819,6 @@ body::after {
 
   </div>
 
-  <!-- FUEL & MILEAGE -->
   <div class="eyebrow">Fuel &amp; Efficiency Metrics</div>
   <div class="panel fuel-tile">
     <div class="fuel-big-wrap">
@@ -879,15 +860,11 @@ body::after {
 
 </main>
 
-<!-- ══ FOOTER LOG ══ -->
 <footer id="footer">
   <div class="log-hdr">Nexus System Log</div>
   <div id="log-stream"></div>
 </footer>
 
-<!-- ══════════════════════════════════════
-     RUNTIME SCRIPT
-══════════════════════════════════════ -->
 <script>
 'use strict';
 
@@ -932,6 +909,7 @@ let ws             = null;
 let reconnectTimer = null;
 let authDenied     = false;
 let firstConnect   = true;
+let payloadReceived = false; // CRITICAL: State guard clause to defeat the Burn Rule reconnect race condition
 
 // ─────────────────────────────────────────
 //  DOM SHORTCUTS
@@ -980,6 +958,7 @@ function setStatus(state, text) {
 //  APPROVAL SCREEN
 // ─────────────────────────────────────────
 function showApproval() {
+  if (payloadReceived) return;
   approvalScreen.classList.add('visible');
   setStatus('warn', 'Awaiting Approval…');
   sysLog('NET', 'HOLDING STATE ACTIVE — COMPANION APPROVAL REQUIRED');
@@ -1010,7 +989,6 @@ function reveal(id, value) {
   if (!el) return;
   el.textContent = value;
   el.classList.remove('scan', 'live');
-  // force reflow to restart animation
   void el.offsetWidth;
   el.classList.add('live');
 }
@@ -1048,7 +1026,6 @@ function renderSummary(d) {
   hideApproval();
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
-  // Header
   const devLabel = (d.device_id || device).toUpperCase();
   $('hdr-device').textContent  = devLabel;
   $('hdr-session').textContent = 'Session: ' + (d.session_id || '—');
@@ -1056,9 +1033,7 @@ function renderSummary(d) {
     $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
   }
 
-  // ── Staggered reveal loop ──
   const sequence = [
-    // [delay_ms, fn]
     [0, () => {
       reveal('m-max-speed', fmtNum(d.max_speed_kmh, 1));
       sysLog('MET', `MAX SPEED → ${fmtNum(d.max_speed_kmh, 1)} km/h`);
@@ -1076,7 +1051,6 @@ function renderSummary(d) {
       sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`);
     }],
     [750, () => {
-      // Start coords
       reveal('g-s-lat',  fmtCoord(d.start_lat));
       reveal('g-s-lng',  fmtCoord(d.start_lng));
       reveal('g-s-alt',  fmtNum(d.start_alt_m, 1) + ' m');
@@ -1084,7 +1058,6 @@ function renderSummary(d) {
       sysLog('GEO', `START → ${fmtCoord(d.start_lat, 4)}, ${fmtCoord(d.start_lng, 4)}`);
     }],
     [950, () => {
-      // Stop coords
       reveal('g-e-lat',  fmtCoord(d.stop_lat));
       reveal('g-e-lng',  fmtCoord(d.stop_lng));
       reveal('g-e-alt',  fmtNum(d.stop_alt_m, 1) + ' m');
@@ -1092,7 +1065,6 @@ function renderSummary(d) {
       sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat, 4)}, ${fmtCoord(d.stop_lng, 4)}`);
     }],
     [1150, () => {
-      // Elevation
       const eMin  = parseFloat(d.elevation_min_m  || 0);
       const eMax  = parseFloat(d.elevation_max_m  || 0);
       const eGain = parseFloat(d.elevation_gain_m || 0);
@@ -1106,7 +1078,6 @@ function renderSummary(d) {
       sysLog('GEO', `ELEV min:${eMin.toFixed(0)}m max:${eMax.toFixed(0)}m gain:${eGain.toFixed(0)}m`);
     }],
     [1380, () => {
-      // Fuel & efficiency
       const eff    = parseFloat(d.fuel_efficiency_kml  || 0);
       const fPct   = parseFloat(d.fuel_remaining_pct   || 0);
       const fUsed  = parseFloat(d.fuel_used_litres     || 0);
@@ -1115,7 +1086,6 @@ function renderSummary(d) {
       const score  = parseFloat(d.efficiency_score_pct  || 0);
       const rating = effRating(score);
 
-      // big number
       const bigEl = $('f-efficiency');
       bigEl.textContent = eff.toFixed(1);
       bigEl.classList.remove('scan', 'live', 'warn', 'crit');
@@ -1124,14 +1094,12 @@ function renderSummary(d) {
       else if (fPct <= 25) bigEl.classList.add('warn', 'live');
       else                 bigEl.classList.add('live');
 
-      // bar
       const bar = $('f-bar');
       bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
       bar.className = 'fuel-bar-fill';
       if (fPct <= 10)      bar.classList.add('crit');
       else if (fPct <= 25) bar.classList.add('warn');
 
-      // pct label
       const pctEl = $('f-pct-label');
       pctEl.textContent = Math.round(fPct) + '%';
       pctEl.classList.remove('scan'); pctEl.classList.add('live');
@@ -1157,7 +1125,7 @@ function renderSummary(d) {
 //  WEBSOCKET
 // ─────────────────────────────────────────
 function connect() {
-  if (authDenied) return;
+  if (authDenied || payloadReceived) return;
 
   try { ws = new WebSocket(WS_URL); }
   catch(e) {
@@ -1170,6 +1138,7 @@ function connect() {
   sysLog('NET', 'OPENING ENCRYPTED SUMMARY CHANNEL');
 
   ws.addEventListener('open', () => {
+    if (payloadReceived) { ws.close(); return; }
     reconBanner.classList.remove('visible');
     setStatus('warn', 'Handshaking…');
     sysLog('NET', `CHANNEL OPEN — SENDING AUTH HANDSHAKE (device: ${device.toUpperCase()})`);
@@ -1186,10 +1155,10 @@ function connect() {
   });
 
   ws.addEventListener('message', e => {
+    if (payloadReceived) return;
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
 
-    // ── Error / auth rejection ──
     if (msg.type === 'error') {
       sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
       ws.close();
@@ -1197,7 +1166,6 @@ function connect() {
       return;
     }
 
-    // ── Handshake ok — waiting for companion ──
     if (msg.type === 'handshake_ok') {
       if (msg.status === 'awaiting_companion_approval') {
         showApproval();
@@ -1208,7 +1176,6 @@ function connect() {
       return;
     }
 
-    // ── auth_ok (alternative server key) ──
     if (msg.type === 'auth_ok') {
       hideApproval();
       setStatus('live', 'Auth OK — Awaiting Payload');
@@ -1216,7 +1183,6 @@ function connect() {
       return;
     }
 
-    // ── Companion approved — token granted ──
     if (msg.type === 'companion_approved') {
       hideApproval();
       setStatus('live', 'Companion Approved');
@@ -1224,16 +1190,18 @@ function connect() {
       return;
     }
 
-    // ── Companion rejected ──
     if (msg.type === 'companion_rejected') {
       showAccessDenied();
       return;
     }
 
-    // ── Encrypted summary payload ──
     if (msg.type === 'summary_payload') {
+      payloadReceived = true; // Lock down state engine instantly to defeat re-connect loops
       sysLog('DEC', 'ENCRYPTED PAYLOAD RECEIVED — DECRYPTING…');
+      
       const payload = aesDecrypt(msg.data);
+      ws.close(); // Cleanly detach now that string has landed safely
+      
       if (!payload) {
         showAccessDenied();
         return;
@@ -1243,7 +1211,7 @@ function connect() {
   });
 
   ws.addEventListener('close', () => {
-    if (authDenied) return;
+    if (authDenied || payloadReceived) return; // If payload is active, ignore backend burn rule shutdowns cleanly
     setStatus('warn', 'Link Lost — Reconnecting');
     reconBanner.classList.add('visible');
     sysLog('NET', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
@@ -1251,11 +1219,13 @@ function connect() {
   });
 
   ws.addEventListener('error', () => {
+    if (payloadReceived) return;
     sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE STATUS');
   });
 }
 
 function scheduleReconnect() {
+  if (payloadReceived) return;
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(connect, 5000);
 }
@@ -1267,7 +1237,6 @@ function runDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE');
   setStatus('warn', 'Demo Mode');
 
-  // Show approval screen briefly then resolve
   showApproval();
   setTimeout(() => {
     hideApproval();
