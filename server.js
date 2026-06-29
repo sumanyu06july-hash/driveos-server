@@ -191,21 +191,35 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
+                        // Deliver the full encrypted tracking matrix payload down the line
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
                         }));
-                        console.log(`[GATEWAY_RELEASE] Dispatched secure ciphertext payload out to target client screen. Firing Burn Rule.`);
+                        console.log(`[GATEWAY_RELEASE] Dispatched secure ciphertext payload out to target client screen. Scheduling delayed Burn Rule.`);
                     } else {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
-                    dev.summaryTokens.delete(targetToken);
-                    dev.summaryClients.delete(targetToken);
+                    // FIXED: Wrap map destruction inside a 500ms grace window.
+                    // This allows the server to finish streaming the payload completely down the network link 
+                    // before turning off authorization or disconnecting the client pipe.
+                    setTimeout(() => {
+                        try {
+                            if (browserClient && browserClient.readyState === WebSocket.OPEN) {
+                                browserClient.close();
+                            }
+                        } catch (closeErr) {
+                            console.error('[GATEWAY_CLOSE_ERR] Error execution close loop:', closeErr.message);
+                        }
+                        dev.summaryTokens.delete(targetToken);
+                        dev.summaryClients.delete(targetToken);
+                        console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps via delayed Burn Rule.`);
+                    }, 500);
                     return; 
                 }
 
-                // NEW: HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (DENY)
+                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (DENY)
                 if (msg.type === 'deny_summary_access') {
                     const targetToken = msg.token;
                     console.log(`[GATEWAY_SIGNAL] Companion explicitly DENIED web browser access request for token: ${targetToken}`);
@@ -220,7 +234,7 @@ wss.on('connection', (ws, req) => {
                         console.log(`[GATEWAY_KICK] Notified browser client of denial configuration context.`);
                     }
 
-                    // BURN RULE: Instantly wipe maps clean so token can never be processed or accessed again
+                    // BURN RULE: Instantly wipe maps clean since no data payload is being pushed
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
                     console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps.`);
