@@ -233,14 +233,14 @@ body::after {
 @keyframes blink-slow { 0%,100%{opacity:1} 50%{opacity:0} }
 
 /* ─────────────────────────────────────────
-    ACCESS DENIED SCREEN
+    ACCESS DENIED SCREEN (Adjusted padding)
 ───────────────────────────────────────── */
 #access-denied {
   position: fixed; inset: 0; z-index: 8000;
   background: #060003;
   display: none;
   flex-direction: column; align-items: center; justify-content: center;
-  gap: 26px; padding: 40px; text-align: center;
+  gap: 26px; padding: 40px 40px 110px; text-align: center;
 }
 #access-denied.visible { display: flex; }
 #access-denied.flash   { animation: denied-flash 0.7s ease-out; }
@@ -585,15 +585,16 @@ body::after {
 .fuel-stat-val.live { animation: pop-in 0.4s cubic-bezier(0.34,1.4,0.64,1); }
 
 /* ─────────────────────────────────────────
-    SYSTEM LOG FOOTER
+    SYSTEM LOG FOOTER (ELEVATED TO TOP OVERLAY)
 ───────────────────────────────────────── */
 #footer {
-  flex-shrink: 0; z-index: 50;
-  border-top: 1px solid rgba(0,245,255,0.08);
-  background: rgba(5,5,8,0.94);
-  backdrop-filter: blur(24px);
-  height: 84px; overflow: hidden;
-  position: relative;
+  flex-shrink: 0; 
+  position: fixed; bottom: 0; left: 0; right: 0;
+  z-index: 9999; 
+  border-top: 1px solid rgba(0,245,255,0.18);
+  background: #050508; 
+  height: 84px; 
+  overflow: hidden;
 }
 
 .log-hdr {
@@ -869,21 +870,32 @@ body::after {
 'use strict';
 
 // ─────────────────────────────────────────
-//  CRYPTO CONFIG
+//  CRYPTO CONFIG (FIXED: ALIGNED TO HEADUNIT PRODUCTION MATRICES)
 // ─────────────────────────────────────────
-const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2secret00'); 
-const AES_IV  = CryptoJS.enc.Hex.parse('00000000000000000000000000000000'); 
+const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2_sec_key'); // Aligned to real Android literal key
 
 function aesDecrypt(base64Str) {
   try {
+    // 1. Convert raw inbound payload text to full WordArray format
+    const fullBytes = CryptoJS.enc.Base64.parse(base64Str);
+    
+    // 2. Headunit pre-pends 16-bytes of dynamic IV. Extract those first 4 words.
+    const ivWords = CryptoJS.lib.WordArray.create(fullBytes.words.slice(0, 4), 16);
+    
+    // 3. Extract remainder array block to formulate pure encrypted block array
+    const cipherWords = CryptoJS.lib.WordArray.create(fullBytes.words.slice(4), fullBytes.sigBytes - 16);
+    
     const ct = CryptoJS.lib.CipherParams.create({
-      ciphertext: CryptoJS.enc.Base64.parse(base64Str)
+      ciphertext: cipherWords
     });
+    
+    // 4. Decrypt utilising the true extracted dynamic Android Initialization Vector
     const dec = CryptoJS.AES.decrypt(ct, AES_KEY, {
-      iv:      AES_IV,
+      iv:      ivWords,
       mode:    CryptoJS.mode.CBC,
       padding: CryptoJS.pad.Pkcs7
     });
+    
     const decText = dec.toString(CryptoJS.enc.Utf8);
     if (!decText) return null;
     return JSON.parse(decText);
@@ -910,8 +922,8 @@ const WS_URL = `${WS_PROTOCOL}${location.host}?role=summary_client&device=${devi
 let ws             = null;
 let reconnectTimer = null;
 let authDenied     = false;
-let firstConnect   = true;
 let payloadReceived = false; 
+let firstConnect   = true;
 
 // ─────────────────────────────────────────
 //  DOM SHORTCUTS
@@ -1207,14 +1219,15 @@ function connect() {
       if (!rawCiphertext) {
         sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
         setStatus('error', 'Payload key structural error');
+        showAccessDenied();
         return;
       }
 
-      sysLog('DEC', 'DECRYPTING CIPHERTEXT STRING INJECTOR...');
+      sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
       const payload = aesDecrypt(rawCiphertext);
       
       if (!payload) {
-        sysLog('ERR', `DECRYPTION ENGINE ERROR. Confirm symmetric key definitions.`);
+        sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
         setStatus('error', 'Decryption failed');
         showAccessDenied();
         return;
