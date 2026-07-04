@@ -58,7 +58,6 @@ body {
   position: relative;
 }
 
-/* ── CRT scanlines overlay ── */
 body::before {
   content: '';
   position: fixed;
@@ -72,7 +71,6 @@ body::before {
   z-index: 9000;
 }
 
-/* ── Ambient dot-grid ── */
 body::after {
   content: '';
   position: fixed;
@@ -97,7 +95,6 @@ body::after {
   overflow: hidden;
 }
 
-/* top-edge cyan accent bar */
 .panel::before {
   content: '';
   position: absolute;
@@ -138,6 +135,7 @@ body::after {
   text-transform: uppercase;
   color: var(--cyan);
 }
+
 .hdr-brand span {
   color: var(--slate);
   font-weight: 400;
@@ -161,15 +159,18 @@ body::after {
   flex-shrink: 0;
   transition: background 0.4s, box-shadow 0.4s;
 }
+
 .dot.live  {
   background: var(--cyan);
   box-shadow: 0 0 6px var(--cyan), 0 0 16px rgba(0,245,255,0.5);
   animation: pulse-dot 2s ease-in-out infinite;
 }
+
 .dot.error {
   background: var(--red);
   box-shadow: 0 0 8px var(--red);
 }
+
 .dot.warn  {
   background: var(--amber);
   box-shadow: 0 0 8px var(--amber);
@@ -177,8 +178,14 @@ body::after {
 }
 
 @keyframes pulse-dot {
-  0%,100% { opacity:1; transform:scale(1); }
-  50%     { opacity:0.4; transform:scale(0.7); }
+  0%,100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
 }
 
 .hdr-right {
@@ -187,12 +194,14 @@ body::after {
   align-items: flex-end;
   gap: 3px;
 }
+
 .hdr-device {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: var(--cyan);
 }
+
 .hdr-meta {
   font-size: 7px;
   letter-spacing: 0.2em;
@@ -214,7 +223,6 @@ body::after {
   gap: 12px;
 }
 
-/* section eyebrow label */
 .eyebrow {
   font-size: 7px;
   font-weight: 700;
@@ -226,6 +234,7 @@ body::after {
   gap: 10px;
   margin-bottom: 8px;
 }
+
 .eyebrow::after {
   content: '';
   flex: 1;
@@ -252,6 +261,7 @@ body::after {
   pointer-events: none;
   transition: opacity 0.5s ease;
 }
+
 #approval-screen.visible {
   opacity: 1;
   pointer-events: all;
@@ -268,16 +278,24 @@ body::after {
   box-shadow: 0 0 0 8px rgba(0,245,255,0.04), 0 0 32px var(--cyan-glow), 0 0 80px rgba(0,245,255,0.1);
   animation: ring-breathe 2.4s ease-in-out infinite;
 }
+
 @keyframes ring-breathe {
-  0%,100% { box-shadow: 0 0 0 8px rgba(0,245,255,0.04), 0 0 32px var(--cyan-glow), 0 0 80px rgba(0,245,255,0.1); }
-  50%     { box-shadow: 0 0 0 14px rgba(0,245,255,0.02), 0 0 60px rgba(0,245,255,0.35), 0 0 120px rgba(0,245,255,0.15); }
+  0%,100% {
+    box-shadow: 0 0 0 8px rgba(0,245,255,0.04), 0 0 32px var(--cyan-glow), 0 0 80px rgba(0,245,255,0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(0,245,255,0.02), 0 0 60px rgba(0,245,255,0.35), 0 0 120px rgba(0,245,255,0.15);
+  }
 }
+
 .approval-ring svg {
   stroke: var(--cyan);
   animation: icon-spin-slow 8s linear infinite;
 }
+
 @keyframes icon-spin-slow {
-  from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .approval-label {
@@ -302,9 +320,10 @@ body::after {
   background: rgba(0,245,255,0.03);
   animation: msg-pulse 2.4s ease-in-out infinite;
 }
+
 @keyframes msg-pulse {
   0%,100% { border-color: rgba(0,245,255,0.15); }
-  50%     { border-color: rgba(0,245,255,0.38); }
+  50% { border-color: rgba(0,245,255,0.38); }
 }
 
 .approval-sub {
@@ -331,16 +350,18 @@ body::after {
   padding: 40px 40px 110px;
   text-align: center;
 }
+
 #access-denied.visible {
   display: flex;
 }
+
 #access-denied.flash {
   animation: denied-flash 0.7s ease-out;
 }
 
 @keyframes denied-flash {
-  0%   { background: #3a000a; }
-  40%  { background: #1c0005; }
+  0% { background: #3a000a; }
+  40% { background: #1c0005; }
   100% { background: #060003; }
 }
 
@@ -355,10 +376,16 @@ body::after {
   box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12);
   animation: denied-ring-pulse 2s ease-in-out infinite;
 }
+
 @keyframes denied-ring-pulse {
-  0%,100% { box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12); }
-  50%     { box-shadow: 0 0 0 16px rgba(255,31,61,0.02), 0 0 55px rgba(255,31,61,0.42), 0 0 120px rgba(255,31,61,0.18); }
+  0%,100% {
+    box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(255,31,61,0.02), 0 0 55px rgba(255,31,61,0.42), 0 0 120px rgba(255,31,61,0.18);
+  }
 }
+
 .denied-ring svg {
   stroke: var(--red);
 }
@@ -400,6 +427,7 @@ body::after {
   box-shadow: 0 0 22px rgba(255,31,61,0.28);
   transition: opacity 0.2s;
 }
+
 .denied-btn:hover {
   opacity: 0.87;
 }
@@ -465,10 +493,30 @@ body::after {
   filter: none;
   animation: scan-pulse 0.8s step-end infinite;
 }
-@keyframes scan-pulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
+
+@keyframes scan-pulse {
+  0%,100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
 
 .tile-number.live {
   animation: shimmer-flow 5s linear infinite, pop-in 0.5s cubic-bezier(0.34,1.6,0.64,1);
+}
+
+@keyframes shimmer-flow {
+  0% { background-position: 260% center; }
+  100% { background-position: -260% center; }
+}
+
+@keyframes pop-in {
+  from {
+    transform: translateY(8px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .tile-unit {
@@ -479,6 +527,7 @@ body::after {
   align-self: flex-end;
   margin-bottom: 4px;
 }
+
 .tile-sub {
   font-size: 7px;
   letter-spacing: 0.16em;
@@ -487,17 +536,16 @@ body::after {
   margin-top: 2px;
 }
 
-/* ─────────────────────────────────────────
-    GEO-SPATIAL intelligence
-───────────────────────────────────────── */
 .geo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
 .geo-tile {
   padding: 14px 16px;
 }
+
 .geo-heading {
   font-size: 7px;
   font-weight: 700;
@@ -509,6 +557,7 @@ body::after {
   gap: 7px;
   margin-bottom: 12px;
 }
+
 .geo-heading::before {
   content: '';
   width: 4px;
@@ -518,17 +567,20 @@ body::after {
   box-shadow: 0 0 5px var(--cyan);
   flex-shrink: 0;
 }
+
 .coord-list {
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
+
 .coord-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
 }
+
 .coord-key {
   font-size: 7px;
   letter-spacing: 0.2em;
@@ -536,6 +588,7 @@ body::after {
   text-transform: uppercase;
   flex-shrink: 0;
 }
+
 .coord-val {
   font-size: 10px;
   font-weight: 600;
@@ -543,18 +596,22 @@ body::after {
   color: var(--cyan);
   text-align: right;
 }
+
 .coord-val.scan {
   color: var(--slate-ghost);
   animation: scan-pulse 0.8s step-end infinite;
 }
+
 .coord-val.live {
   animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1);
 }
+
 .coord-divider {
   height: 1px;
   background: rgba(0,245,255,0.06);
   margin: 4px 0;
 }
+
 .elev-row {
   display: flex;
   justify-content: space-between;
@@ -562,34 +619,41 @@ body::after {
   gap: 8px;
   margin-bottom: 6px;
 }
+
 .elev-key {
   font-size: 7px;
   letter-spacing: 0.2em;
   color: var(--slate);
   text-transform: uppercase;
 }
+
 .elev-val {
   font-size: 11px;
   font-weight: 700;
   color: var(--cyan);
   letter-spacing: 0.05em;
 }
+
 .elev-val.scan {
   color: var(--slate-ghost);
   animation: scan-pulse 0.8s step-end infinite;
 }
+
 .elev-val.live {
   animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1);
 }
+
 .elev-bar-wrap {
   margin-top: 10px;
 }
+
 .elev-bar-track {
   height: 3px;
   background: rgba(255,255,255,0.05);
   border-radius: 2px;
   overflow: hidden;
 }
+
 .elev-bar-fill {
   height: 100%;
   width: 0;
@@ -598,6 +662,7 @@ body::after {
   border-radius: 2px;
   transition: width 1.4s cubic-bezier(0.34,1.2,0.64,1);
 }
+
 .elev-ticks {
   display: flex;
   justify-content: space-between;
@@ -607,15 +672,13 @@ body::after {
   letter-spacing: 0.06em;
 }
 
-/* ─────────────────────────────────────────
-    FUEL RESERVE PLOTS
-───────────────────────────────────────── */
 .fuel-tile {
   padding: 16px 20px;
   display: flex;
   align-items: center;
   gap: 20px;
 }
+
 .fuel-big-wrap {
   display: flex;
   flex-direction: column;
@@ -623,6 +686,7 @@ body::after {
   flex-shrink: 0;
   min-width: 90px;
 }
+
 .fuel-big-number {
   font-size: 30px;
   font-weight: 800;
@@ -631,10 +695,26 @@ body::after {
   color: var(--cyan);
   filter: drop-shadow(0 0 16px rgba(0,245,255,0.45));
 }
-.fuel-big-number.scan { color: var(--slate-ghost); filter: none; animation: scan-pulse 0.8s step-end infinite; }
-.fuel-big-number.live { animation: pop-in 0.5s cubic-bezier(0.34,1.5,0.64,1); }
-.fuel-big-number.warn { color: var(--amber); filter: drop-shadow(0 0 14px rgba(245,158,11,0.5)); }
-.fuel-big-number.crit { color: var(--red);   filter: drop-shadow(0 0 14px rgba(255,31,61,0.5)); }
+
+.fuel-big-number.scan {
+  color: var(--slate-ghost);
+  filter: none;
+  animation: scan-pulse 0.8s step-end infinite;
+}
+
+.fuel-big-number.live {
+  animation: pop-in 0.5s cubic-bezier(0.34,1.5,0.64,1);
+}
+
+.fuel-big-number.warn {
+  color: var(--amber);
+  filter: drop-shadow(0 0 14px rgba(245,158,11,0.5));
+}
+
+.fuel-big-number.crit {
+  color: var(--red);
+  filter: drop-shadow(0 0 14px rgba(255,31,61,0.5));
+}
 
 .fuel-bar-wrap {
   flex: 1;
@@ -642,6 +722,7 @@ body::after {
   flex-direction: column;
   gap: 6px;
 }
+
 .fuel-bar-track {
   height: 9px;
   background: rgba(255,255,255,0.04);
@@ -650,6 +731,7 @@ body::after {
   border: 1px solid rgba(0,245,255,0.08);
   position: relative;
 }
+
 .fuel-bar-fill {
   height: 100%;
   width: 0;
@@ -660,6 +742,7 @@ body::after {
   position: relative;
   overflow: hidden;
 }
+
 .fuel-bar-fill::after {
   content: '';
   position: absolute;
@@ -670,8 +753,16 @@ body::after {
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
   animation: shine 3s ease-in-out infinite;
 }
-.fuel-bar-fill.warn { background: linear-gradient(90deg, #b45309, var(--amber)); box-shadow: 0 0 8px var(--amber); }
-.fuel-bar-fill.crit { background: linear-gradient(90deg, #920e1e, var(--red));   box-shadow: 0 0 10px var(--red); }
+
+.fuel-bar-fill.warn {
+  background: linear-gradient(90deg, #b45309, var(--amber));
+  box-shadow: 0 0 8px var(--amber);
+}
+
+.fuel-bar-fill.crit {
+  background: linear-gradient(90deg, #920e1e, var(--red));
+  box-shadow: 0 0 10px var(--red);
+}
 
 .fuel-ticks {
   display: flex;
@@ -680,37 +771,39 @@ body::after {
   color: rgba(82,104,122,0.4);
   letter-spacing: 0.05em;
 }
+
 .fuel-stats {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 2px;
 }
+
 .fuel-stat {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .fuel-stat-label {
   font-size: 7px;
   letter-spacing: 0.2em;
   color: var(--slate);
   text-transform: uppercase;
 }
+
 .fuel-stat-val {
   font-size: 11px;
   font-weight: 600;
   color: var(--cyan);
   letter-spacing: 0.04em;
 }
+
 .fuel-stat-val.scan {
   color: var(--slate-ghost);
   animation: scan-pulse 0.8s step-end infinite;
 }
 
-/* ─────────────────────────────────────────
-    SYSTEM LOG FOOTER (ELEVATED TO TOP OVERLAY)
-───────────────────────────────────────── */
 #footer {
   flex-shrink: 0;
   position: fixed;
@@ -735,6 +828,7 @@ body::after {
   align-items: center;
   gap: 7px;
 }
+
 .log-hdr::before {
   content: '▶';
   font-size: 5px;
@@ -762,6 +856,7 @@ body::after {
   animation: log-appear 0.28s forwards;
   flex-shrink: 0;
 }
+
 .log-line .ts {
   color: rgba(82,104,122,0.42);
 }
@@ -822,7 +917,7 @@ body::after {
 
 <header id="header">
   <div class="hdr-left">
-    <div class="hdr-brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
+    <div class="brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
     <div class="hdr-conn">
       <div class="dot" id="conn-dot"></div>
       <span id="conn-text">Initializing…</span>
@@ -1035,12 +1130,32 @@ function reveal(id, value) {
 }
 
 function fmtCoord(n, dp = 6) { return (n == null) ? '—' : parseFloat(n).toFixed(dp) + '°'; }
+
 function fmtTime(secs) {
   if (secs == null) return '--:--';
-  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = Math.floor(secs % 60);
-  return h > 0 ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  if (h > 0) {
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  } else {
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
 }
-function effRating(score) { return score >= 80 ? 'OPTIMAL' : score >= 60 ? 'NOMINAL' : score >= 45 ? 'MODERATE' : score >= 25 ? 'REDUCED' : 'CRITICAL'; }
+
+function effRating(score) {
+  if (score >= 80) {
+    return 'OPTIMAL';
+  } else if (score >= 60) {
+    return 'NOMINAL';
+  } else if (score >= 45) {
+    return 'MODERATE';
+  } else if (score >= 25) {
+    return 'REDUCED';
+  } else {
+    return 'CRITICAL';
+  }
+}
 
 function renderSummary(d) {
   approvalScreen.classList.remove('visible');
@@ -1048,37 +1163,61 @@ function renderSummary(d) {
 
   $('hdr-device').textContent  = (d.device_id || device).toUpperCase();
   $('hdr-session').textContent = 'Session: ' + (d.session_id || '—');
-  if (d.trip_start_epoch) $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
+  if (d.trip_start_epoch) {
+    $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
+  }
 
   const sequence = [
-    [0, () => { reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1)); sysLog('MET', `MAX SPEED → ${d.max_speed_kmh} km/h`); }],
-    [180, () => { reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1)); sysLog('MET', `AVG SPEED → ${d.avg_speed_kmh} km/h`); }],
-    [360, () => { reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2)); sysLog('MET', `DISTANCE → ${d.total_distance_km} km`); }],
-    [540, () => { reveal('m-elapsed', fmtTime(d.elapsed_seconds)); sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`); }],
+    [0, () => {
+      reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1));
+      sysLog('MET', `MAX SPEED → ${d.max_speed_kmh} km/h`);
+    }],
+    [180, () => {
+      reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1));
+      sysLog('MET', `AVG SPEED → ${d.avg_speed_kmh} km/h`);
+    }],
+    [360, () => {
+      reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2));
+      sysLog('MET', `DISTANCE → ${d.total_distance_km} km`);
+    }],
+    [540, () => {
+      reveal('m-elapsed', fmtTime(d.elapsed_seconds));
+      sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`);
+    }],
     [750, () => {
-      reveal('g-s-lat', fmtCoord(d.start_lat)); reveal('g-s-lng', fmtCoord(d.start_lng));
+      reveal('g-s-lat', fmtCoord(d.start_lat));
+      reveal('g-s-lng', fmtCoord(d.start_lng));
       reveal('g-s-alt', (d.start_alt_m == null) ? '— m' : parseFloat(d.start_alt_m).toFixed(1) + ' m');
       reveal('g-s-time', d.start_timestamp || '—');
     }],
     [950, () => {
-      reveal('g-e-lat', fmtCoord(d.stop_lat)); reveal('g-e-lng', fmtCoord(d.stop_lng));
+      reveal('g-e-lat', fmtCoord(d.stop_lat));
+      reveal('g-e-lng', fmtCoord(d.stop_lng));
       reveal('g-e-alt', (d.stop_alt_m == null) ? '— m' : parseFloat(d.stop_alt_m).toFixed(1) + ' m');
       reveal('g-e-time', d.stop_timestamp || '—');
     }],
     [1150, () => {
-      const eMin = parseFloat(d.elevation_min_m || 0), eMax = parseFloat(d.elevation_max_m || 0), eGain = parseFloat(d.elevation_gain_m || 0);
-      reveal('g-elev-min', eMin.toFixed(1) + ' m'); reveal('g-elev-max', eMax.toFixed(1) + ' m');
+      const eMin = parseFloat(d.elevation_min_m || 0);
+      const eMax = parseFloat(d.elevation_max_m || 0);
+      const eGain = parseFloat(d.elevation_gain_m || 0);
+      reveal('g-elev-min', eMin.toFixed(1) + ' m');
+      reveal('g-elev-max', eMax.toFixed(1) + ' m');
       reveal('g-elev-gain', (eGain >= 0 ? '+' : '') + eGain.toFixed(1) + ' m');
-      $('elev-tick-min').textContent = eMin.toFixed(0) + ' m'; $('elev-tick-max').textContent = eMax.toFixed(0) + ' m';
+      $('elev-tick-min').textContent = eMin.toFixed(0) + ' m';
+      $('elev-tick-max').textContent = eMax.toFixed(0) + ' m';
       $('g-elev-bar').style.width = Math.min(Math.max((eGain / (eMax - eMin || 1)) * 100, 0), 100) + '%';
     }],
     [1380, () => {
-      const eff = parseFloat(d.fuel_efficiency_kml || 0), fPct = parseFloat(d.fuel_remaining_pct || 0);
-      const bigEl = $('f-efficiency'); bigEl.textContent = eff.toFixed(1);
+      const eff = parseFloat(d.fuel_efficiency_kml || 0);
+      const fPct = parseFloat(d.fuel_remaining_pct || 0);
+      const bigEl = $('f-efficiency');
+      bigEl.textContent = eff.toFixed(1);
       bigEl.className = fPct <= 10 ? 'fuel-big-number crit live' : fPct <= 25 ? 'fuel-big-number warn live' : 'fuel-big-number live';
-      const bar = $('f-bar'); bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
+      const bar = $('f-bar');
+      bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
       bar.className = fPct <= 10 ? 'fuel-bar-fill crit' : fPct <= 25 ? 'fuel-bar-fill warn' : 'fuel-bar-fill';
-      $('f-pct-label').textContent = Math.round(fPct) + '%'; $('f-pct-label').classList.remove('scan');
+      $('f-pct-label').textContent = Math.round(fPct) + '%';
+      $('f-pct-label').classList.remove('scan');
       reveal('f-used', parseFloat(d.fuel_used_litres || 0).toFixed(1) + ' L');
       reveal('f-remaining', parseFloat(d.fuel_remaining_litres || 0).toFixed(1) + ' L');
       reveal('f-capacity', parseFloat(d.fuel_capacity_litres || 0).toFixed(1) + ' L');
@@ -1086,7 +1225,10 @@ function renderSummary(d) {
     }]
   ];
   sequence.forEach(([delay, fn]) => setTimeout(fn, delay));
-  setTimeout(() => { setStatus('live', 'Summary Rendered'); sysLog('SYS', 'NEXUS SUMMARY RENDER COMPLETE'); }, 1700);
+  setTimeout(() => {
+    setStatus('live', 'Summary Rendered');
+    sysLog('SYS', 'NEXUS SUMMARY RENDER COMPLETE');
+  }, 1700);
 }
 
 function connect() {
@@ -1107,16 +1249,28 @@ function connect() {
       ws.close(); showAccessDenied(msg.message); return;
     }
     if (msg.type === 'handshake_ok') {
-      if (msg.status === 'awaiting_companion_approval') showApproval();
-      else { setStatus('live', 'Auth OK — Awaiting Payload'); sysLog('SYS', 'HANDSHAKE VERIFIED'); }
+      if (msg.status === 'awaiting_companion_approval') {
+        showApproval();
+      } else {
+        setStatus('live', 'Auth OK — Awaiting Payload');
+        sysLog('SYS', 'HANDSHAKE VERIFIED — AWAITING ENCRYPTED PAYLOAD');
+      }
       return;
     }
     if (msg.type === 'auth_ok' || msg.type === 'companion_approved') {
-      setStatus('live', 'Approved — Syncing'); return;
+      reconBanner.classList.remove('visible');
+      setStatus('live', 'Approved — Syncing');
+      return;
     }
-    if (msg.type === 'companion_rejected') { authDenied = true; showAccessDenied('ACCESS_DENIED_BY_OWNER'); return; }
+    if (msg.type === 'companion_rejected') { 
+      authDenied = true; 
+      showAccessDenied('ACCESS_DENIED_BY_OWNER'); 
+      return; 
+    }
     if (msg.type === 'summary_payload') {
       payloadReceived = true;
+      reconBanner.classList.remove('visible');
+      setStatus('live', 'Processing Data Packet...');
       sysLog('SYS', `KEYS: ${Object.keys(msg).join(', ')}`);
       const raw = msg.data || msg.ciphertext;
       if (!raw) { showAccessDenied(); return; }
@@ -1127,15 +1281,31 @@ function connect() {
   });
   ws.addEventListener('close', () => { if (!authDenied && !payloadReceived) { reconBanner.classList.add('visible'); scheduleReconnect(); } });
 }
-function scheduleReconnect() { if (!payloadReceived && !authDenied) { clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 5000); } }
-function init() { 
-  $('hdr-device').textContent = device.toUpperCase(); 
-  setTimeout(() => { 
-    bootOverlay.classList.add('fade-out'); 
-    setTimeout(() => bootOverlay.style.display = 'none', 700); 
-    connect(); 
-  }, 1700); 
+
+function scheduleReconnect() {
+  if (!payloadReceived && !authDenied) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 5000);
+  }
 }
+
+function runDemo() {
+  sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE'); setStatus('warn', 'Demo Mode'); showApproval();
+  setTimeout(() => {
+    approvalScreen.classList.remove('visible'); sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
+    renderSummary({ device_id: 'DEMO_UNIT_01', session_id: 'SES-DEMO-20240628', trip_start_epoch: Date.now() - 10800000, trip_end_epoch: Date.now(), max_speed_kmh: 147.8, avg_speed_kmh: 84.3, total_distance_km: 253.6, elapsed_seconds: 10824, start_lat: 37.774929, start_lng: -122.419418, start_alt_m: 52.4, start_timestamp: '08:14:32', stop_lat: 34.052235, stop_lng: -118.243683, stop_alt_m: 71.8, stop_timestamp: '11:14:56', elevation_min_m: 14.0, elevation_max_m: 894.5, elevation_gain_m: 348.0, fuel_efficiency_kml: 14.9, fuel_remaining_pct: 58, fuel_used_litres: 17.0, fuel_remaining_litres: 23.2, fuel_capacity_litres: 40.2, efficiency_score_pct: 73 });
+  }, 2800);
+}
+
+function init() {
+  $('hdr-device').textContent = device.toUpperCase();
+  setTimeout(() => {
+    bootOverlay.classList.add('fade-out');
+    setTimeout(() => bootOverlay.style.display = 'none', 700);
+    connect();
+  }, 1700);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
