@@ -191,7 +191,7 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
-                        // Deliver the full encrypted tracking matrix payload down the line
+                        // Deliver the full encrypted tracking matrix payload down the line matching key property syntax 'data'
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
@@ -201,9 +201,7 @@ wss.on('connection', (ws, req) => {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
-                    // FIXED: Wrap map destruction inside a 500ms grace window.
-                    // This allows the server to finish streaming the payload completely down the network link 
-                    // before turning off authorization or disconnecting the client pipe.
+                    // Wrap destruction inside a 500ms grace window so TCP finishes processing frames entirely
                     setTimeout(() => {
                         try {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {

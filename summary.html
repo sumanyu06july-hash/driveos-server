@@ -861,11 +861,6 @@ body::after {
 
 </main>
 
-<footer id="footer">
-  <div class="log-hdr">Nexus System Log</div>
-  <div id="log-stream"></div>
-</footer>
-
 <script>
 'use strict';
 
@@ -1175,6 +1170,12 @@ function connect() {
 
     if (msg.type === 'error') {
       sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
+      
+      // STOP BACK-END RECONNECT AUTO-TRAFFIC OVERRIDING VALID PAYLOAD STATE WINDOWS
+      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('ACCESS_DENIED_BY_OWNER'))) {
+        authDenied = true;
+      }
+      
       ws.close();
       showAccessDenied();
       return;
@@ -1205,6 +1206,127 @@ function connect() {
     }
 
     if (msg.type === 'companion_rejected') {
+      authDenied = true;
+      showAccessDenied();
+      return;
+    }
+
+    if (msg.type === 'summary_payload') {
+      payloadReceived = true; 
+      
+      sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
+      
+      const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
+      
+      if (!rawCiphertext) {
+        sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
+        setStatus('error', 'Payload key structural error');
+        showAccessDenied();
+        return;
+      }
+
+      sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
+      const payload = aesDecrypt(rawCiphertext);
+      
+      if (!payload) {
+        sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
+        setStatus('error', 'Decryption failed');
+        showAccessDenied();
+        return;
+      }
+
+      ws.close(); 
+      renderSummary(payload);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    if (authDenied || payloadReceived) return; 
+    setStatus('warn', 'Link Lost — Reconnecting');
+    reconBanner.classList.add('visible');
+    sysLog('NET', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
+    scheduleReconnect();
+  });
+
+  ws.addEventListener('error', () => {
+    if (payloadReceived) return;
+    sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE STATUS');
+  });
+}
+
+function connect() {
+  if (authDenied || payloadReceived) return;
+
+  try { ws = new WebSocket(WS_URL); }
+  catch(e) {
+    sysLog('ERR', 'WS INIT FAILED: ' + e.message.substring(0,40).toUpperCase());
+    scheduleReconnect();
+    return;
+  }
+
+  setStatus('warn', 'Connecting…');
+  sysLog('NET', 'OPENING ENCRYPTED SUMMARY CHANNEL');
+
+  ws.addEventListener('open', () => {
+    if (payloadReceived) { ws.close(); return; }
+    reconBanner.classList.remove('visible');
+    setStatus('warn', 'Handshaking…');
+    sysLog('NET', `CHANNEL OPEN — SENDING AUTH HANDSHAKE (device: ${device.toUpperCase()})`);
+
+    ws.send(JSON.stringify({ type: 'summary_auth', device, token }));
+
+    if (firstConnect) {
+      firstConnect = false;
+      setTimeout(() => {
+        sysLog('DEC', 'AES-CBC/PKCS7 DECRYPTION PIPELINE ARMED');
+        sysLog('GEO', 'GEO-SPATIAL DECODER ONLINE');
+      }, 350);
+    }
+  });
+
+  ws.addEventListener('message', e => {
+    if (payloadReceived) return;
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'error') {
+      sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
+      
+      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('ACCESS_DENIED_BY_OWNER'))) {
+        authDenied = true;
+      }
+      
+      ws.close();
+      showAccessDenied();
+      return;
+    }
+
+    if (msg.type === 'handshake_ok') {
+      if (msg.status === 'awaiting_companion_approval') {
+        showApproval();
+      } else {
+        setStatus('live', 'Auth OK — Awaiting Payload');
+        sysLog('SYS', 'HANDSHAKE VERIFIED — AWAITING ENCRYPTED PAYLOAD');
+      }
+      return;
+    }
+
+    if (msg.type === 'auth_ok') {
+      hideApproval();
+      setStatus('live', 'Auth OK — Awaiting Payload');
+      sysLog('SYS', 'AUTH CONFIRMED — AWAITING SUMMARY PAYLOAD');
+      return;
+    }
+
+    if (msg.type === 'companion_approved') {
+      hideApproval();
+      setStatus('live', 'Companion Approved');
+      sysLog('SYS', 'COMPANION APPROVAL RECEIVED — AWAITING PAYLOAD');
+      return;
+    }
+
+    if (msg.type === 'companion_rejected') {
+      authDenied = true;
       showAccessDenied();
       return;
     }
@@ -1253,7 +1375,7 @@ function connect() {
 }
 
 function scheduleReconnect() {
-  if (payloadReceived) return;
+  if (payloadReceived || authDenied) return;
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(connect, 5000);
 }
