@@ -67,26 +67,24 @@ wss.on('connection', (ws, req) => {
             return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
         }
 
+        if (!dev.summaryTokens.has(token)) {
+            return reject(ws, 'SUMMARY_EXPIRED', 'The snapshot verification link is invalid or has expired.');
+        }
+
         ws._role = 'summary_client';
         ws._device = deviceId;
         ws._token = token;
 
         dev.summaryClients.set(token, ws);
-        console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for device: ${deviceId}, token: ${token}`);
+        console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for token: ${token}`);
 
-        // If the Headunit data is already registered, notify the client it's ready for approval
-        if (dev.summaryTokens.has(token)) {
-            ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
-            
-            if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-                console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
-                dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
-            } else {
-                console.warn(`[GATEWAY_WARN] Companion app offline. Cannot authorize summary access for token: ${token}`);
-            }
+        ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+
+        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+            console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
+            dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
         } else {
-            console.log(`[GATEWAY_HOLD] Client is waiting, but Headunit summary payload token data has not arrived yet.`);
-            ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_headunit_payload' }));
+            console.warn(`[GATEWAY_WARN] Companion app offline. Cannot authorize summary access for token: ${token}`);
         }
 
         ws.on('close', () => {
@@ -127,16 +125,6 @@ wss.on('connection', (ws, req) => {
 
                     dev.summaryTokens.set(targetToken, encryptedData);
                     console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
-                    
-                    // Trigger Companion push if the summary client was already waiting in the gateway lounge
-                    const pendingClient = dev.summaryClients.get(targetToken);
-                    if (pendingClient && pendingClient.readyState === WebSocket.OPEN) {
-                        pendingClient.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
-                        
-                        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-                            dev.companion.send(JSON.stringify({ type: 'auth_request', token: targetToken }));
-                        }
-                    }
                     return;
                 }
 
@@ -203,7 +191,6 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
-                        // Deliver the full encrypted tracking matrix payload down the line
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
@@ -213,7 +200,6 @@ wss.on('connection', (ws, req) => {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
-                    // Wrap destruction inside a 500ms grace window so TCP finishes processing frames entirely
                     setTimeout(() => {
                         try {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {
@@ -225,7 +211,7 @@ wss.on('connection', (ws, req) => {
                         dev.summaryTokens.delete(targetToken);
                         dev.summaryClients.delete(targetToken);
                         console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps via delayed Burn Rule.`);
-                    }, 500);
+                    }, 1500);
                     return; 
                 }
 

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050508"/>
 <title>DriveOS 2.0 · Mission Summary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
@@ -1287,6 +1287,14 @@ function scheduleReconnect() {
     clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(connect, 5000);
   }
+}
+
+function runDemo() {
+  sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE'); setStatus('warn', 'Demo Mode'); showApproval();
+  setTimeout(() => {
+    approvalScreen.classList.remove('visible'); sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
+    renderSummary({ device_id: 'DEMO_UNIT_01', session_id: 'SES-DEMO-20240628', trip_start_epoch: Date.now() - 10800000, trip_end_epoch: Date.now(), max_speed_kmh: 147.8, avg_speed_kmh: 84.3, total_distance_km: 253.6, elapsed_seconds: 10824, start_lat: 37.774929, start_lng: -122.419418, start_alt_m: 52.4, start_timestamp: '08:14:32', stop_lat: 34.052235, stop_lng: -118.243683, stop_alt_m: 71.8, stop_timestamp: '11:14:56', elevation_min_m: 14.0, elevation_max_m: 894.5, elevation_gain_m: 348.0, fuel_efficiency_kml: 14.9, fuel_remaining_pct: 58, fuel_used_litres: 17.0, fuel_remaining_litres: 23.2, fuel_capacity_litres: 40.2, efficiency_score_pct: 73 });
+  }, 2800);
 }
 
 function init() {
