@@ -67,8 +67,11 @@ wss.on('connection', (ws, req) => {
             return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
         }
 
+        // DIAGNOSTIC LOG: Trace exactly what is sitting inside the token map array right now
+        console.log(`[DIAGNOSTIC] Client requested token [${token}]. Available map keys:`, Array.from(dev.summaryTokens.keys()));
+
         if (!dev.summaryTokens.has(token)) {
-            return reject(ws, 'SUMMARY_EXPIRED', 'The snapshot verification link is invalid or has expired.');
+            return reject(ws, 'SUMMARY_EXPIRED', `The snapshot verification link for token [${token}] is invalid or has expired.`);
         }
 
         ws._role = 'summary_client';
@@ -121,10 +124,13 @@ wss.on('connection', (ws, req) => {
                     const targetToken = msg.token;
                     const encryptedData = msg.data;
 
-                    if (!targetToken || !encryptedData) return;
+                    if (!targetToken || !encryptedData) {
+                        console.warn(`[SUMMARY_REJECT] Headunit passed incomplete register payload packet structure.`);
+                        return;
+                    }
 
                     dev.summaryTokens.set(targetToken, encryptedData);
-                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
+                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken} (Length: ${encryptedData.length} chars)`);
                     return;
                 }
 
@@ -190,6 +196,10 @@ wss.on('connection', (ws, req) => {
                     const browserClient = dev.summaryClients.get(targetToken);
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
+                    if (!cachedDataString) {
+                        console.error(`[CRITICAL] Approval processed for token [${targetToken}], but no matching Headunit data payload is registered in cache!`);
+                    }
+
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
@@ -200,6 +210,7 @@ wss.on('connection', (ws, req) => {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
+                    // Wrap destruction inside a 500ms grace window so TCP finishes processing frames entirely
                     setTimeout(() => {
                         try {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {
