@@ -856,6 +856,11 @@ body::after {
 
 </main>
 
+<footer id="footer">
+  <div class="log-hdr">Nexus System Log</div>
+  <div id="log-stream"></div>
+</footer>
+
 <script>
 'use strict';
 
@@ -1186,14 +1191,14 @@ function connect() {
     }
 
     if (msg.type === 'auth_ok') {
-      approvalScreen.classList.remove('visible');
+      hideApproval();
       setStatus('live', 'Auth OK — Awaiting Payload');
       sysLog('SYS', 'AUTH CONFIRMED — AWAITING SUMMARY PAYLOAD');
       return;
     }
 
     if (msg.type === 'companion_approved') {
-      approvalScreen.classList.remove('visible');
+      hideApproval();
       setStatus('live', 'Companion Approved');
       sysLog('SYS', 'COMPANION APPROVAL RECEIVED — AWAITING PAYLOAD');
       return;
@@ -1263,7 +1268,7 @@ function runDemo() {
 
   showApproval();
   setTimeout(() => {
-    approvalScreen.classList.remove('visible');
+    hideApproval();
     sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
     renderSummary({
       device_id:              'DEMO_UNIT_01',
