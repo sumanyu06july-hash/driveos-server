@@ -973,16 +973,12 @@ function showApproval() {
   sysLog('NET', 'HOLDING STATE ACTIVE — COMPANION APPROVAL REQUIRED');
 }
 
-function hideApproval() {
-  approvalScreen.classList.remove('visible');
-}
-
 // ─────────────────────────────────────────
 //  ACCESS DENIED
 // ─────────────────────────────────────────
 function showAccessDenied() {
   authDenied = true;
-  hideApproval();
+  approvalScreen.classList.remove('visible');
   accessDenied.classList.add('visible');
   setTimeout(() => accessDenied.classList.add('flash'), 10);
   setTimeout(() => accessDenied.classList.remove('flash'), 750);
@@ -1008,31 +1004,11 @@ function reveal(id, value) {
 function fmtCoord(n, dp = 6) {
   return (n == null) ? '—' : parseFloat(n).toFixed(dp) + '°';
 }
-function fmtNum(n, dp = 1) {
-  return (n == null) ? '—' : parseFloat(n).toFixed(dp);
-}
-function fmtTime(secs) {
-  if (secs == null) return '--:--';
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = Math.floor(secs % 60);
-  return h > 0
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
-function effRating(score) {
-  if (score >= 80) return 'OPTIMAL';
-  if (score >= 60) return 'NOMINAL';
-  if (score >= 45) return 'MODERATE';
-  if (score >= 25) return 'REDUCED';
-  return 'CRITICAL';
-}
-
 // ─────────────────────────────────────────
 //  RENDER SUMMARY PAYLOAD
 // ─────────────────────────────────────────
 function renderSummary(d) {
-  hideApproval();
+  approvalScreen.classList.remove('visible');
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
   const devLabel = (d.device_id || device).toUpperCase();
@@ -1044,16 +1020,16 @@ function renderSummary(d) {
 
   const sequence = [
     [0, () => {
-      reveal('m-max-speed', fmtNum(d.max_speed_kmh, 1));
-      sysLog('MET', `MAX SPEED → ${fmtNum(d.max_speed_kmh, 1)} km/h`);
+      reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1));
+      sysLog('MET', `MAX SPEED → ${(d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1)} km/h`);
     }],
     [180, () => {
-      reveal('m-avg-speed', fmtNum(d.avg_speed_kmh, 1));
-      sysLog('MET', `AVG SPEED → ${fmtNum(d.avg_speed_kmh, 1)} km/h`);
+      reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1));
+      sysLog('MET', `AVG SPEED → ${(d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1)} km/h`);
     }],
     [360, () => {
-      reveal('m-distance', fmtNum(d.total_distance_km, 2));
-      sysLog('MET', `DISTANCE → ${fmtNum(d.total_distance_km, 2)} km`);
+      reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2));
+      sysLog('MET', `DISTANCE → ${(d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2)} km`);
     }],
     [540, () => {
       reveal('m-elapsed', fmtTime(d.elapsed_seconds));
@@ -1062,16 +1038,16 @@ function renderSummary(d) {
     [750, () => {
       reveal('g-s-lat',  fmtCoord(d.start_lat));
       reveal('g-s-lng',  fmtCoord(d.start_lng));
-      reveal('g-s-alt',  fmtNum(d.start_alt_m, 1) + ' m');
+      reveal('g-s-alt',  (d.start_alt_m == null) ? '— m' : parseFloat(d.start_alt_m).toFixed(1) + ' m');
       reveal('g-s-time', d.start_timestamp || '—');
-      sysLog('GEO', `START → ${fmtCoord(d.start_lat, 4)}, ${fmtCoord(d.start_lng, 4)}`);
+      sysLog('GEO', `START → ${fmtCoord(d.start_lat)}, ${fmtCoord(d.start_lng)}`);
     }],
     [950, () => {
       reveal('g-e-lat',  fmtCoord(d.stop_lat));
       reveal('g-e-lng',  fmtCoord(d.stop_lng));
-      reveal('g-e-alt',  fmtNum(d.stop_alt_m, 1) + ' m');
+      reveal('g-e-alt',  (d.stop_alt_m == null) ? '— m' : parseFloat(d.stop_alt_m).toFixed(1) + ' m');
       reveal('g-e-time', d.stop_timestamp || '—');
-      sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat, 4)}, ${fmtCoord(d.stop_lng, 4)}`);
+      sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat)}, ${fmtCoord(d.stop_lng)}`);
     }],
     [1150, () => {
       const eMin  = parseFloat(d.elevation_min_m  || 0);
@@ -1130,6 +1106,24 @@ function renderSummary(d) {
   }, 1700);
 }
 
+function fmtTime(secs) {
+  if (secs == null) return '--:--';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  return h > 0
+    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function effRating(score) {
+  if (score >= 80) return 'OPTIMAL';
+  if (score >= 60) return 'NOMINAL';
+  if (score >= 45) return 'MODERATE';
+  if (score >= 25) return 'REDUCED';
+  return 'CRITICAL';
+}
+
 // ─────────────────────────────────────────
 //  WEBSOCKET
 // ─────────────────────────────────────────
@@ -1170,12 +1164,9 @@ function connect() {
 
     if (msg.type === 'error') {
       sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
-      
-      // STOP BACK-END RECONNECT AUTO-TRAFFIC OVERRIDING VALID PAYLOAD STATE WINDOWS
       if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('ACCESS_DENIED_BY_OWNER'))) {
         authDenied = true;
       }
-      
       ws.close();
       showAccessDenied();
       return;
@@ -1192,14 +1183,14 @@ function connect() {
     }
 
     if (msg.type === 'auth_ok') {
-      hideApproval();
+      approvalScreen.classList.remove('visible');
       setStatus('live', 'Auth OK — Awaiting Payload');
       sysLog('SYS', 'AUTH CONFIRMED — AWAITING SUMMARY PAYLOAD');
       return;
     }
 
     if (msg.type === 'companion_approved') {
-      hideApproval();
+      approvalScreen.classList.remove('visible');
       setStatus('live', 'Companion Approved');
       sysLog('SYS', 'COMPANION APPROVAL RECEIVED — AWAITING PAYLOAD');
       return;
@@ -1213,11 +1204,9 @@ function connect() {
 
     if (msg.type === 'summary_payload') {
       payloadReceived = true; 
-      
       sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
       
       const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
-      
       if (!rawCiphertext) {
         sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
         setStatus('error', 'Payload key structural error');
@@ -1227,127 +1216,6 @@ function connect() {
 
       sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
       const payload = aesDecrypt(rawCiphertext);
-      
-      if (!payload) {
-        sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
-        setStatus('error', 'Decryption failed');
-        showAccessDenied();
-        return;
-      }
-
-      ws.close(); 
-      renderSummary(payload);
-    }
-  });
-
-  ws.addEventListener('close', () => {
-    if (authDenied || payloadReceived) return; 
-    setStatus('warn', 'Link Lost — Reconnecting');
-    reconBanner.classList.add('visible');
-    sysLog('NET', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
-    scheduleReconnect();
-  });
-
-  ws.addEventListener('error', () => {
-    if (payloadReceived) return;
-    sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE STATUS');
-  });
-}
-
-function connect() {
-  if (authDenied || payloadReceived) return;
-
-  try { ws = new WebSocket(WS_URL); }
-  catch(e) {
-    sysLog('ERR', 'WS INIT FAILED: ' + e.message.substring(0,40).toUpperCase());
-    scheduleReconnect();
-    return;
-  }
-
-  setStatus('warn', 'Connecting…');
-  sysLog('NET', 'OPENING ENCRYPTED SUMMARY CHANNEL');
-
-  ws.addEventListener('open', () => {
-    if (payloadReceived) { ws.close(); return; }
-    reconBanner.classList.remove('visible');
-    setStatus('warn', 'Handshaking…');
-    sysLog('NET', `CHANNEL OPEN — SENDING AUTH HANDSHAKE (device: ${device.toUpperCase()})`);
-
-    ws.send(JSON.stringify({ type: 'summary_auth', device, token }));
-
-    if (firstConnect) {
-      firstConnect = false;
-      setTimeout(() => {
-        sysLog('DEC', 'AES-CBC/PKCS7 DECRYPTION PIPELINE ARMED');
-        sysLog('GEO', 'GEO-SPATIAL DECODER ONLINE');
-      }, 350);
-    }
-  });
-
-  ws.addEventListener('message', e => {
-    if (payloadReceived) return;
-    let msg;
-    try { msg = JSON.parse(e.data); } catch { return; }
-
-    if (msg.type === 'error') {
-      sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
-      
-      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('ACCESS_DENIED_BY_OWNER'))) {
-        authDenied = true;
-      }
-      
-      ws.close();
-      showAccessDenied();
-      return;
-    }
-
-    if (msg.type === 'handshake_ok') {
-      if (msg.status === 'awaiting_companion_approval') {
-        showApproval();
-      } else {
-        setStatus('live', 'Auth OK — Awaiting Payload');
-        sysLog('SYS', 'HANDSHAKE VERIFIED — AWAITING ENCRYPTED PAYLOAD');
-      }
-      return;
-    }
-
-    if (msg.type === 'auth_ok') {
-      hideApproval();
-      setStatus('live', 'Auth OK — Awaiting Payload');
-      sysLog('SYS', 'AUTH CONFIRMED — AWAITING SUMMARY PAYLOAD');
-      return;
-    }
-
-    if (msg.type === 'companion_approved') {
-      hideApproval();
-      setStatus('live', 'Companion Approved');
-      sysLog('SYS', 'COMPANION APPROVAL RECEIVED — AWAITING PAYLOAD');
-      return;
-    }
-
-    if (msg.type === 'companion_rejected') {
-      authDenied = true;
-      showAccessDenied();
-      return;
-    }
-
-    if (msg.type === 'summary_payload') {
-      payloadReceived = true; 
-      
-      sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
-      
-      const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
-      
-      if (!rawCiphertext) {
-        sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
-        setStatus('error', 'Payload key structural error');
-        showAccessDenied();
-        return;
-      }
-
-      sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
-      const payload = aesDecrypt(rawCiphertext);
-      
       if (!payload) {
         sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
         setStatus('error', 'Decryption failed');
@@ -1380,16 +1248,12 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, 5000);
 }
 
-// ─────────────────────────────────────────
-//  DEMO MODE
-// ─────────────────────────────────────────
 function runDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE');
   setStatus('warn', 'Demo Mode');
-
   showApproval();
   setTimeout(() => {
-    hideApproval();
+    approvalScreen.classList.remove('visible');
     sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
     renderSummary({
       device_id:              'DEMO_UNIT_01',
@@ -1421,19 +1285,13 @@ function runDemo() {
   }, 2800);
 }
 
-// ─────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────
 function init() {
   $('hdr-device').textContent = device.toUpperCase();
-
   setTimeout(() => {
     bootOverlay.classList.add('fade-out');
     setTimeout(() => bootOverlay.style.display = 'none', 700);
-
     sysLog('SYS', `SUMMARY NEXUS ONLINE — UNIT ${device.toUpperCase()}`);
     sysLog('DEC', 'AES-CBC · PKCS7 · 128-BIT CHANNEL PROTOCOL ACTIVE');
-
     if (isDemo) {
       runDemo();
     } else {
