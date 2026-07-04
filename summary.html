@@ -255,11 +255,11 @@ body::after {
   width: 68px; height: 68px; border-radius: 50%;
   border: 1.5px solid var(--red);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px var(--red-glow), 0 0 80px rgba(255,31,61,0.12);
+  box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12);
   animation: denied-ring-pulse 2s ease-in-out infinite;
 }
 @keyframes denied-ring-pulse {
-  0%,100% { box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px var(--red-glow), 0 0 80px rgba(255,31,61,0.12); }
+  0%,100% { box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12); }
   50%     { box-shadow: 0 0 0 16px rgba(255,31,61,0.02), 0 0 55px rgba(255,31,61,0.42), 0 0 120px rgba(255,31,61,0.18); }
 }
 .denied-ring svg { stroke: var(--red); }
@@ -268,7 +268,7 @@ body::after {
   font-size: 22px; font-weight: 800;
   letter-spacing: 0.32em; text-transform: uppercase;
   color: var(--red);
-  text-shadow: 0 0 24px var(--red), 0 0 60px rgba(255,31,61,0.3);
+  text-shadow: 0 0 24px var(--red);
 }
 
 .denied-box {
@@ -291,10 +291,10 @@ body::after {
   border: none; border-radius: var(--radius-sm);
   padding: 13px 34px;
   cursor: pointer;
-  box-shadow: 0 0 22px var(--red-glow);
-  transition: opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 22px rgba(255,31,61,0.28);
+  transition: opacity 0.2s;
 }
-.denied-btn:hover { opacity: 0.87; box-shadow: 0 0 40px rgba(255,31,61,0.55); }
+.denied-btn:hover { opacity: 0.87; }
 
 /* ─────────────────────────────────────────
     INIT / BOOT OVERLAY
@@ -356,13 +356,8 @@ body::after {
   border-bottom: 1px solid rgba(245,158,11,0.38);
   font-size: 8px; letter-spacing: 0.18em;
   color: var(--amber); text-transform: uppercase; text-align: center;
-  animation: slide-down 0.3s ease-out;
 }
 #recon-banner.visible { display: block; }
-@keyframes slide-down {
-  from { transform: translateY(-100%); }
-  to   { transform: translateY(0); }
-}
 
 /* ─────────────────────────────────────────
     PRIMARY METRICS — 4 big readouts
@@ -661,8 +656,8 @@ body::after {
   </div>
   <div class="approval-label">Secure DriveOS Gateway</div>
   <div class="approval-msg">
-    AWAITING COMPANION APPROVAL…<br>
-    PLEASE CHECK YOUR DEVICE.<br>
+    AWAITING COMPANION APPROVAL…<br/>
+    PLEASE CHECK YOUR DEVICE.<br/>
     <span style="font-size:9px; opacity:0.6;">Authorization handshake pending.</span>
   </div>
   <div class="approval-sub">Holding encrypted channel open…</div>
@@ -678,8 +673,8 @@ body::after {
   </div>
   <div class="denied-title">Access Denied</div>
   <div class="denied-box">
-    [SECURITY]: Authentication Failure.<br>
-    Token Expired Or Invalid.<br>
+    [SECURITY]: Authentication Failure.<br/>
+    Token Expired Or Invalid.<br/>
     Link To Vehicle Nexus Terminated.
   </div>
   <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
@@ -689,7 +684,7 @@ body::after {
 
 <header id="header">
   <div class="hdr-left">
-    <div class="brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
+    <div class="hdr-brand">Summary Nexus <span>/ DriveOS 2.0</span></div>
     <div class="hdr-conn">
       <div class="dot" id="conn-dot"></div>
       <span id="conn-text">Initializing…</span>
@@ -973,12 +968,16 @@ function showApproval() {
   sysLog('NET', 'HOLDING STATE ACTIVE — COMPANION APPROVAL REQUIRED');
 }
 
+function hideApproval() {
+  approvalScreen.classList.remove('visible');
+}
+
 // ─────────────────────────────────────────
 //  ACCESS DENIED
 // ─────────────────────────────────────────
 function showAccessDenied() {
   authDenied = true;
-  approvalScreen.classList.remove('visible');
+  hideApproval();
   accessDenied.classList.add('visible');
   setTimeout(() => accessDenied.classList.add('flash'), 10);
   setTimeout(() => accessDenied.classList.remove('flash'), 750);
@@ -1004,11 +1003,31 @@ function reveal(id, value) {
 function fmtCoord(n, dp = 6) {
   return (n == null) ? '—' : parseFloat(n).toFixed(dp) + '°';
 }
+function fmtNum(n, dp = 1) {
+  return (n == null) ? '—' : parseFloat(n).toFixed(dp);
+}
+function fmtTime(secs) {
+  if (secs == null) return '--:--';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  return h > 0
+    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function effRating(score) {
+  if (score >= 80) return 'OPTIMAL';
+  if (score >= 60) return 'NOMINAL';
+  if (score >= 45) return 'MODERATE';
+  if (score >= 25) return 'REDUCED';
+  return 'CRITICAL';
+}
+
 // ─────────────────────────────────────────
 //  RENDER SUMMARY PAYLOAD
 // ─────────────────────────────────────────
 function renderSummary(d) {
-  approvalScreen.classList.remove('visible');
+  hideApproval();
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
   const devLabel = (d.device_id || device).toUpperCase();
@@ -1020,16 +1039,16 @@ function renderSummary(d) {
 
   const sequence = [
     [0, () => {
-      reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1));
-      sysLog('MET', `MAX SPEED → ${(d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1)} km/h`);
+      reveal('m-max-speed', fmtNum(d.max_speed_kmh, 1));
+      sysLog('MET', `MAX SPEED → ${fmtNum(d.max_speed_kmh, 1)} km/h`);
     }],
     [180, () => {
-      reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1));
-      sysLog('MET', `AVG SPEED → ${(d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1)} km/h`);
+      reveal('m-avg-speed', fmtNum(d.avg_speed_kmh, 1));
+      sysLog('MET', `AVG SPEED → ${fmtNum(d.avg_speed_kmh, 1)} km/h`);
     }],
     [360, () => {
-      reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2));
-      sysLog('MET', `DISTANCE → ${(d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2)} km`);
+      reveal('m-distance', fmtNum(d.total_distance_km, 2));
+      sysLog('MET', `DISTANCE → ${fmtNum(d.total_distance_km, 2)} km`);
     }],
     [540, () => {
       reveal('m-elapsed', fmtTime(d.elapsed_seconds));
@@ -1038,16 +1057,16 @@ function renderSummary(d) {
     [750, () => {
       reveal('g-s-lat',  fmtCoord(d.start_lat));
       reveal('g-s-lng',  fmtCoord(d.start_lng));
-      reveal('g-s-alt',  (d.start_alt_m == null) ? '— m' : parseFloat(d.start_alt_m).toFixed(1) + ' m');
+      reveal('g-s-alt',  fmtNum(d.start_alt_m, 1) + ' m');
       reveal('g-s-time', d.start_timestamp || '—');
-      sysLog('GEO', `START → ${fmtCoord(d.start_lat)}, ${fmtCoord(d.start_lng)}`);
+      sysLog('GEO', `START → ${fmtCoord(d.start_lat, 4)}, ${fmtCoord(d.start_lng, 4)}`);
     }],
     [950, () => {
       reveal('g-e-lat',  fmtCoord(d.stop_lat));
       reveal('g-e-lng',  fmtCoord(d.stop_lng));
-      reveal('g-e-alt',  (d.stop_alt_m == null) ? '— m' : parseFloat(d.stop_alt_m).toFixed(1) + ' m');
+      reveal('g-e-alt',  fmtNum(d.stop_alt_m, 1) + ' m');
       reveal('g-e-time', d.stop_timestamp || '—');
-      sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat)}, ${fmtCoord(d.stop_lng)}`);
+      sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat, 4)}, ${fmtCoord(d.stop_lng, 4)}`);
     }],
     [1150, () => {
       const eMin  = parseFloat(d.elevation_min_m  || 0);
@@ -1106,24 +1125,6 @@ function renderSummary(d) {
   }, 1700);
 }
 
-function fmtTime(secs) {
-  if (secs == null) return '--:--';
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = Math.floor(secs % 60);
-  return h > 0
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
-
-function effRating(score) {
-  if (score >= 80) return 'OPTIMAL';
-  if (score >= 60) return 'NOMINAL';
-  if (score >= 45) return 'MODERATE';
-  if (score >= 25) return 'REDUCED';
-  return 'CRITICAL';
-}
-
 // ─────────────────────────────────────────
 //  WEBSOCKET
 // ─────────────────────────────────────────
@@ -1164,9 +1165,11 @@ function connect() {
 
     if (msg.type === 'error') {
       sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
-      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('ACCESS_DENIED_BY_OWNER'))) {
+      
+      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('OWNER'))) {
         authDenied = true;
       }
+      
       ws.close();
       showAccessDenied();
       return;
@@ -1204,9 +1207,11 @@ function connect() {
 
     if (msg.type === 'summary_payload') {
       payloadReceived = true; 
+      
       sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
       
       const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
+      
       if (!rawCiphertext) {
         sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
         setStatus('error', 'Payload key structural error');
@@ -1216,6 +1221,7 @@ function connect() {
 
       sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
       const payload = aesDecrypt(rawCiphertext);
+      
       if (!payload) {
         sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
         setStatus('error', 'Decryption failed');
@@ -1248,9 +1254,13 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, 5000);
 }
 
+// ─────────────────────────────────────────
+//  DEMO MODE
+// ─────────────────────────────────────────
 function runDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE');
   setStatus('warn', 'Demo Mode');
+
   showApproval();
   setTimeout(() => {
     approvalScreen.classList.remove('visible');
@@ -1285,13 +1295,19 @@ function runDemo() {
   }, 2800);
 }
 
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
 function init() {
   $('hdr-device').textContent = device.toUpperCase();
+
   setTimeout(() => {
     bootOverlay.classList.add('fade-out');
     setTimeout(() => bootOverlay.style.display = 'none', 700);
+
     sysLog('SYS', `SUMMARY NEXUS ONLINE — UNIT ${device.toUpperCase()}`);
     sysLog('DEC', 'AES-CBC · PKCS7 · 128-BIT CHANNEL PROTOCOL ACTIVE');
+
     if (isDemo) {
       runDemo();
     } else {

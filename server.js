@@ -75,7 +75,6 @@ wss.on('connection', (ws, req) => {
         ws._device = deviceId;
         ws._token = token;
 
-        // Ensure state mappings are declared completely before dispatching channel alerts
         dev.summaryClients.set(token, ws);
         console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for token: ${token}`);
 
@@ -126,12 +125,6 @@ wss.on('connection', (ws, req) => {
 
                     dev.summaryTokens.set(targetToken, encryptedData);
                     console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
-                    
-                    // Notify client if they entered lounge before data arrived
-                    const pendingClient = dev.summaryClients.get(targetToken);
-                    if (pendingClient && pendingClient.readyState === WebSocket.OPEN) {
-                        pendingClient.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
-                    }
                     return;
                 }
 
@@ -198,6 +191,7 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
+                        // Deliver the full encrypted tracking matrix payload down the line matching key property syntax 'data'
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
@@ -207,6 +201,7 @@ wss.on('connection', (ws, req) => {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
+                    // Wrap destruction inside a 500ms grace window so TCP finishes processing frames entirely
                     setTimeout(() => {
                         try {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {
@@ -237,6 +232,7 @@ wss.on('connection', (ws, req) => {
                         console.log(`[GATEWAY_KICK] Notified browser client of denial configuration context.`);
                     }
 
+                    // BURN RULE: Instantly wipe maps clean since no data payload is being pushed
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
                     console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps.`);
