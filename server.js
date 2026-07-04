@@ -191,7 +191,6 @@ wss.on('connection', (ws, req) => {
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
-                        // Deliver the full encrypted tracking matrix payload down the line matching key property syntax 'data'
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
@@ -201,7 +200,6 @@ wss.on('connection', (ws, req) => {
                         console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
-                    // Wrap destruction inside a 500ms grace window so TCP finishes processing frames entirely
                     setTimeout(() => {
                         try {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {
@@ -232,7 +230,6 @@ wss.on('connection', (ws, req) => {
                         console.log(`[GATEWAY_KICK] Notified browser client of denial configuration context.`);
                     }
 
-                    // BURN RULE: Instantly wipe maps clean since no data payload is being pushed
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
                     console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps.`);

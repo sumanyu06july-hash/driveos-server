@@ -14,7 +14,11 @@
 /* ─────────────────────────────────────────
     RESET & TOKEN SYSTEM
 ───────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
   --bg:           #050508;
@@ -38,7 +42,9 @@
   --radius-sm:    6px;
 }
 
-html { height: 100%; }
+html {
+  height: 100%;
+}
 
 body {
   min-height: 100dvh;
@@ -55,7 +61,8 @@ body {
 /* ── CRT scanlines overlay ── */
 body::before {
   content: '';
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background: repeating-linear-gradient(
     0deg,
     transparent, transparent 2px,
@@ -68,7 +75,8 @@ body::before {
 /* ── Ambient dot-grid ── */
 body::after {
   content: '';
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background-image: radial-gradient(circle, rgba(0,245,255,0.06) 1px, transparent 1px);
   background-size: 32px 32px;
   pointer-events: none;
@@ -93,7 +101,9 @@ body::after {
 .panel::before {
   content: '';
   position: absolute;
-  top: 0; left: 10%; right: 10%;
+  top: 0;
+  left: 10%;
+  right: 10%;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--cyan), transparent);
   opacity: 0.5;
@@ -103,8 +113,11 @@ body::after {
     HEADER
 ───────────────────────────────────────── */
 #header {
-  position: relative; z-index: 50;
-  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   background: rgba(5,5,8,0.92);
@@ -112,61 +125,111 @@ body::after {
   flex-shrink: 0;
 }
 
-.hdr-left { display: flex; flex-direction: column; gap: 3px; }
+.hdr-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 
 .hdr-brand {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.32em; text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
   color: var(--cyan);
 }
-.hdr-brand span { color: var(--slate); font-weight: 400; }
+.hdr-brand span {
+  color: var(--slate);
+  font-weight: 400;
+}
 
 .hdr-conn {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 8px; letter-spacing: 0.18em;
-  color: var(--slate); text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: var(--slate);
+  text-transform: uppercase;
 }
 
 .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--slate); flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--slate);
+  flex-shrink: 0;
   transition: background 0.4s, box-shadow 0.4s;
 }
-.dot.live  { background: var(--cyan); box-shadow: 0 0 6px var(--cyan), 0 0 16px rgba(0,245,255,0.5); animation: pulse-dot 2s ease-in-out infinite; }
-.dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
-.dot.warn  { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse-dot 1s ease-in-out infinite; }
+.dot.live  {
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan), 0 0 16px rgba(0,245,255,0.5);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.dot.error {
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+.dot.warn  {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
 
 @keyframes pulse-dot {
   0%,100% { opacity:1; transform:scale(1); }
   50%     { opacity:0.4; transform:scale(0.7); }
 }
 
-.hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.hdr-device { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--cyan); }
-.hdr-meta   { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
+.hdr-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.hdr-device {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+}
+.hdr-meta {
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
 
 /* ─────────────────────────────────────────
     MAIN SCROLL AREA
 ───────────────────────────────────────── */
 #main {
   flex: 1;
-  position: relative; z-index: 2;
+  position: relative;
+  z-index: 2;
   overflow-y: auto;
   padding: 14px 16px 10px;
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* section eyebrow label */
 .eyebrow {
-  font-size: 7px; font-weight: 700;
-  letter-spacing: 0.38em; text-transform: uppercase;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
   color: var(--slate);
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 8px;
 }
 .eyebrow::after {
   content: '';
-  flex: 1; height: 1px;
+  flex: 1;
+  height: 1px;
   background: linear-gradient(90deg, var(--cyan-line), transparent);
 }
 
@@ -174,22 +237,34 @@ body::after {
     APPROVAL HOLDING STATE
 ───────────────────────────────────────── */
 #approval-screen {
-  position: fixed; inset: 0; z-index: 7000;
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
   background: var(--bg);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 28px; padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px;
   text-align: center;
-  opacity: 0; pointer-events: none;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 0.5s ease;
 }
-#approval-screen.visible { opacity: 1; pointer-events: all; }
+#approval-screen.visible {
+  opacity: 1;
+  pointer-events: all;
+}
 
 .approval-ring {
-  width: 72px; height: 72px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   border: 1.5px solid var(--cyan-dim);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 0 0 8px rgba(0,245,255,0.04), 0 0 32px var(--cyan-glow), 0 0 80px rgba(0,245,255,0.1);
   animation: ring-breathe 2.4s ease-in-out infinite;
 }
@@ -197,21 +272,28 @@ body::after {
   0%,100% { box-shadow: 0 0 0 8px rgba(0,245,255,0.04), 0 0 32px var(--cyan-glow), 0 0 80px rgba(0,245,255,0.1); }
   50%     { box-shadow: 0 0 0 14px rgba(0,245,255,0.02), 0 0 60px rgba(0,245,255,0.35), 0 0 120px rgba(0,245,255,0.15); }
 }
-.approval-ring svg { stroke: var(--cyan); animation: icon-spin-slow 8s linear infinite; }
+.approval-ring svg {
+  stroke: var(--cyan);
+  animation: icon-spin-slow 8s linear infinite;
+}
 @keyframes icon-spin-slow {
   from { transform: rotate(0deg); } to { transform: rotate(360deg); }
 }
 
 .approval-label {
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 0.35em; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
   color: var(--cyan);
   text-shadow: 0 0 18px var(--cyan);
 }
 
 .approval-msg {
-  font-size: 11px; font-weight: 500;
-  letter-spacing: 0.08em; line-height: 1.85;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.85;
   color: rgba(0,245,255,0.78);
   max-width: 340px;
   border: 1px solid rgba(0,245,255,0.15);
@@ -226,24 +308,35 @@ body::after {
 }
 
 .approval-sub {
-  font-size: 8px; letter-spacing: 0.22em;
-  color: var(--slate); text-transform: uppercase;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  color: var(--slate);
+  text-transform: uppercase;
   animation: blink-slow 1s step-end infinite;
 }
-@keyframes blink-slow { 0%,100%{opacity:1} 50%{opacity:0} }
 
 /* ─────────────────────────────────────────
-    ACCESS DENIED SCREEN (Adjusted padding)
+    ACCESS DENIED SCREEN
 ───────────────────────────────────────── */
 #access-denied {
-  position: fixed; inset: 0; z-index: 8000;
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
   background: #060003;
   display: none;
-  flex-direction: column; align-items: center; justify-content: center;
-  gap: 26px; padding: 40px 40px 110px; text-align: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 40px 40px 110px;
+  text-align: center;
 }
-#access-denied.visible { display: flex; }
-#access-denied.flash   { animation: denied-flash 0.7s ease-out; }
+#access-denied.visible {
+  display: flex;
+}
+#access-denied.flash {
+  animation: denied-flash 0.7s ease-out;
+}
 
 @keyframes denied-flash {
   0%   { background: #3a000a; }
@@ -252,9 +345,13 @@ body::after {
 }
 
 .denied-ring {
-  width: 68px; height: 68px; border-radius: 50%;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
   border: 1.5px solid var(--red);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12);
   animation: denied-ring-pulse 2s ease-in-out infinite;
 }
@@ -262,17 +359,23 @@ body::after {
   0%,100% { box-shadow: 0 0 0 10px rgba(255,31,61,0.05), 0 0 30px rgba(255,31,61,0.28), 0 0 80px rgba(255,31,61,0.12); }
   50%     { box-shadow: 0 0 0 16px rgba(255,31,61,0.02), 0 0 55px rgba(255,31,61,0.42), 0 0 120px rgba(255,31,61,0.18); }
 }
-.denied-ring svg { stroke: var(--red); }
+.denied-ring svg {
+  stroke: var(--red);
+}
 
 .denied-title {
-  font-size: 22px; font-weight: 800;
-  letter-spacing: 0.32em; text-transform: uppercase;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
   color: var(--red);
   text-shadow: 0 0 24px var(--red);
 }
 
 .denied-box {
-  font-size: 9px; letter-spacing: 0.14em; line-height: 2;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  line-height: 2;
   color: rgba(255,31,61,0.68);
   text-transform: uppercase;
   border: 1px solid rgba(255,31,61,0.2);
@@ -284,80 +387,22 @@ body::after {
 
 .denied-btn {
   font-family: var(--font);
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 0.22em; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
   color: #060003;
   background: var(--red);
-  border: none; border-radius: var(--radius-sm);
+  border: none;
+  border-radius: var(--radius-sm);
   padding: 13px 34px;
   cursor: pointer;
   box-shadow: 0 0 22px rgba(255,31,61,0.28);
   transition: opacity 0.2s;
 }
-.denied-btn:hover { opacity: 0.87; }
-
-/* ─────────────────────────────────────────
-    INIT / BOOT OVERLAY
-───────────────────────────────────────── */
-#boot-overlay {
-  position: fixed; inset: 0; z-index: 6000;
-  background: var(--bg);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 18px;
-  transition: opacity 0.65s ease;
+.denied-btn:hover {
+  opacity: 0.87;
 }
-#boot-overlay.fade-out { opacity: 0; pointer-events: none; }
-
-.boot-logo {
-  font-size: 13px; font-weight: 800;
-  letter-spacing: 0.48em; text-transform: uppercase;
-  color: var(--cyan);
-  text-shadow: 0 0 28px var(--cyan);
-}
-.boot-logo span { font-weight: 300; color: var(--slate); }
-
-.boot-sub {
-  font-size: 8px; letter-spacing: 0.3em;
-  color: var(--slate); text-transform: uppercase;
-}
-
-.boot-track {
-  width: 200px; height: 1px;
-  background: rgba(255,255,255,0.06);
-  overflow: hidden;
-}
-.boot-fill {
-  height: 100%; width: 0;
-  background: var(--cyan);
-  box-shadow: 0 0 8px var(--cyan);
-  animation: boot-load 1.5s cubic-bezier(0.4,0,0.2,1) forwards;
-}
-@keyframes boot-load {
-  0%   { width:0% }
-  60%  { width:72% }
-  100% { width:100% }
-}
-
-.boot-status {
-  font-size: 8px; letter-spacing: 0.22em;
-  color: var(--slate); text-transform: uppercase;
-  animation: blink-slow 1s step-end infinite;
-}
-
-/* ─────────────────────────────────────────
-    RECONNECT BANNER
-───────────────────────────────────────── */
-#recon-banner {
-  display: none;
-  position: fixed; top: 0; left: 0; right: 0; z-index: 400;
-  padding: 6px 20px;
-  background: rgba(245,158,11,0.1);
-  border-bottom: 1px solid rgba(245,158,11,0.38);
-  font-size: 8px; letter-spacing: 0.18em;
-  color: var(--amber); text-transform: uppercase; text-align: center;
-}
-#recon-banner.visible { display: block; }
 
 /* ─────────────────────────────────────────
     PRIMARY METRICS — 4 big readouts
@@ -370,37 +415,42 @@ body::after {
 
 .metric-tile {
   padding: 20px 18px 16px;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* corner bracket bottom-right */
 .metric-tile::after {
   content: '';
-  position: absolute; bottom: 9px; right: 9px;
-  width: 10px; height: 10px;
+  position: absolute;
+  bottom: 9px;
+  right: 9px;
+  width: 10px;
+  height: 10px;
   border-bottom: 1px solid rgba(0,245,255,0.22);
   border-right:  1px solid rgba(0,245,255,0.22);
 }
 
 .tile-eyebrow {
-  font-size: 7px; font-weight: 600;
-  letter-spacing: 0.3em; text-transform: uppercase;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
   color: var(--slate);
 }
 
 .tile-readout {
-  display: flex; align-items: baseline; gap: 5px; line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
 }
 
 .tile-number {
   font-size: clamp(32px, 9vw, 44px);
   font-weight: 800;
   letter-spacing: -1.5px;
-  background: linear-gradient(90deg,
-    var(--cyan) 0%,
-    #ccfeff    40%,
-    var(--cyan-dim) 55%,
-    var(--cyan) 100%);
+  background: linear-gradient(90deg, var(--cyan) 0%, #ccfeff 40%, var(--cyan-dim) 55%, var(--cyan) 100%);
   background-size: 260% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -420,117 +470,164 @@ body::after {
 .tile-number.live {
   animation: shimmer-flow 5s linear infinite, pop-in 0.5s cubic-bezier(0.34,1.6,0.64,1);
 }
-@keyframes shimmer-flow {
-  0%   { background-position: 260% center; }
-  100% { background-position: -260% center; }
-}
-@keyframes pop-in {
-  from { transform: translateY(8px) scale(0.96); opacity: 0; }
-  to   { transform: translateY(0) scale(1); opacity: 1; }
-}
 
 .tile-unit {
-  font-size: 10px; letter-spacing: 0.22em;
-  color: var(--slate-lt); text-transform: uppercase;
-  align-self: flex-end; margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--slate-lt);
+  text-transform: uppercase;
+  align-self: flex-end;
+  margin-bottom: 4px;
 }
-
 .tile-sub {
-  font-size: 7px; letter-spacing: 0.16em;
-  color: var(--slate); text-transform: uppercase;
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  color: var(--slate);
+  text-transform: uppercase;
   margin-top: 2px;
 }
 
 /* ─────────────────────────────────────────
-    GEO PANELS — coordinates + elevation
+    GEO-SPATIAL intelligence
 ───────────────────────────────────────── */
 .geo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-
 .geo-tile {
   padding: 14px 16px;
 }
-
 .geo-heading {
-  font-size: 7px; font-weight: 700;
-  letter-spacing: 0.28em; text-transform: uppercase;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
   color: var(--slate);
-  display: flex; align-items: center; gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-bottom: 12px;
 }
 .geo-heading::before {
   content: '';
-  width: 4px; height: 4px; border-radius: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
   background: var(--cyan);
   box-shadow: 0 0 5px var(--cyan);
   flex-shrink: 0;
 }
-
-.coord-list { display: flex; flex-direction: column; gap: 7px; }
-
+.coord-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
 .coord-row {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
 }
 .coord-key {
-  font-size: 7px; letter-spacing: 0.2em;
-  color: var(--slate); text-transform: uppercase; flex-shrink: 0;
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
 .coord-val {
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.04em; color: var(--cyan);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
   text-align: right;
 }
-.coord-val.scan { color: var(--slate-ghost); animation: scan-pulse 0.8s step-end infinite; }
-.coord-val.live { animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1); }
-
+.coord-val.scan {
+  color: var(--slate-ghost);
+  animation: scan-pulse 0.8s step-end infinite;
+}
+.coord-val.live {
+  animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1);
+}
 .coord-divider {
   height: 1px;
   background: rgba(0,245,255,0.06);
   margin: 4px 0;
 }
-
-/* ─────────────────────────────────────────
-    ELEVATION PANEL
-───────────────────────────────────────── */
-.elev-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
-.elev-key  { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
-.elev-val  { font-size: 11px; font-weight: 700; color: var(--cyan); letter-spacing: 0.05em; }
-.elev-val.scan { color: var(--slate-ghost); animation: scan-pulse 0.8s step-end infinite; }
-.elev-val.live { animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1); }
-
-.elev-bar-wrap { margin-top: 10px; }
+.elev-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.elev-key {
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+.elev-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.05em;
+}
+.elev-val.scan {
+  color: var(--slate-ghost);
+  animation: scan-pulse 0.8s step-end infinite;
+}
+.elev-val.live {
+  animation: pop-in 0.45s cubic-bezier(0.34,1.4,0.64,1);
+}
+.elev-bar-wrap {
+  margin-top: 10px;
+}
 .elev-bar-track {
-  height: 3px; background: rgba(255,255,255,0.05);
-  border-radius: 2px; overflow: hidden;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
 }
 .elev-bar-fill {
-  height: 100%; width: 0;
+  height: 100%;
+  width: 0;
   background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
   box-shadow: 0 0 5px var(--cyan);
   border-radius: 2px;
   transition: width 1.4s cubic-bezier(0.34,1.2,0.64,1);
 }
 .elev-ticks {
-  display: flex; justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
   margin-top: 4px;
-  font-size: 7px; color: rgba(82,104,122,0.4); letter-spacing: 0.06em;
+  font-size: 7px;
+  color: rgba(82,104,122,0.4);
+  letter-spacing: 0.06em;
 }
 
 /* ─────────────────────────────────────────
-    FUEL / MILEAGE PANEL (full width)
+    FUEL RESERVE PLOTS
 ───────────────────────────────────────── */
 .fuel-tile {
   padding: 16px 20px;
-  display: flex; align-items: center; gap: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
-
-.fuel-big-wrap { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; min-width: 90px; }
+.fuel-big-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  min-width: 90px;
+}
 .fuel-big-number {
-  font-size: 30px; font-weight: 800;
-  letter-spacing: -1px; line-height: 1;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
   color: var(--cyan);
   filter: drop-shadow(0 0 16px rgba(0,245,255,0.45));
 }
@@ -539,102 +636,143 @@ body::after {
 .fuel-big-number.warn { color: var(--amber); filter: drop-shadow(0 0 14px rgba(245,158,11,0.5)); }
 .fuel-big-number.crit { color: var(--red);   filter: drop-shadow(0 0 14px rgba(255,31,61,0.5)); }
 
-.fuel-bar-wrap { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-
+.fuel-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .fuel-bar-track {
   height: 9px;
   background: rgba(255,255,255,0.04);
-  border-radius: 5px; overflow: hidden;
+  border-radius: 5px;
+  overflow: hidden;
   border: 1px solid rgba(0,245,255,0.08);
   position: relative;
 }
 .fuel-bar-fill {
-  height: 100%; width: 0;
+  height: 100%;
+  width: 0;
   background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
   border-radius: 5px;
   box-shadow: 0 0 8px var(--cyan);
   transition: width 1.5s cubic-bezier(0.34,1.1,0.64,1), background 0.4s;
-  position: relative; overflow: hidden;
+  position: relative;
+  overflow: hidden;
 }
 .fuel-bar-fill::after {
   content: '';
-  position: absolute; top:0; left:-70%; width:40%; height:100%;
+  position: absolute;
+  top: 0;
+  left: -70%;
+  width: 40%;
+  height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
   animation: shine 3s ease-in-out infinite;
 }
-@keyframes shine { 0%{left:-70%} 100%{left:130%} }
-
 .fuel-bar-fill.warn { background: linear-gradient(90deg, #b45309, var(--amber)); box-shadow: 0 0 8px var(--amber); }
 .fuel-bar-fill.crit { background: linear-gradient(90deg, #920e1e, var(--red));   box-shadow: 0 0 10px var(--red); }
 
 .fuel-ticks {
-  display: flex; justify-content: space-between;
-  font-size: 7px; color: rgba(82,104,122,0.4); letter-spacing: 0.05em;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7px;
+  color: rgba(82,104,122,0.4);
+  letter-spacing: 0.05em;
 }
-
-.fuel-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 2px; }
-.fuel-stat  { display: flex; flex-direction: column; gap: 2px; }
-.fuel-stat-label { font-size: 7px; letter-spacing: 0.2em; color: var(--slate); text-transform: uppercase; }
-.fuel-stat-val   { font-size: 11px; font-weight: 600; color: var(--cyan); letter-spacing: 0.04em; }
-.fuel-stat-val.scan { color: var(--slate-ghost); animation: scan-pulse 0.8s step-end infinite; }
-.fuel-stat-val.live { animation: pop-in 0.4s cubic-bezier(0.34,1.4,0.64,1); }
+.fuel-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.fuel-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fuel-stat-label {
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  color: var(--slate);
+  text-transform: uppercase;
+}
+.fuel-stat-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+}
+.fuel-stat-val.scan {
+  color: var(--slate-ghost);
+  animation: scan-pulse 0.8s step-end infinite;
+}
 
 /* ─────────────────────────────────────────
     SYSTEM LOG FOOTER (ELEVATED TO TOP OVERLAY)
 ───────────────────────────────────────── */
 #footer {
-  flex-shrink: 0; 
-  position: fixed; bottom: 0; left: 0; right: 0;
-  z-index: 9999; 
+  flex-shrink: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
   border-top: 1px solid rgba(0,245,255,0.18);
-  background: #050508; 
-  height: 84px; 
+  background: #050508;
+  height: 84px;
   overflow: hidden;
 }
 
 .log-hdr {
-  font-size: 7px; letter-spacing: 0.28em;
-  color: var(--slate); text-transform: uppercase;
+  font-size: 7px;
+  letter-spacing: 0.28em;
+  color: var(--slate);
+  text-transform: uppercase;
   padding: 6px 18px 4px;
   border-bottom: 1px solid rgba(0,245,255,0.05);
-  display: flex; align-items: center; gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 .log-hdr::before {
-  content: '▶'; font-size: 5px; color: var(--cyan);
+  content: '▶';
+  font-size: 5px;
+  color: var(--cyan);
   animation: blink-slow 1s step-end infinite;
 }
 
 #log-stream {
-  height: 60px; overflow: hidden;
+  height: 60px;
+  overflow: hidden;
   padding: 3px 18px;
-  display: flex; flex-direction: column-reverse; gap: 2px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
 }
 
 .log-line {
-  font-size: 8px; letter-spacing: 0.07em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  opacity: 0; transform: translateY(4px);
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(4px);
   animation: log-appear 0.28s forwards;
   flex-shrink: 0;
 }
-@keyframes log-appear { to { opacity:1; transform:translateY(0); } }
-
-.log-line .ts   { color: rgba(82,104,122,0.42); }
-.tag-sys  { color: var(--cyan); }
-.tag-dec  { color: #a78bfa; }
-.tag-geo  { color: #67e8f9; }
-.tag-met  { color: #34d399; }
-.tag-err  { color: var(--red); }
-.tag-warn { color: var(--amber); }
-.tag-net  { color: #f472b6; }
-.log-msg  { color: var(--slate-lt); }
-
-/* ─────────────────────────────────────────
-    REDUCED MOTION
-───────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+.log-line .ts {
+  color: rgba(82,104,122,0.42);
 }
+.tag-sys { color: var(--cyan); }
+.tag-dec { color: #a78bfa; }
+.tag-geo { color: #67e8f9; }
+.tag-met { color: #34d399; }
+.tag-err { color: var(--red); }
+.tag-warn { color: var(--amber); }
+.tag-net { color: #f472b6; }
+.log-msg { color: var(--slate-lt); }
 
 </style>
 </head>
@@ -672,7 +810,7 @@ body::after {
     </svg>
   </div>
   <div class="denied-title">Access Denied</div>
-  <div class="denied-box">
+  <div class="denied-box" id="denied-reason-text">
     [SECURITY]: Authentication Failure.<br/>
     Token Expired Or Invalid.<br/>
     Link To Vehicle Nexus Terminated.
@@ -698,10 +836,8 @@ body::after {
 </header>
 
 <main id="main">
-
   <div class="eyebrow">Primary Performance Metrics</div>
   <div class="metrics-grid">
-
     <div class="panel metric-tile">
       <div class="tile-eyebrow">Max Speed</div>
       <div class="tile-readout">
@@ -710,7 +846,6 @@ body::after {
       </div>
       <div class="tile-sub">Peak recorded velocity</div>
     </div>
-
     <div class="panel metric-tile">
       <div class="tile-eyebrow">Average Speed</div>
       <div class="tile-readout">
@@ -719,7 +854,6 @@ body::after {
       </div>
       <div class="tile-sub">Mean trip velocity</div>
     </div>
-
     <div class="panel metric-tile">
       <div class="tile-eyebrow">Total Distance</div>
       <div class="tile-readout">
@@ -728,7 +862,6 @@ body::after {
       </div>
       <div class="tile-sub">Trip odometer</div>
     </div>
-
     <div class="panel metric-tile">
       <div class="tile-eyebrow">Elapsed Time</div>
       <div class="tile-readout">
@@ -736,83 +869,42 @@ body::after {
       </div>
       <div class="tile-sub">Total trip duration</div>
     </div>
-
   </div>
 
   <div class="eyebrow">Geo-Spatial Intelligence</div>
   <div class="geo-grid">
-
     <div class="panel geo-tile">
       <div class="geo-heading">Start Coordinates</div>
       <div class="coord-list">
-        <div class="coord-row">
-          <span class="coord-key">LAT</span>
-          <span class="coord-val scan" id="g-s-lat">---.------°</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">LNG</span>
-          <span class="coord-val scan" id="g-s-lng">---.------°</span>
-        </div>
+        <div class="coord-row"><span class="coord-key">LAT</span><span class="coord-val scan" id="g-s-lat">---.------°</span></div>
+        <div class="coord-row"><span class="coord-key">LNG</span><span class="coord-val scan" id="g-s-lng">---.------°</span></div>
         <div class="coord-divider"></div>
-        <div class="coord-row">
-          <span class="coord-key">ALT</span>
-          <span class="coord-val scan" id="g-s-alt">--- m</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">TIME</span>
-          <span class="coord-val scan" id="g-s-time">--:--:--</span>
-        </div>
+        <div class="coord-row"><span class="coord-key">ALT</span><span class="coord-val scan" id="g-s-alt">--- m</span></div>
+        <div class="coord-row"><span class="coord-key">TIME</span><span class="coord-val scan" id="g-s-time">--:--:--</span></div>
       </div>
     </div>
-
     <div class="panel geo-tile">
       <div class="geo-heading">Stop Coordinates</div>
       <div class="coord-list">
-        <div class="coord-row">
-          <span class="coord-key">LAT</span>
-          <span class="coord-val scan" id="g-e-lat">---.------°</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">LNG</span>
-          <span class="coord-val scan" id="g-e-lng">---.------°</span>
-        </div>
+        <div class="coord-row"><span class="coord-key">LAT</span><span class="coord-val scan" id="g-e-lat">---.------°</span></div>
+        <div class="coord-row"><span class="coord-key">LNG</span><span class="coord-val scan" id="g-e-lng">---.------°</span></div>
         <div class="coord-divider"></div>
-        <div class="coord-row">
-          <span class="coord-key">ALT</span>
-          <span class="coord-val scan" id="g-e-alt">--- m</span>
-        </div>
-        <div class="coord-row">
-          <span class="coord-key">TIME</span>
-          <span class="coord-val scan" id="g-e-time">--:--:--</span>
-        </div>
+        <div class="coord-row"><span class="coord-key">ALT</span><span class="coord-val scan" id="g-e-alt">--- m</span></div>
+        <div class="coord-row"><span class="coord-key">TIME</span><span class="coord-val scan" id="g-e-time">--:--:--</span></div>
       </div>
     </div>
-
     <div class="panel geo-tile" style="grid-column: 1 / -1;">
       <div class="geo-heading">Elevation Profile</div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
-        <div>
-          <div class="elev-row"><span class="elev-key">Min Alt</span><span class="elev-val scan" id="g-elev-min">--- m</span></div>
-        </div>
-        <div>
-          <div class="elev-row"><span class="elev-key">Max Alt</span><span class="elev-val scan" id="g-elev-max">--- m</span></div>
-        </div>
-        <div>
-          <div class="elev-row"><span class="elev-key">Net Gain</span><span class="elev-val scan" id="g-elev-gain">--- m</span></div>
-        </div>
+        <div><div class="elev-row"><span class="elev-key">Min Alt</span><span class="elev-val scan" id="g-elev-min">--- m</span></div></div>
+        <div><div class="elev-row"><span class="elev-key">Max Alt</span><span class="elev-val scan" id="g-elev-max">--- m</span></div></div>
+        <div><div class="elev-row"><span class="elev-key">Net Gain</span><span class="elev-val scan" id="g-elev-gain">--- m</span></div></div>
       </div>
       <div class="elev-bar-wrap">
-        <div class="elev-bar-track">
-          <div class="elev-bar-fill" id="g-elev-bar"></div>
-        </div>
-        <div class="elev-ticks">
-          <span id="elev-tick-min">— m</span>
-          <span>elevation range</span>
-          <span id="elev-tick-max">— m</span>
-        </div>
+        <div class="elev-bar-track"><div class="elev-bar-fill" id="g-elev-bar"></div></div>
+        <div class="elev-ticks"><span id="elev-tick-min">— m</span><span>elevation range</span><span id="elev-tick-max">— m</span></div>
       </div>
     </div>
-
   </div>
 
   <div class="eyebrow">Fuel &amp; Efficiency Metrics</div>
@@ -827,33 +919,16 @@ body::after {
         <span class="tile-eyebrow">Fuel Reserve</span>
         <span class="fuel-stat-val scan" id="f-pct-label">--%</span>
       </div>
-      <div class="fuel-bar-track">
-        <div class="fuel-bar-fill" id="f-bar"></div>
-      </div>
-      <div class="fuel-ticks">
-        <span>E</span><span>25</span><span>50</span><span>75</span><span>F</span>
-      </div>
+      <div class="fuel-bar-track"><div class="fuel-bar-fill" id="f-bar"></div></div>
+      <div class="fuel-ticks"><span>E</span><span>25</span><span>50</span><span>75</span><span>F</span></div>
       <div class="fuel-stats">
-        <div class="fuel-stat">
-          <span class="fuel-stat-label">Fuel Used</span>
-          <span class="fuel-stat-val scan" id="f-used">-- L</span>
-        </div>
-        <div class="fuel-stat">
-          <span class="fuel-stat-label">Remaining</span>
-          <span class="fuel-stat-val scan" id="f-remaining">-- L</span>
-        </div>
-        <div class="fuel-stat">
-          <span class="fuel-stat-label">Total Capacity</span>
-          <span class="fuel-stat-val scan" id="f-capacity">-- L</span>
-        </div>
-        <div class="fuel-stat">
-          <span class="fuel-stat-label">Rating</span>
-          <span class="fuel-stat-val scan" id="f-rating">—</span>
-        </div>
+        <div class="fuel-stat"><span class="fuel-stat-label">Fuel Used</span><span class="fuel-stat-val scan" id="f-used">-- L</span></div>
+        <div class="fuel-stat"><span class="fuel-stat-label">Remaining</span><span class="fuel-stat-val scan" id="f-remaining">-- L</span></div>
+        <div class="fuel-stat"><span class="fuel-stat-label">Total Capacity</span><span class="fuel-stat-val scan" id="f-capacity">-- L</span></div>
+        <div class="fuel-stat"><span class="fuel-stat-label">Rating</span><span class="fuel-stat-val scan" id="f-rating">—</span></div>
       </div>
     </div>
   </div>
-
 </main>
 
 <footer id="footer">
@@ -864,33 +939,19 @@ body::after {
 <script>
 'use strict';
 
-// ─────────────────────────────────────────
-//  CRYPTO CONFIG (FIXED: ALIGNED TO HEADUNIT PRODUCTION MATRICES)
-// ─────────────────────────────────────────
-const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2_sec_key'); // Aligned to real Android literal key
+const AES_KEY = CryptoJS.enc.Utf8.parse('driveos2_sec_key');
 
 function aesDecrypt(base64Str) {
   try {
-    // 1. Convert raw inbound payload text to full WordArray format
     const fullBytes = CryptoJS.enc.Base64.parse(base64Str);
-    
-    // 2. Headunit pre-pends 16-bytes of dynamic IV. Extract those first 4 words.
     const ivWords = CryptoJS.lib.WordArray.create(fullBytes.words.slice(0, 4), 16);
-    
-    // 3. Extract remainder array block to formulate pure encrypted block array
     const cipherWords = CryptoJS.lib.WordArray.create(fullBytes.words.slice(4), fullBytes.sigBytes - 16);
-    
-    const ct = CryptoJS.lib.CipherParams.create({
-      ciphertext: cipherWords
-    });
-    
-    // 4. Decrypt utilising the true extracted dynamic Android Initialization Vector
+    const ct = CryptoJS.lib.CipherParams.create({ ciphertext: cipherWords });
     const dec = CryptoJS.AES.decrypt(ct, AES_KEY, {
       iv:      ivWords,
       mode:    CryptoJS.mode.CBC,
       padding: CryptoJS.pad.Pkcs7
     });
-    
     const decText = dec.toString(CryptoJS.enc.Utf8);
     if (!decText) return null;
     return JSON.parse(decText);
@@ -900,9 +961,6 @@ function aesDecrypt(base64Str) {
   }
 }
 
-// ─────────────────────────────────────────
-//  URL PARAMS & WS URL
-// ─────────────────────────────────────────
 const params  = new URLSearchParams(location.search);
 const device  = params.get('device') || 'DEMO_UNIT';
 const token   = params.get('token')  || '00000000';
@@ -911,18 +969,12 @@ const isDemo  = !params.get('device');
 const WS_PROTOCOL = location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL = `${WS_PROTOCOL}${location.host}?role=summary_client&device=${device}&token=${token}`;
 
-// ─────────────────────────────────────────
-//  STATE
-// ─────────────────────────────────────────
 let ws             = null;
 let reconnectTimer = null;
 let authDenied     = false;
 let payloadReceived = false; 
 let firstConnect   = true;
 
-// ─────────────────────────────────────────
-//  DOM SHORTCUTS
-// ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const bootOverlay    = $('boot-overlay');
@@ -933,13 +985,7 @@ const logStream      = $('log-stream');
 const connDot        = $('conn-dot');
 const connText       = $('conn-text');
 
-// ─────────────────────────────────────────
-//  SYSTEM LOG
-// ─────────────────────────────────────────
-const TAG_MAP = {
-  SYS:'tag-sys', DEC:'tag-dec', GEO:'tag-geo',
-  MET:'tag-met', ERR:'tag-err', WARN:'tag-warn', NET:'tag-net'
-};
+const TAG_MAP = { SYS:'tag-sys', DEC:'tag-dec', GEO:'tag-geo', MET:'tag-met', ERR:'tag-err', WARN:'tag-warn', NET:'tag-net' };
 const MAX_LINES = 40;
 
 function sysLog(cat, msg) {
@@ -952,9 +998,6 @@ function sysLog(cat, msg) {
   while (logStream.children.length > MAX_LINES) logStream.removeChild(logStream.lastChild);
 }
 
-// ─────────────────────────────────────────
-//  CONNECTION STATUS
-// ─────────────────────────────────────────
 function setStatus(state, text) {
   connDot.className = 'dot';
   if (state === 'live')  connDot.classList.add('live');
@@ -963,9 +1006,6 @@ function setStatus(state, text) {
   connText.textContent = text;
 }
 
-// ─────────────────────────────────────────
-//  APPROVAL SCREEN
-// ─────────────────────────────────────────
 function showApproval() {
   if (payloadReceived) return;
   approvalScreen.classList.add('visible');
@@ -973,354 +1013,129 @@ function showApproval() {
   sysLog('NET', 'HOLDING STATE ACTIVE — COMPANION APPROVAL REQUIRED');
 }
 
-function hideApproval() {
-  approvalScreen.classList.remove('visible');
-}
-
-// ─────────────────────────────────────────
-//  ACCESS DENIED
-// ─────────────────────────────────────────
-function showAccessDenied() {
+function showAccessDenied(reason) {
   authDenied = true;
-  hideApproval();
+  approvalScreen.classList.remove('visible');
   accessDenied.classList.add('visible');
   setTimeout(() => accessDenied.classList.add('flash'), 10);
-  setTimeout(() => accessDenied.classList.remove('flash'), 750);
   setStatus('error', 'Access Denied');
-  sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED OR EXPIRED');
+  if (reason === 'ACCESS_DENIED_BY_OWNER') {
+    $('denied-reason-text').innerHTML = '[SECURITY]: Authentication Canceled.<br/>Access Denied Explicitly By Owner Phone.<br/>Link Terminated Permanently.';
+    sysLog('ERR', 'OWNER REFUSED ACCESS TRANSACTION');
+  } else {
+    sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED OR EXPIRED');
+  }
 }
 
-// ─────────────────────────────────────────
-//  ELEMENT REVEAL HELPER
-// ─────────────────────────────────────────
 function reveal(id, value) {
   const el = $(id);
   if (!el) return;
-  el.textContent = value;
-  el.classList.remove('scan', 'live');
-  void el.offsetWidth;
-  el.classList.add('live');
+  el.textContent = value; el.classList.remove('scan', 'live');
+  void el.offsetWidth; el.classList.add('live');
 }
 
-// ─────────────────────────────────────────
-//  FORMAT HELPERS
-// ─────────────────────────────────────────
-function fmtCoord(n, dp = 6) {
-  return (n == null) ? '—' : parseFloat(n).toFixed(dp) + '°';
-}
-function fmtNum(n, dp = 1) {
-  return (n == null) ? '—' : parseFloat(n).toFixed(dp);
-}
+function fmtCoord(n, dp = 6) { return (n == null) ? '—' : parseFloat(n).toFixed(dp) + '°'; }
 function fmtTime(secs) {
   if (secs == null) return '--:--';
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = Math.floor(secs % 60);
-  return h > 0
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = Math.floor(secs % 60);
+  return h > 0 ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
-function effRating(score) {
-  if (score >= 80) return 'OPTIMAL';
-  if (score >= 60) return 'NOMINAL';
-  if (score >= 45) return 'MODERATE';
-  if (score >= 25) return 'REDUCED';
-  return 'CRITICAL';
-}
+function effRating(score) { return score >= 80 ? 'OPTIMAL' : score >= 60 ? 'NOMINAL' : score >= 45 ? 'MODERATE' : score >= 25 ? 'REDUCED' : 'CRITICAL'; }
 
-// ─────────────────────────────────────────
-//  RENDER SUMMARY PAYLOAD
-// ─────────────────────────────────────────
 function renderSummary(d) {
-  hideApproval();
+  approvalScreen.classList.remove('visible');
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
-  const devLabel = (d.device_id || device).toUpperCase();
-  $('hdr-device').textContent  = devLabel;
+  $('hdr-device').textContent  = (d.device_id || device).toUpperCase();
   $('hdr-session').textContent = 'Session: ' + (d.session_id || '—');
-  if (d.trip_start_epoch) {
-    $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
-  }
+  if (d.trip_start_epoch) $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
 
   const sequence = [
-    [0, () => {
-      reveal('m-max-speed', fmtNum(d.max_speed_kmh, 1));
-      sysLog('MET', `MAX SPEED → ${fmtNum(d.max_speed_kmh, 1)} km/h`);
-    }],
-    [180, () => {
-      reveal('m-avg-speed', fmtNum(d.avg_speed_kmh, 1));
-      sysLog('MET', `AVG SPEED → ${fmtNum(d.avg_speed_kmh, 1)} km/h`);
-    }],
-    [360, () => {
-      reveal('m-distance', fmtNum(d.total_distance_km, 2));
-      sysLog('MET', `DISTANCE → ${fmtNum(d.total_distance_km, 2)} km`);
-    }],
-    [540, () => {
-      reveal('m-elapsed', fmtTime(d.elapsed_seconds));
-      sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`);
-    }],
+    [0, () => { reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1)); sysLog('MET', `MAX SPEED → ${d.max_speed_kmh} km/h`); }],
+    [180, () => { reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1)); sysLog('MET', `AVG SPEED → ${d.avg_speed_kmh} km/h`); }],
+    [360, () => { reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2)); sysLog('MET', `DISTANCE → ${d.total_distance_km} km`); }],
+    [540, () => { reveal('m-elapsed', fmtTime(d.elapsed_seconds)); sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`); }],
     [750, () => {
-      reveal('g-s-lat',  fmtCoord(d.start_lat));
-      reveal('g-s-lng',  fmtCoord(d.start_lng));
-      reveal('g-s-alt',  fmtNum(d.start_alt_m, 1) + ' m');
+      reveal('g-s-lat', fmtCoord(d.start_lat)); reveal('g-s-lng', fmtCoord(d.start_lng));
+      reveal('g-s-alt', (d.start_alt_m == null) ? '— m' : parseFloat(d.start_alt_m).toFixed(1) + ' m');
       reveal('g-s-time', d.start_timestamp || '—');
-      sysLog('GEO', `START → ${fmtCoord(d.start_lat, 4)}, ${fmtCoord(d.start_lng, 4)}`);
     }],
     [950, () => {
-      reveal('g-e-lat',  fmtCoord(d.stop_lat));
-      reveal('g-e-lng',  fmtCoord(d.stop_lng));
-      reveal('g-e-alt',  fmtNum(d.stop_alt_m, 1) + ' m');
+      reveal('g-e-lat', fmtCoord(d.stop_lat)); reveal('g-e-lng', fmtCoord(d.stop_lng));
+      reveal('g-e-alt', (d.stop_alt_m == null) ? '— m' : parseFloat(d.stop_alt_m).toFixed(1) + ' m');
       reveal('g-e-time', d.stop_timestamp || '—');
-      sysLog('GEO', `STOP  → ${fmtCoord(d.stop_lat, 4)}, ${fmtCoord(d.stop_lng, 4)}`);
     }],
     [1150, () => {
-      const eMin  = parseFloat(d.elevation_min_m  || 0);
-      const eMax  = parseFloat(d.elevation_max_m  || 0);
-      const eGain = parseFloat(d.elevation_gain_m || 0);
-      reveal('g-elev-min',  eMin.toFixed(1)  + ' m');
-      reveal('g-elev-max',  eMax.toFixed(1)  + ' m');
+      const eMin = parseFloat(d.elevation_min_m || 0), eMax = parseFloat(d.elevation_max_m || 0), eGain = parseFloat(d.elevation_gain_m || 0);
+      reveal('g-elev-min', eMin.toFixed(1) + ' m'); reveal('g-elev-max', eMax.toFixed(1) + ' m');
       reveal('g-elev-gain', (eGain >= 0 ? '+' : '') + eGain.toFixed(1) + ' m');
-      $('elev-tick-min').textContent = eMin.toFixed(0) + ' m';
-      $('elev-tick-max').textContent = eMax.toFixed(0) + ' m';
-      const range = eMax - eMin || 1;
-      $('g-elev-bar').style.width = Math.min(Math.max((eGain / range) * 100, 0), 100) + '%';
-      sysLog('GEO', `ELEV min:${eMin.toFixed(0)}m max:${eMax.toFixed(0)}m gain:${eGain.toFixed(0)}m`);
+      $('elev-tick-min').textContent = eMin.toFixed(0) + ' m'; $('elev-tick-max').textContent = eMax.toFixed(0) + ' m';
+      $('g-elev-bar').style.width = Math.min(Math.max((eGain / (eMax - eMin || 1)) * 100, 0), 100) + '%';
     }],
     [1380, () => {
-      const eff    = parseFloat(d.fuel_efficiency_kml  || 0);
-      const fPct   = parseFloat(d.fuel_remaining_pct   || 0);
-      const fUsed  = parseFloat(d.fuel_used_litres     || 0);
-      const fRem   = parseFloat(d.fuel_remaining_litres || 0);
-      const fCap   = parseFloat(d.fuel_capacity_litres  || 0);
-      const score  = parseFloat(d.efficiency_score_pct  || 0);
-      const rating = effRating(score);
-
-      const bigEl = $('f-efficiency');
-      bigEl.textContent = eff.toFixed(1);
-      bigEl.classList.remove('scan', 'live', 'warn', 'crit');
-      void bigEl.offsetWidth;
-      if (fPct <= 10)      bigEl.classList.add('crit', 'live');
-      else if (fPct <= 25) bigEl.classList.add('warn', 'live');
-      else                 bigEl.classList.add('live');
-
-      const bar = $('f-bar');
-      bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
-      bar.className = 'fuel-bar-fill';
-      if (fPct <= 10)      bar.classList.add('crit');
-      else if (fPct <= 25) bar.classList.add('warn');
-
-      const pctEl = $('f-pct-label');
-      pctEl.textContent = Math.round(fPct) + '%';
-      pctEl.classList.remove('scan'); pctEl.classList.add('live');
-
-      reveal('f-used',      fUsed.toFixed(1) + ' L');
-      reveal('f-remaining', fRem.toFixed(1)  + ' L');
-      reveal('f-capacity',  fCap.toFixed(1)  + ' L');
-      reveal('f-rating',    rating);
-
-      sysLog('MET', `EFFICIENCY ${eff.toFixed(1)} km/L · FUEL ${Math.round(fPct)}% · ${rating}`);
-    }],
+      const eff = parseFloat(d.fuel_efficiency_kml || 0), fPct = parseFloat(d.fuel_remaining_pct || 0);
+      const bigEl = $('f-efficiency'); bigEl.textContent = eff.toFixed(1);
+      bigEl.className = fPct <= 10 ? 'fuel-big-number crit live' : fPct <= 25 ? 'fuel-big-number warn live' : 'fuel-big-number live';
+      const bar = $('f-bar'); bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
+      bar.className = fPct <= 10 ? 'fuel-bar-fill crit' : fPct <= 25 ? 'fuel-bar-fill warn' : 'fuel-bar-fill';
+      $('f-pct-label').textContent = Math.round(fPct) + '%'; $('f-pct-label').classList.remove('scan');
+      reveal('f-used', parseFloat(d.fuel_used_litres || 0).toFixed(1) + ' L');
+      reveal('f-remaining', parseFloat(d.fuel_remaining_litres || 0).toFixed(1) + ' L');
+      reveal('f-capacity', parseFloat(d.fuel_capacity_litres || 0).toFixed(1) + ' L');
+      reveal('f-rating', effRating(d.efficiency_score_pct || 0));
+    }]
   ];
-
   sequence.forEach(([delay, fn]) => setTimeout(fn, delay));
-
-  setTimeout(() => {
-    setStatus('live', 'Summary Rendered');
-    sysLog('SYS', 'NEXUS SUMMARY RENDER COMPLETE');
-  }, 1700);
+  setTimeout(() => { setStatus('live', 'Summary Rendered'); sysLog('SYS', 'NEXUS SUMMARY RENDER COMPLETE'); }, 1700);
 }
 
-// ─────────────────────────────────────────
-//  WEBSOCKET
-// ─────────────────────────────────────────
 function connect() {
   if (authDenied || payloadReceived) return;
-
-  try { ws = new WebSocket(WS_URL); }
-  catch(e) {
-    sysLog('ERR', 'WS INIT FAILED: ' + e.message.substring(0,40).toUpperCase());
-    scheduleReconnect();
-    return;
-  }
-
+  try { ws = new WebSocket(WS_URL); } catch(e) { scheduleReconnect(); return; }
   setStatus('warn', 'Connecting…');
-  sysLog('NET', 'OPENING ENCRYPTED SUMMARY CHANNEL');
-
   ws.addEventListener('open', () => {
     if (payloadReceived) { ws.close(); return; }
-    reconBanner.classList.remove('visible');
-    setStatus('warn', 'Handshaking…');
-    sysLog('NET', `CHANNEL OPEN — SENDING AUTH HANDSHAKE (device: ${device.toUpperCase()})`);
-
+    reconBanner.classList.remove('visible'); setStatus('warn', 'Handshaking…');
     ws.send(JSON.stringify({ type: 'summary_auth', device, token }));
-
-    if (firstConnect) {
-      firstConnect = false;
-      setTimeout(() => {
-        sysLog('DEC', 'AES-CBC/PKCS7 DECRYPTION PIPELINE ARMED');
-        sysLog('GEO', 'GEO-SPATIAL DECODER ONLINE');
-      }, 350);
-    }
   });
-
   ws.addEventListener('message', e => {
     if (payloadReceived) return;
-    let msg;
-    try { msg = JSON.parse(e.data); } catch { return; }
-
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.type === 'error') {
       sysLog('ERR', (msg.message || 'SERVER REJECTED REQUEST').toUpperCase());
-      
-      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('OWNER'))) {
-        authDenied = true;
-      }
-      
-      ws.close();
-      showAccessDenied();
-      return;
+      if (msg.message && (msg.message.includes('expired') || msg.message.includes('invalid') || msg.message.includes('OWNER'))) authDenied = true;
+      ws.close(); showAccessDenied(msg.message); return;
     }
-
     if (msg.type === 'handshake_ok') {
-      if (msg.status === 'awaiting_companion_approval') {
-        showApproval();
-      } else {
-        setStatus('live', 'Auth OK — Awaiting Payload');
-        sysLog('SYS', 'HANDSHAKE VERIFIED — AWAITING ENCRYPTED PAYLOAD');
-      }
+      if (msg.status === 'awaiting_companion_approval') showApproval();
+      else { setStatus('live', 'Auth OK — Awaiting Payload'); sysLog('SYS', 'HANDSHAKE VERIFIED'); }
       return;
     }
-
-    if (msg.type === 'auth_ok') {
-      hideApproval();
-      setStatus('live', 'Auth OK — Awaiting Payload');
-      sysLog('SYS', 'AUTH CONFIRMED — AWAITING SUMMARY PAYLOAD');
-      return;
+    if (msg.type === 'auth_ok' || msg.type === 'companion_approved') {
+      setStatus('live', 'Approved — Syncing'); return;
     }
-
-    if (msg.type === 'companion_approved') {
-      hideApproval();
-      setStatus('live', 'Companion Approved');
-      sysLog('SYS', 'COMPANION APPROVAL RECEIVED — AWAITING PAYLOAD');
-      return;
-    }
-
-    if (msg.type === 'companion_rejected') {
-      authDenied = true;
-      showAccessDenied();
-      return;
-    }
-
+    if (msg.type === 'companion_rejected') { authDenied = true; showAccessDenied('ACCESS_DENIED_BY_OWNER'); return; }
     if (msg.type === 'summary_payload') {
-      payloadReceived = true; 
-      
-      sysLog('SYS', `RAW OBJECT KEYS DETECTED: ${Object.keys(msg).join(', ')}`);
-      
-      const rawCiphertext = msg.data || msg.ciphertext || msg.payload || msg.encryptedData;
-      
-      if (!rawCiphertext) {
-        sysLog('ERR', `ABORT: Ciphertext key missing inside server packet!`);
-        setStatus('error', 'Payload key structural error');
-        showAccessDenied();
-        return;
-      }
-
-      sysLog('DEC', 'DECRYPTING CIPHERTEXT VIA EXTRACTED DYNAMIC IV...');
-      const payload = aesDecrypt(rawCiphertext);
-      
-      if (!payload) {
-        sysLog('ERR', `DECRYPTION ENGINE FAULT: CRYPTO_KEY MISMATCH OR BLOCK MISALIGNMENT.`);
-        setStatus('error', 'Decryption failed');
-        showAccessDenied();
-        return;
-      }
-
-      ws.close(); 
-      renderSummary(payload);
+      payloadReceived = true;
+      sysLog('SYS', `KEYS: ${Object.keys(msg).join(', ')}`);
+      const raw = msg.data || msg.ciphertext;
+      if (!raw) { showAccessDenied(); return; }
+      const payload = aesDecrypt(raw);
+      if (!payload) { showAccessDenied(); return; }
+      ws.close(); renderSummary(payload);
     }
   });
-
-  ws.addEventListener('close', () => {
-    if (authDenied || payloadReceived) return; 
-    setStatus('warn', 'Link Lost — Reconnecting');
-    reconBanner.classList.add('visible');
-    sysLog('NET', 'CONNECTION SEVERED — RE-ESTABLISHING IN 5s');
-    scheduleReconnect();
-  });
-
-  ws.addEventListener('error', () => {
-    if (payloadReceived) return;
-    sysLog('ERR', 'WEBSOCKET ERROR — CHECK RELAY NODE STATUS');
-  });
+  ws.addEventListener('close', () => { if (!authDenied && !payloadReceived) { reconBanner.classList.add('visible'); scheduleReconnect(); } });
 }
-
-function scheduleReconnect() {
-  if (payloadReceived || authDenied) return;
-  clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(connect, 5000);
+function scheduleReconnect() { if (!payloadReceived && !authDenied) { clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 5000); } }
+function init() { 
+  $('hdr-device').textContent = device.toUpperCase(); 
+  setTimeout(() => { 
+    bootOverlay.classList.add('fade-out'); 
+    setTimeout(() => bootOverlay.style.display = 'none', 700); 
+    connect(); 
+  }, 1700); 
 }
-
-// ─────────────────────────────────────────
-//  DEMO MODE
-// ─────────────────────────────────────────
-function runDemo() {
-  sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE');
-  setStatus('warn', 'Demo Mode');
-
-  showApproval();
-  setTimeout(() => {
-    hideApproval();
-    sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
-    renderSummary({
-      device_id:              'DEMO_UNIT_01',
-      session_id:             'SES-DEMO-20240628',
-      trip_start_epoch:       Date.now() - 10_800_000,
-      trip_end_epoch:         Date.now(),
-      max_speed_kmh:          147.8,
-      avg_speed_kmh:          84.3,
-      total_distance_km:      253.6,
-      elapsed_seconds:        10_824,
-      start_lat:              37.774929,
-      start_lng:             -122.419418,
-      start_alt_m:            52.4,
-      start_timestamp:        '08:14:32',
-      stop_lat:               34.052235,
-      stop_lng:              -118.243683,
-      stop_alt_m:             71.8,
-      stop_timestamp:         '11:14:56',
-      elevation_min_m:        14.0,
-      elevation_max_m:        894.5,
-      elevation_gain_m:       348.0,
-      fuel_efficiency_kml:    14.9,
-      fuel_remaining_pct:     58,
-      fuel_used_litres:       17.0,
-      fuel_remaining_litres:  23.2,
-      fuel_capacity_litres:   40.2,
-      efficiency_score_pct:   73,
-    });
-  }, 2800);
-}
-
-// ─────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────
-function init() {
-  $('hdr-device').textContent = device.toUpperCase();
-
-  setTimeout(() => {
-    bootOverlay.classList.add('fade-out');
-    setTimeout(() => bootOverlay.style.display = 'none', 700);
-
-    sysLog('SYS', `SUMMARY NEXUS ONLINE — UNIT ${device.toUpperCase()}`);
-    sysLog('DEC', 'AES-CBC · PKCS7 · 128-BIT CHANNEL PROTOCOL ACTIVE');
-
-    if (isDemo) {
-      runDemo();
-    } else {
-      connect();
-    }
-  }, 1700);
-}
-
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
