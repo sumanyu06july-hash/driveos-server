@@ -67,27 +67,26 @@ wss.on('connection', (ws, req) => {
             return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
         }
 
-        // DIAGNOSTIC LOG: Trace exactly what is sitting inside the token map array right now
-        console.log(`[DIAGNOSTIC] Client requested token [${token}]. Available map keys:`, Array.from(dev.summaryTokens.keys()));
-
-        if (!dev.summaryTokens.has(token)) {
-            return reject(ws, 'SUMMARY_EXPIRED', `The snapshot verification link for token [${token}] is invalid or has expired.`);
-        }
-
         ws._role = 'summary_client';
         ws._device = deviceId;
         ws._token = token;
 
         dev.summaryClients.set(token, ws);
-        console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for token: ${token}`);
+        console.log(`[GATEWAY_LOUNGE] Browser client entered holding room for device: ${deviceId}, token: ${token}`);
 
-        ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
-
-        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-            console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
-            dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
+        // If the Headunit data is already registered, notify the client it's ready for approval
+        if (dev.summaryTokens.has(token)) {
+            ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+            
+            if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                console.log(`[GATEWAY_ALERT] Dispatching remote verification alert to Companion phone for token: ${token}`);
+                dev.companion.send(JSON.stringify({ type: 'auth_request', token: token }));
+            } else {
+                console.warn(`[GATEWAY_WARN] Companion app offline. Cannot authorize summary access for token: ${token}`);
+            }
         } else {
-            console.warn(`[GATEWAY_WARN] Companion app offline. Cannot authorize summary access for token: ${token}`);
+            console.log(`[GATEWAY_HOLD] Client is waiting, but Headunit summary payload token data has not arrived yet.`);
+            ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_headunit_payload' }));
         }
 
         ws.on('close', () => {
@@ -124,13 +123,20 @@ wss.on('connection', (ws, req) => {
                     const targetToken = msg.token;
                     const encryptedData = msg.data;
 
-                    if (!targetToken || !encryptedData) {
-                        console.warn(`[SUMMARY_REJECT] Headunit passed incomplete register payload packet structure.`);
-                        return;
-                    }
+                    if (!targetToken || !encryptedData) return;
 
                     dev.summaryTokens.set(targetToken, encryptedData);
-                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken} (Length: ${encryptedData.length} chars)`);
+                    console.log(`[SUMMARY_REGISTERED] Cached encrypted trip summary layout data against token: ${targetToken}`);
+                    
+                    // Trigger Companion push if the summary client was already waiting in the gateway lounge
+                    const pendingClient = dev.summaryClients.get(targetToken);
+                    if (pendingClient && pendingClient.readyState === WebSocket.OPEN) {
+                        pendingClient.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+                        
+                        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                            dev.companion.send(JSON.stringify({ type: 'auth_request', token: targetToken }));
+                        }
+                    }
                     return;
                 }
 
@@ -196,11 +202,8 @@ wss.on('connection', (ws, req) => {
                     const browserClient = dev.summaryClients.get(targetToken);
                     const cachedDataString = dev.summaryTokens.get(targetToken);
 
-                    if (!cachedDataString) {
-                        console.error(`[CRITICAL] Approval processed for token [${targetToken}], but no matching Headunit data payload is registered in cache!`);
-                    }
-
                     if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
+                        // Deliver the full encrypted tracking matrix payload down the line
                         browserClient.send(JSON.stringify({
                             type: 'summary_payload',
                             data: cachedDataString
