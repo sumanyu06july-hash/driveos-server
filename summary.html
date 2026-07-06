@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050508"/>
 <title>DriveOS 2.0 · Mission Summary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
@@ -1143,63 +1143,72 @@ function fmtTime(secs) {
   }
 }
 
-function effRating(score) {
-  if (score >= 80) {
-    return 'OPTIMAL';
-  } else if (score >= 60) {
-    return 'NOMINAL';
-  } else if (score >= 45) {
-    return 'MODERATE';
-  } else if (score >= 25) {
-    return 'REDUCED';
-  } else {
-    return 'CRITICAL';
-  }
+function getVal(d, keySnake, keyCamel) {
+  if (d[keySnake] !== undefined && d[keySnake] !== null) return d[keySnake];
+  if (d[keyCamel] !== undefined && d[keyCamel] !== null) return d[keyCamel];
+  return null;
 }
 
 function renderSummary(d) {
   approvalScreen.classList.remove('visible');
+  reconBanner.classList.remove('visible');
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
-  $('hdr-device').textContent  = (d.device_id || device).toUpperCase();
-  $('hdr-session').textContent = 'Session: ' + (d.session_id || '—');
-  if (d.trip_start_epoch) {
-    $('hdr-ts').textContent = new Date(d.trip_start_epoch).toLocaleString();
+  const devId = getVal(d, 'device_id', 'deviceId') || device;
+  const sesId = getVal(d, 'session_id', 'sessionId') || '—';
+  const startEpoch = getVal(d, 'trip_start_epoch', 'tripStartEpoch');
+
+  $('hdr-device').textContent  = devId.toUpperCase();
+  $('hdr-session').textContent = 'Session: ' + sesId;
+  if (startEpoch) {
+    $('hdr-ts').textContent = new Date(startEpoch).toLocaleString();
   }
 
   const sequence = [
     [0, () => {
-      reveal('m-max-speed', (d.max_speed_kmh == null) ? '—' : parseFloat(d.max_speed_kmh).toFixed(1));
-      sysLog('MET', `MAX SPEED → ${d.max_speed_kmh} km/h`);
+      const v = getVal(d, 'max_speed_kmh', 'maxSpeedKmh');
+      reveal('m-max-speed', (v == null) ? '—' : parseFloat(v).toFixed(1));
+      sysLog('MET', `MAX SPEED → ${v} km/h`);
     }],
     [180, () => {
-      reveal('m-avg-speed', (d.avg_speed_kmh == null) ? '—' : parseFloat(d.avg_speed_kmh).toFixed(1));
-      sysLog('MET', `AVG SPEED → ${d.avg_speed_kmh} km/h`);
+      const v = getVal(d, 'avg_speed_kmh', 'avgSpeedKmh');
+      reveal('m-avg-speed', (v == null) ? '—' : parseFloat(v).toFixed(1));
+      sysLog('MET', `AVG SPEED → ${v} km/h`);
     }],
     [360, () => {
-      reveal('m-distance', (d.total_distance_km == null) ? '—' : parseFloat(d.total_distance_km).toFixed(2));
-      sysLog('MET', `DISTANCE → ${d.total_distance_km} km`);
+      const v = getVal(d, 'total_distance_km', 'totalDistanceKm');
+      reveal('m-distance', (v == null) ? '—' : parseFloat(v).toFixed(2));
+      sysLog('MET', `DISTANCE → ${v} km`);
     }],
     [540, () => {
-      reveal('m-elapsed', fmtTime(d.elapsed_seconds));
-      sysLog('MET', `ELAPSED → ${fmtTime(d.elapsed_seconds)}`);
+      const v = getVal(d, 'elapsed_seconds', 'elapsedSeconds');
+      reveal('m-elapsed', fmtTime(v));
+      sysLog('MET', `ELAPSED → ${fmtTime(v)}`);
     }],
     [750, () => {
-      reveal('g-s-lat', fmtCoord(d.start_lat));
-      reveal('g-s-lng', fmtCoord(d.start_lng));
-      reveal('g-s-alt', (d.start_alt_m == null) ? '— m' : parseFloat(d.start_alt_m).toFixed(1) + ' m');
-      reveal('g-s-time', d.start_timestamp || '—');
+      const lat = getVal(d, 'start_lat', 'startLat');
+      const lng = getVal(d, 'start_lng', 'startLng');
+      const alt = getVal(d, 'start_alt_m', 'startAltM');
+      const tm  = getVal(d, 'start_timestamp', 'startTimestamp');
+      reveal('g-s-lat', fmtCoord(lat));
+      reveal('g-s-lng', fmtCoord(lng));
+      reveal('g-s-alt', (alt == null) ? '— m' : parseFloat(alt).toFixed(1) + ' m');
+      reveal('g-s-time', tm || '—');
     }],
     [950, () => {
-      reveal('g-e-lat', fmtCoord(d.stop_lat));
-      reveal('g-e-lng', fmtCoord(d.stop_lng));
-      reveal('g-e-alt', (d.stop_alt_m == null) ? '— m' : parseFloat(d.stop_alt_m).toFixed(1) + ' m');
-      reveal('g-e-time', d.stop_timestamp || '—');
+      const lat = getVal(d, 'stop_lat', 'stopLat');
+      const lng = getVal(d, 'stop_lng', 'stopLng');
+      const alt = getVal(d, 'stop_alt_m', 'stopAltM');
+      const tm  = getVal(d, 'stop_timestamp', 'stopTimestamp');
+      reveal('g-e-lat', fmtCoord(lat));
+      reveal('g-e-lng', fmtCoord(lng));
+      reveal('g-e-alt', (alt == null) ? '— m' : parseFloat(alt).toFixed(1) + ' m');
+      reveal('g-e-time', tm || '—');
     }],
     [1150, () => {
-      const eMin = parseFloat(d.elevation_min_m || 0);
-      const eMax = parseFloat(d.elevation_max_m || 0);
-      const eGain = parseFloat(d.elevation_gain_m || 0);
+      const eMin = parseFloat(getVal(d, 'elevation_min_m', 'elevationMinM') || 0);
+      const eMax = parseFloat(getVal(d, 'elevation_max_m', 'elevationMaxM') || 0);
+      const eGain = parseFloat(getVal(d, 'elevation_gain_m', 'elevationGainM') || 0);
       reveal('g-elev-min', eMin.toFixed(1) + ' m');
       reveal('g-elev-max', eMax.toFixed(1) + ' m');
       reveal('g-elev-gain', (eGain >= 0 ? '+' : '') + eGain.toFixed(1) + ' m');
@@ -1208,8 +1217,13 @@ function renderSummary(d) {
       $('g-elev-bar').style.width = Math.min(Math.max((eGain / (eMax - eMin || 1)) * 100, 0), 100) + '%';
     }],
     [1380, () => {
-      const eff = parseFloat(d.fuel_efficiency_kml || 0);
-      const fPct = parseFloat(d.fuel_remaining_pct || 0);
+      const eff = parseFloat(getVal(d, 'fuel_efficiency_kml', 'fuelEfficiencyKml') || 0);
+      const fPct = parseFloat(getVal(d, 'fuel_remaining_pct', 'fuelRemainingPct') || 0);
+      const fUsed = parseFloat(getVal(d, 'fuel_used_litres', 'fuelUsedLitres') || 0);
+      const fRem = parseFloat(getVal(d, 'fuel_remaining_litres', 'fuelRemainingLitres') || 0);
+      const fCap = parseFloat(getVal(d, 'fuel_capacity_litres', 'fuelCapacityLitres') || 0);
+      const score = parseFloat(getVal(d, 'efficiency_score_pct', 'efficiencyScorePct') || 0);
+
       const bigEl = $('f-efficiency');
       bigEl.textContent = eff.toFixed(1);
       bigEl.className = fPct <= 10 ? 'fuel-big-number crit live' : fPct <= 25 ? 'fuel-big-number warn live' : 'fuel-big-number live';
@@ -1218,10 +1232,12 @@ function renderSummary(d) {
       bar.className = fPct <= 10 ? 'fuel-bar-fill crit' : fPct <= 25 ? 'fuel-bar-fill warn' : 'fuel-bar-fill';
       $('f-pct-label').textContent = Math.round(fPct) + '%';
       $('f-pct-label').classList.remove('scan');
-      reveal('f-used', parseFloat(d.fuel_used_litres || 0).toFixed(1) + ' L');
-      reveal('f-remaining', parseFloat(d.fuel_remaining_litres || 0).toFixed(1) + ' L');
-      reveal('f-capacity', parseFloat(d.fuel_capacity_litres || 0).toFixed(1) + ' L');
-      reveal('f-rating', effRating(d.efficiency_score_pct || 0));
+      reveal('f-used', fUsed.toFixed(1) + ' L');
+      reveal('f-remaining', fRem.toFixed(1)  + ' L');
+      reveal('f-capacity', fCap.toFixed(1)  + ' L');
+      
+      const rating = score >= 80 ? 'OPTIMAL' : score >= 60 ? 'NOMINAL' : score >= 45 ? 'MODERATE' : score >= 25 ? 'REDUCED' : 'CRITICAL';
+      reveal('f-rating', rating);
     }]
   ];
   sequence.forEach(([delay, fn]) => setTimeout(fn, delay));
@@ -1287,14 +1303,6 @@ function scheduleReconnect() {
     clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(connect, 5000);
   }
-}
-
-function runDemo() {
-  sysLog('WARN', 'NO AUTH PARAMS — RUNNING DEMO MODE'); setStatus('warn', 'Demo Mode'); showApproval();
-  setTimeout(() => {
-    approvalScreen.classList.remove('visible'); sysLog('DEC', 'DEMO: SYNTHETIC PAYLOAD INJECTED — DECRYPTING…');
-    renderSummary({ device_id: 'DEMO_UNIT_01', session_id: 'SES-DEMO-20240628', trip_start_epoch: Date.now() - 10800000, trip_end_epoch: Date.now(), max_speed_kmh: 147.8, avg_speed_kmh: 84.3, total_distance_km: 253.6, elapsed_seconds: 10824, start_lat: 37.774929, start_lng: -122.419418, start_alt_m: 52.4, start_timestamp: '08:14:32', stop_lat: 34.052235, stop_lng: -118.243683, stop_alt_m: 71.8, stop_timestamp: '11:14:56', elevation_min_m: 14.0, elevation_max_m: 894.5, elevation_gain_m: 348.0, fuel_efficiency_kml: 14.9, fuel_remaining_pct: 58, fuel_used_litres: 17.0, fuel_remaining_litres: 23.2, fuel_capacity_litres: 40.2, efficiency_score_pct: 73 });
-  }, 2800);
 }
 
 function init() {

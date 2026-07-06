@@ -10,7 +10,6 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
 
-// State management for devices, live telemetry, and summary handshakes
 const devices = new Map();
 
 function getDevice(id) {
@@ -19,16 +18,15 @@ function getDevice(id) {
             headunit: null,
             companion: null,
             guests: new Set(),
-            summaryClients: new Map(), // Active web browsers waiting for a specific token validation
-            summaryTokens: new Map(),  // Volatile storage for encrypted owner trip summaries
-            guestTokens: new Map(),    // ISOLATED DATA POOL: Dedicated map for passenger live streams
+            summaryClients: new Map(),
+            summaryTokens: new Map(),
+            guestTokens: new Map(),
             lastState: null
         });
     }
     return devices.get(id);
 }
 
-// Serve the static cyber dashboard layouts
 app.get('/guest', (req, res) => {
     res.sendFile(path.join(__dirname, 'guest.html'));
 });
@@ -37,7 +35,6 @@ app.get('/summary', (req, res) => {
     res.sendFile(path.join(__dirname, 'summary.html'));
 });
 
-// Clean rejection pipeline
 function reject(ws, type, message) {
     console.warn(`[REJECT] ${type} — ${message}`);
     try {
@@ -48,7 +45,6 @@ function reject(ws, type, message) {
     }
 }
 
-// Global WebSocket Logic Layer
 wss.on('connection', (ws, req) => {
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const role = urlParams.get('role');
@@ -61,7 +57,6 @@ wss.on('connection', (ws, req) => {
 
     const dev = getDevice(deviceId);
 
-    // ── ROLE BRANCH: WEB SUMMARY CLIENT ─────────────────────────────────────
     if (role === 'summary_client') {
         if (!token) {
             return reject(ws, 'SUMMARY_AUTH_FAIL', 'Summary web client connected without a target token.');
@@ -96,7 +91,6 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── ROLE BRANCH: HEADUNIT TABLET ────────────────────────────────────────
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) {
@@ -148,7 +142,6 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── ROLE BRANCH: COMPANION APP PHONE ────────────────────────────────────
     if (role === 'companion') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) {
@@ -168,21 +161,13 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
 
-                // INTERCEPT LOCAL GUEST PASSENGER QR REQUESTS
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 18);
-                    
                     dev.guestTokens.set(guestToken, true);
-                    console.log(`[GUEST_TOKEN_GEN] Isolated passenger stream route token compiled: ${guestToken}`);
-                    
-                    ws.send(JSON.stringify({
-                        type: 'token_registered',
-                        token: guestToken
-                    }));
+                    ws.send(JSON.stringify({ type: 'token_registered', token: guestToken }));
                     return;
                 }
 
-                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (APPROVE)
                 if (msg.type === 'approve_summary_access') {
                     const targetToken = msg.token;
                     console.log(`[GATEWAY_SIGNAL] Companion explicitly APPROVED web browser access request for token: ${targetToken}`);
@@ -195,9 +180,6 @@ wss.on('connection', (ws, req) => {
                             type: 'summary_payload',
                             data: cachedDataString
                         }));
-                        console.log(`[GATEWAY_RELEASE] Dispatched secure ciphertext payload out to target client screen. Scheduling delayed Burn Rule.`);
-                    } else {
-                        console.warn(`[GATEWAY_FAIL] Target client layout matching token ${targetToken} dropped or went missing.`);
                     }
 
                     setTimeout(() => {
@@ -205,21 +187,15 @@ wss.on('connection', (ws, req) => {
                             if (browserClient && browserClient.readyState === WebSocket.OPEN) {
                                 browserClient.close();
                             }
-                        } catch (closeErr) {
-                            console.error('[GATEWAY_CLOSE_ERR] Error execution close loop:', closeErr.message);
-                        }
+                        } catch (closeErr) {}
                         dev.summaryTokens.delete(targetToken);
                         dev.summaryClients.delete(targetToken);
-                        console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps via delayed Burn Rule.`);
                     }, 1500);
                     return; 
                 }
 
-                // HANDLE SECURE GATEWAY VERIFICATION VALIDATION FROM OWNER PHONE (DENY)
                 if (msg.type === 'deny_summary_access') {
                     const targetToken = msg.token;
-                    console.log(`[GATEWAY_SIGNAL] Companion explicitly DENIED web browser access request for token: ${targetToken}`);
-
                     const browserClient = dev.summaryClients.get(targetToken);
 
                     if (browserClient && browserClient.readyState === WebSocket.OPEN) {
@@ -227,32 +203,25 @@ wss.on('connection', (ws, req) => {
                             type: 'error',
                             message: 'ACCESS_DENIED_BY_OWNER'
                         }));
-                        console.log(`[GATEWAY_KICK] Notified browser client of denial configuration context.`);
                     }
 
                     dev.summaryTokens.delete(targetToken);
                     dev.summaryClients.delete(targetToken);
-                    console.log(`[GATEWAY_BURN] Volatile summary token ${targetToken} permanently purged from memory maps.`);
                     return;
                 }
 
-                // Only forward non-auth actions down to tablet layout line
                 if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                     dev.headunit.send(JSON.stringify(msg));
                 }
-            } catch (err) {
-                console.error('[COMPANION_MSG_ERR] Error extracting companion control frame array:', err.message);
-            }
+            } catch (err) {}
         });
 
         ws.on('close', () => {
             if (dev.companion === ws) dev.companion = null;
-            console.log(`[COMPANION] Controller phone layer detached for: ${deviceId}`);
         });
         return;
     }
 
-    // ── ROLE BRANCH: PASSENGER LIVE GUEST LAYOUT ─────────────────────────────
     if (role === 'guest') {
         ws._authenticated = false;
         ws._device = deviceId;
@@ -262,18 +231,15 @@ wss.on('connection', (ws, req) => {
                 const msg = JSON.parse(message);
                 if (msg.type === 'guest_auth') {
                     const targetToken = msg.token;
-                    
                     if (dev.guestTokens.has(targetToken)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
-                        console.log(`[GUEST_SUCCESS] Passenger successfully authenticated via isolated token mapping layout.`);
                         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Welcome to DriveOS 2.0 Live Passenger Stream' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
                         return;
                     }
                     return reject(ws, 'AUTH_FAILED', 'Invalid passenger validation keys.');
                 }
-                ws.send(JSON.stringify({ type: 'error', message: 'Guests cannot broadcast functional control commands.' }));
             } catch (err) {
                 return reject(ws, 'PARSE_ERROR', 'Malformed data frame mapping properties array.');
             }
@@ -281,7 +247,6 @@ wss.on('connection', (ws, req) => {
 
         ws.on('close', () => {
             dev.guests.delete(ws);
-            console.log(`[GUEST] Socket connection closed cleanly.`);
         });
         return;
     }
