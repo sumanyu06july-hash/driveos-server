@@ -217,7 +217,7 @@ body::after {
   position: relative;
   z-index: 2;
   overflow-y: auto;
-  padding: 14px 16px 110px; /* Enhanced bottom buffer spacing */
+  padding: 14px 16px 110px; 
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -911,7 +911,6 @@ body::after {
 .tag-net { color: #f472b6; }
 .log-msg { color: var(--slate-lt); }
 
-/* FLOATING ACTIVATE BADGE */
 #log-restore-trigger {
   position: fixed;
   bottom: 20px;
@@ -1234,9 +1233,10 @@ function fmtTime(secs) {
   }
 }
 
-function getVal(d, keySnake, keyCamel) {
+function getVal(d, keySnake, keyCamel, keyAlternate) {
   if (d[keySnake] !== undefined && d[keySnake] !== null) return d[keySnake];
   if (d[keyCamel] !== undefined && d[keyCamel] !== null) return d[keyCamel];
+  if (keyAlternate && d[keyAlternate] !== undefined && d[keyAlternate] !== null) return d[keyAlternate];
   return null;
 }
 
@@ -1246,8 +1246,8 @@ function renderSummary(d) {
   sysLog('DEC', 'PAYLOAD DECRYPTED — RENDERING SUMMARY METRICS');
 
   const devId = getVal(d, 'device_id', 'deviceId') || device;
-  const sesId = getVal(d, 'session_id', 'sessionId') || '—';
-  const startEpoch = getVal(d, 'trip_start_epoch', 'tripStartEpoch');
+  const sesId = getVal(d, 'session_id', 'sessionId', 'tripId') || '—';
+  const startEpoch = getVal(d, 'trip_start_epoch', 'tripStartEpoch', 'startTime');
 
   $('hdr-device').textContent  = devId.toUpperCase();
   $('hdr-session').textContent = 'Session: ' + sesId;
@@ -1278,7 +1278,7 @@ function renderSummary(d) {
     }],
     [750, () => {
       const lat = getVal(d, 'start_lat', 'startLat');
-      const lng = getVal(d, 'start_lng', 'startLng');
+      const lng = getVal(d, 'start_lng', 'startLng', 'startLon');
       const alt = getVal(d, 'start_alt_m', 'startAltM');
       const tm  = getVal(d, 'start_timestamp', 'startTimestamp');
       reveal('g-s-lat', fmtCoord(lat));
@@ -1288,7 +1288,7 @@ function renderSummary(d) {
     }],
     [950, () => {
       const lat = getVal(d, 'stop_lat', 'stopLat');
-      const lng = getVal(d, 'stop_lng', 'stopLng');
+      const lng = getVal(d, 'stop_lng', 'stopLng', 'stopLon');
       const alt = getVal(d, 'stop_alt_m', 'stopAltM');
       const tm  = getVal(d, 'stop_timestamp', 'stopTimestamp');
       reveal('g-e-lat', fmtCoord(lat));
@@ -1308,7 +1308,7 @@ function renderSummary(d) {
       $('g-elev-bar').style.width = Math.min(Math.max((eGain / (eMax - eMin || 1)) * 100, 0), 100) + '%';
     }],
     [1380, () => {
-      const eff = parseFloat(getVal(d, 'fuel_efficiency_kml', 'fuelEfficiencyKml') || 0);
+      const eff = parseFloat(getVal(d, 'fuel_efficiency_kml', 'fuelEfficiencyKml', 'mileage') || 0);
       const fPct = parseFloat(getVal(d, 'fuel_remaining_pct', 'fuelRemainingPct') || 0);
       const fUsed = parseFloat(getVal(d, 'fuel_used_litres', 'fuelUsedLitres') || 0);
       const fRem = parseFloat(getVal(d, 'fuel_remaining_litres', 'fuelRemainingLitres') || 0);
@@ -1317,7 +1317,7 @@ function renderSummary(d) {
 
       const bigEl = $('f-efficiency');
       bigEl.textContent = eff.toFixed(1);
-      bigEl.className = fPct <= 10 ? 'fuel-big-number crit live' : fPct <= 25 ? 'fuel-big-number warn live' : 'fuel-big-number live';
+      bigEl.className = fPct <= 10 ? 'fuel-big-number cry live' : fPct <= 25 ? 'fuel-big-number warn live' : 'fuel-big-number live';
       const bar = $('f-bar');
       bar.style.width = Math.min(Math.max(fPct, 0), 100) + '%';
       bar.className = fPct <= 10 ? 'fuel-bar-fill crit' : fPct <= 25 ? 'fuel-bar-fill warn' : 'fuel-bar-fill';
