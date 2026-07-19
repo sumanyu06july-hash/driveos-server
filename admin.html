@@ -219,15 +219,13 @@
       <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
     </div>
 
-    <!-- Dynamic Double-Gated Emergency Panic Purge Component Box Bar -->
+    <!-- Dynamic Session-Gated Emergency Confirmation Bar Panel -->
     <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
       <div class="text-xs text-[--muted]">
-        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Flushes internal memory map array frames. Input the current 12-digit companion application validation code to run.
+        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Flushes remote runtime cache storage mappings. Sends a real-time verification challenge directly to the verified primary driver's mobile device configuration array context.
       </div>
       <div class="flex gap-2">
-        <input id="panic-passphrase-field" type="text" maxlength="12" placeholder="12-DIGIT KEY CODE"
-          class="bg-black/50 border border-[--border-hi] rounded px-3 py-1.5 font-display text-xs text-[--cyan] text-center tracking-widest outline-none w-48 focus:border-[--rose]">
-        <button class="btn btn-rose font-bold px-4" onclick="window.executePanicPurgeCommand()">Purge System</button>
+        <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executePanicPurgeCommand()">Initialize Command Purge Handshake</button>
       </div>
     </div>
   </section>
@@ -295,11 +293,8 @@
           challengeOverlay.classList.remove('hidden');
         } else if (packet.type === 'lockout_alert_key') {
           appendForcedLockoutLogEntry(packet);
-        } else if (packet.type === 'purge_auth_failed') {
-          alert(packet.message);
         } else if (packet.type === 'purge_success') {
-          alert('MASTER INFRASTRUCTURE RESET EXECUTED SUCCESSFULLY. ALL DATA CLEANED.');
-          document.getElementById('panic-passphrase-field').value = '';
+          alert('MASTER INFRASTRUCTURE RESET EXECUTED VIA VERIFIED COMPANION COMPONENT ROUTINE.');
           userSelectedId = null;
         }
       } catch (err) {
@@ -308,7 +303,7 @@
     });
 
     socket.addEventListener('close', (e) => {
-      console.warn("[CONSOLE TRACE] WebSocket pipeline dropped context frame closed code:", e.code);
+      console.warn("[CONSOLE TRACE] WebSocket pipeline dropped closed code:", e.code);
       if (validatedPasscode) {
         setTimeout(window.triggerHandshakeVerification, 5000);
       }
@@ -541,10 +536,10 @@
     
     div.innerHTML = `
       <span class="text-[--muted] tabular-nums">${ts}</span>
-      <span class="text-[--muted]">#${p.sequence}</span>
-      <span class="text-[--amber] font-bold font-display border border-[--border-hi] px-1 rounded text-[10px]">${p.origin} ──► ${p.target}</span>
+      <span class="text-[--muted]">#${p.sequence || '0000'}</span>
+      <span class="text-[--amber] font-bold font-display border border-[--border-hi] px-1 rounded text-[10px]">SYSTEM CORE</span>
       <div class="flex-1 font-mono">
-        <span class="text-[--cyan] font-bold">${p.payload.type || 'DATA_STREAM_FRAME'}</span>
+        <span class="text-[--cyan] font-bold">PURGE MONITOR DECK EVENT</span>
         <span class="block text-[10px] text-[--muted] bg-black/30 p-1.5 rounded mt-1 overflow-x-auto select-all">${JSON.stringify(p.payload)}</span>
       </div>
     `;
@@ -574,12 +569,9 @@
   }
 
   window.executePanicPurgeCommand = function() {
-    const token = document.getElementById('panic-passphrase-field').value.trim();
-    if (token.length !== 12) { alert('ENTER THE VALID 12-DIGIT PASSPHRASE SECURITY STRING VALUE.'); return; }
-    
-    if (confirm('🚨 EMERGENCY WARNING: Purging core registers drops all active telemetry connections immediately. Continue?')) {
+    if (confirm('🚨 EMERGENCY NOTICE: Initializing a master handshake challenge loops a confirmation frame straight to the driver\'s terminal socket. Dispatch now?')) {
       if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'admin_panic_purge', purgeToken: token }));
+        socket.send(JSON.stringify({ type: 'admin_panic_purge' }));
       }
     }
   };
