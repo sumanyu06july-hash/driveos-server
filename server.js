@@ -10,7 +10,7 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710'; 
+const ADMIN_PIN = '6710'; // 👈 CHANGE YOUR 4-DIGIT PASSWORD HERE
 const SEED_PASSPHRASE = 'DRIVEOS_SUPER_SECRET_SALT_2026';
 
 // Central State Dictionaries
@@ -349,7 +349,6 @@ wss.on('connection', (ws, req) => {
         dev.companion = ws;
         ws._device = deviceId;
         
-        // Ensure standard UI state mapping arrays exist immediately
         dev.lastState = {
             deviceName: `OnePlus Node (${deviceId})`,
             owner: 'Primary Driver',
