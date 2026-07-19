@@ -493,6 +493,11 @@
   }
 
   function appendWiretapInterceptLog(p) {
+    // 🛑 FRONTEND CONSOLE INTERCEPT FILTER: Skip rendering if payload frame explicitly matches application heartbeats
+    if (p.payload && p.payload.type === 'ping') {
+      return;
+    }
+
     const feed = document.getElementById('log-feed');
     if (feed.querySelector('.text-center')) feed.innerHTML = '';
 

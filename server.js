@@ -270,6 +270,12 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
+                
+                // 🛑 BACKEND WIRE-TAP SILENT FILTER RULE FOR HIGH-FREQUENCY INTERFACES
+                if (msg && msg.type === 'ping') {
+                    return; 
+                }
+
                 interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,4)})`, 'SERVER', msg);
 
                 if (msg.type === 'state') {
