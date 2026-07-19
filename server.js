@@ -13,19 +13,30 @@ const GLOBAL_SECRET = 'driveos2secret';
 const ADMIN_PIN = '1234'; 
 const SEED_PASSPHRASE = 'DRIVEOS_SUPER_SECRET_SALT_2026';
 
-// Master Global State Storage Registers
+// Central State Dictionaries
 const devices = new Map();
 const adminClients = new Set();
 const blacklist = new Set();
 let globalLogSequence = 1;
 
-// Math Engine: Generates the exact 12-digit token based on the current 60-second time-block window
+// Active 12-Digit Single-Use Transaction Validation Cache
+let activeTimeSyncPurgeToken = null;
+let purgeTokenExpirationTime = 0;
+
 function generateTimeSyncToken() {
     const timeStep = Math.floor(Date.now() / 60000); 
     const message = timeStep + SEED_PASSPHRASE;
     const hash = crypto.createHmac('sha256', GLOBAL_SECRET).update(message).digest('hex');
     const numericToken = BigInt('0x' + hash.substring(0, 15)).toString().substring(0, 12);
     return numericToken.padStart(12, '0');
+}
+
+function generateRandom12DigitCode() {
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+        result += Math.floor(Math.random() * 10).toString();
+    }
+    return result;
 }
 
 function getDevice(id) {
@@ -59,12 +70,12 @@ app.get('/summary', (req, res) => {
 });
 
 function reject(ws, type, message) {
-    console.warn(`[REJECTED_HANDSHAKE] ${type} — ${message}`);
+    console.warn(`[REJECT] ${type} — ${message}`);
     try {
         ws.send(JSON.stringify({ type: 'error', message }));
         ws.close();
     } catch (e) {
-        console.error('[SOCKET_CLOSE_ERR] Failed to cleanly sever connection matrix:', e.message);
+        console.error('[REJECT_ERR] Failed to cleanly sever connection matrix:', e.message);
     }
 }
 
@@ -91,9 +102,9 @@ function broadcastTopology() {
 
         data.push({
             id: deviceId,
-            name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Cluster: ${deviceId.toUpperCase()}`,
+            name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Rig Node: ${deviceId.toUpperCase()}`,
             role: huActive ? 'headunit' : 'companion',
-            owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'System Fleet',
+            owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'Fleet Pool',
             headunitConnected: huActive,
             companionConnected: compActive,
             activeGuests: dev.guests.size,
@@ -107,28 +118,19 @@ function broadcastTopology() {
     const avgLatency = computedCount ? Math.round(absoluteLatencySum / computedCount) : 0;
     const packet = JSON.stringify({ 
         type: 'topology_update', 
-        data,
-        metrics: { avgLatency }
+        data, 
+        metrics: { avgLatency } 
     });
-
-    adminClients.forEach(admin => {
-        if (admin.readyState === WebSocket.OPEN) admin.send(packet);
-    });
+    adminClients.forEach(admin => { if (admin.readyState === WebSocket.OPEN) admin.send(packet); });
 }
 
 function interceptTelemetryTransaction(origin, target, payload) {
-    const sequence = String(globalLogSequence++).padStart(4, '0');
     const packet = JSON.stringify({
         type: 'wiretap_intercept',
-        sequence,
-        origin,
-        target,
-        payload
+        sequence: String(globalLogSequence++).padStart(4, '0'),
+        origin, target, payload
     });
-
-    adminClients.forEach(admin => {
-        if (admin.readyState === WebSocket.OPEN) admin.send(packet);
-    });
+    adminClients.forEach(admin => { if (admin.readyState === WebSocket.OPEN) admin.send(packet); });
 }
 
 wss.on('connection', (ws, req) => {
@@ -145,11 +147,10 @@ wss.on('connection', (ws, req) => {
     if (role === 'admin') {
         const inputAuth = urlParams.get('auth');
         if (inputAuth !== ADMIN_PIN) {
-            ws.send(JSON.stringify({ type: 'auth_error', message: 'INCORRECT_PIN_REJECTED' }));
-            setTimeout(() => { try { ws.close(); } catch(e){} }, 200);
+            ws.send(JSON.stringify({ type: 'auth_error' }));
+            setTimeout(() => { try{ws.close();}catch(e){} }, 200);
             return;
         }
-
         adminClients.add(ws);
         ws.send(JSON.stringify({ type: 'handshake_ok', message: 'Ecosystem dashboard control bridge authenticated.' }));
         broadcastTopology();
@@ -158,6 +159,30 @@ wss.on('connection', (ws, req) => {
             try {
                 const command = JSON.parse(message);
 
+                if (command.type === 'admin_purge_response') {
+                    for (const [id, dev] of devices.entries()) {
+                        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                            if (command.decision === 'approve') {
+                                activeTimeSyncPurgeToken = generateTimeSyncToken();
+                                purgeTokenExpirationTime = Date.now() + 90000; 
+                                dev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
+                            } else {
+                                const generatedOverrideKey = generateRandom12DigitCode();
+                                dev.companion.send(JSON.stringify({ 
+                                    type: 'purge_request_denied', 
+                                    overrideCode: generatedOverrideKey 
+                                }));
+                                ws.send(JSON.stringify({ 
+                                    type: 'lockout_alert_key', 
+                                    deviceId: id, 
+                                    code: generatedOverrideKey 
+                                }));
+                                setTimeout(() => { try{dev.companion.close();}catch(e){} }, 500);
+                            }
+                        }
+                    }
+                }
+                
                 if (command.type === 'burn_access') {
                     const dev = devices.get(command.device);
                     if (dev) {
@@ -190,12 +215,19 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (command.type === 'admin_panic_purge') {
-                    const expectedToken = generateTimeSyncToken();
-                    if (command.purgeToken !== expectedToken) {
-                        ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL SECURITY ALERT: INVALID 12-DIGIT PASSPHRASE MATRIX CODE' }));
+                    if (!activeTimeSyncPurgeToken || Date.now() > purgeTokenExpirationTime) {
+                        ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL ERROR: DYNAMIC TOKEN EXPIRED' }));
                         return;
                     }
-                    console.log('[🚨 INFRASTRUCTURE EMERGENCY WIPEOUT INITIATED]');
+                    if (command.purgeToken !== activeTimeSyncPurgeToken) {
+                        ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL WARNING: CRYPTO TOKEN VALUE MISMATCH' }));
+                        return;
+                    }
+                    
+                    activeTimeSyncPurgeToken = null;
+                    purgeTokenExpirationTime = 0;
+
+                    console.log('[🚨 CRITICAL SYSTEM PANIC WIPEOUT EXECUTED]');
                     for (const [id, dev] of devices.entries()) {
                         if (dev.headunit) dev.headunit.close();
                         if (dev.companion) dev.companion.close();
@@ -206,22 +238,19 @@ wss.on('connection', (ws, req) => {
                     blacklist.clear();
                     ws.send(JSON.stringify({ type: 'purge_success' }));
                 }
-
                 broadcastTopology();
             } catch (err) {
-                console.error('[ADMIN_COMMAND_ERR] Malformed loop payload package packet:', err.message);
+                console.error('[ADMIN_COMMAND_ERR] Malformed payload package packet:', err.message);
             }
         });
 
-        ws.on('close', () => {
-            adminClients.delete(ws);
-        });
+        ws.on('close', () => { adminClients.delete(ws); });
         return;
     }
 
     // --- 🛡️ FIREWALL SHIELD GATEKEEPER ---
     if (deviceId && blacklist.has(deviceId)) {
-        return reject(ws, 'AUTHENTICATION_REVOKED', 'This hardware cluster identification profile has been blacklisted.');
+        return reject(ws, 'AUTHENTICATION_REVOKED', 'This hardware profile has been blacklisted.');
     }
 
     if (!deviceId) return reject(ws, 'BAD_HANDSHAKE', 'Missing unique parameter node cluster references.');
@@ -257,7 +286,10 @@ wss.on('connection', (ws, req) => {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake access token variable value invalid.');
 
-        if (dev.headunit) dev.headunit.close();
+        if (dev.headunit) {
+            dev.headunit.send(JSON.stringify({ type: 'error', message: 'Takeover instance running.' }));
+            dev.headunit.close();
+        }
 
         dev.headunit = ws;
         ws._device = deviceId;
@@ -267,7 +299,7 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
-                interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,4)})`, 'SERVER_RELAY', msg);
+                interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,4)})`, 'SERVER', msg);
 
                 if (msg.type === 'register_summary_token') {
                     dev.summaryTokens.set(msg.token, msg.data);
@@ -306,7 +338,19 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
-                interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER_RELAY', msg);
+                interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER', msg);
+                
+                if (msg.type === 'companion_purge_request') {
+                    adminClients.forEach(admin => {
+                        if (admin.readyState === WebSocket.OPEN) {
+                            admin.send(JSON.stringify({ 
+                                type: 'purge_handshake_challenge', 
+                                deviceId: deviceId 
+                            }));
+                        }
+                    });
+                    return;
+                }
 
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 18);
@@ -345,7 +389,7 @@ wss.on('connection', (ws, req) => {
 
                 if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                     dev.headunit.send(JSON.stringify(msg));
-                    interceptTelemetryTransaction('SERVER_RELAY', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
+                    interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
                 }
             } catch (err) {}
         });

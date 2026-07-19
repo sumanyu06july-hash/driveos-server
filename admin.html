@@ -41,8 +41,9 @@
     z-index: 50;
   }
 
-  .glow-cyan  { box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 24px -8px rgba(0,245,255,0.35); }
-  .text-glow-cyan  { text-shadow: 0 0 16px rgba(0,245,255,0.45); }
+  .glow-cyan { box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 24px -8px rgba(0,245,255,0.35); }
+  .glow-rose { box-shadow: 0 0 0 1px rgba(255,59,92,0.15), 0 0 24px -8px rgba(255,59,92,0.35); }
+  .text-glow-cyan { text-shadow: 0 0 16px rgba(0,245,255,0.45); }
 
   .panel{ background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); }
   .kv-label{ color: var(--muted); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -83,91 +84,69 @@
   }
 
   .device-frame{ aspect-ratio: 16/10; background: #010204; border: 1px solid var(--border-hi); border-radius: 6px; position: relative; overflow: hidden; }
-
-  /* Drawer Navigation Sliding Transitions Layout */
-  #side-drawer { transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-  #side-drawer.open { transform: translateX(0); }
-  .menu-block { border: 1px solid var(--border); border-left: 3px solid transparent; background: rgba(255,255,255,0.01); text-align: left; transition: all 0.2s; }
-  .menu-block:hover { background: rgba(0,245,255,0.02); border-color: rgba(0,245,255,0.25); }
-  .menu-block.active { border-left-color: var(--cyan); background: rgba(0,245,255,0.04); border-color: rgba(0,245,255,0.2); }
 </style>
 </head>
 
 <body class="scanlines min-h-screen">
 
-<!-- ===================== 🔐 CREDENTIAL OVERLAY PASSCODE GATE ===================== -->
+<!-- ===================== 🔐 GATEWAYS AUTHENTICATION OVERLAY ===================== -->
 <div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
   <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
     <div class="flex items-center gap-2 mb-1">
       <span class="status-dot pulse-ring" style="background:#00F5FF; color:#00F5FF;"></span>
-      <span class="kv-label">Infrastructure Verification</span>
+      <span class="kv-label">Infrastructure Access Verification</span>
     </div>
     <h1 class="font-display text-lg font-bold text-glow-cyan tracking-wide mb-1">DRIVEOS COCKPIT</h1>
-    <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security keys to connect remote administrative terminal channels.</p>
+    <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security credentials to open administrative console data streams.</p>
 
     <input id="pin-input" type="password" placeholder="••••" maxlength="4"
       class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" autocomplete="off">
 
-    <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3" onclick="triggerHandshakeVerification()">Verify Key Token</button>
+    <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3" onclick="triggerHandshakeVerification()">Verify Access Credentials</button>
     <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
   </div>
 </div>
 
-<!-- ===================== 🍔 HIGH-TECH COMPONENT DRAWER NAVIGATION ===================== -->
-<div id="side-drawer" class="fixed top-0 bottom-0 left-0 w-80 bg-[#0B0E14]/95 border-r border-[--border] z-40 p-6 flex flex-col justify-between backdrop-blur-md shadow-2xl">
-  <div>
-    <div class="flex items-center justify-between mb-8 pb-4 border-b border-[--border]">
-      <div class="font-display font-bold text-sm tracking-widest text-[--cyan]">SYSTEM COCKPIT INDEX</div>
-      <button onclick="toggleNavigationDrawer()" class="text-[--muted] hover:text-white text-xs font-mono font-bold">[ESC]</button>
+<!-- ===================== 🛑 DYNAMIC SPLIT-PATH HANDSHAKE OVERLAY ===================== -->
+<div id="challenge-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
+  <div class="panel glow-rose rounded-md w-[min(95vw,440px)] p-6 text-center animate-[rowIn_0.25s_ease]">
+    <div class="tag text-[--rose] mb-3" style="border-color:var(--rose)">SECURITY HANDSHAKE CHALLENGE</div>
+    <h2 class="font-display text-base font-bold text-white mb-2">PURGE ATTEMPT INTERCEPTED</h2>
+    <p class="text-xs text-[--muted] mb-5 leading-relaxed">
+      A remote device connected as a Companion app is currently requesting authority to execute an infrastructure system purge. Are you the one initializing this transaction?
+    </p>
+    <div class="flex gap-3 justify-center">
+      <button class="btn btn-cyan w-32 py-2" onclick="submitChallengeDecision('approve')">YES, APPROVE</button>
+      <button class="btn btn-rose w-32 py-2" onclick="submitChallengeDecision('deny')">NO, DENY ACC</button>
     </div>
-    <nav class="space-y-3">
-      <button onclick="executeViewTransition('dashboard')" id="nav-dashboard" class="menu-block active w-full p-3 rounded flex flex-col">
-        <span class="font-display text-[10px] text-[--cyan] font-bold tracking-widest">SYS_FLEET_GRID</span>
-        <span class="text-xs font-bold text-white mt-1">FLEET OVERVIEW</span>
-        <span class="text-[9px] text-[--muted] mt-1 uppercase">Track cluster node mappings</span>
-      </button>
-      <button onclick="executeViewTransition('fuel')" id="nav-fuel" class="menu-block w-full p-3 rounded flex flex-col">
-        <span class="font-display text-[10px] text-[--muted] tracking-widest">SYS_FUEL_METRICS</span>
-        <span class="text-xs font-bold text-[--text] mt-1">FUEL DIAGNOSTICS</span>
-        <span class="text-[9px] text-[--muted] mt-1 uppercase">Tank residuals & flow deltas</span>
-      </button>
-      <button onclick="executeViewTransition('analytics')" id="nav-analytics" class="menu-block w-full p-3 rounded flex flex-col">
-        <span class="font-display text-[10px] text-[--muted] tracking-widest">SYS_DRIVE_TELEM</span>
-        <span class="text-xs font-bold text-[--text] mt-1">DRIVE ANALYTICS</span>
-        <span class="text-[9px] text-[--muted] mt-1 uppercase">Volatile trip calculations</span>
-      </button>
-    </nav>
   </div>
-  <div class="text-[9px] text-[--muted] font-mono border-t border-[--border] pt-4 tracking-wider">DriveOS Command Panel v2.0</div>
 </div>
 
-<!-- ===================== CORE WORKSPACE LAYOUT CONTAINER ===================== -->
+<!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
 <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
 
-  <!-- Header Banner Section -->
+  <!-- Main Banner Header -->
   <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
-    <div class="flex items-center gap-4">
-      <button onclick="toggleNavigationDrawer()" class="w-10 h-10 border border-[--border-hi] rounded flex flex-col items-center justify-center gap-1.5 hover:border-[--cyan] bg-white/[0.01] transition-all">
-        <span class="w-4 h-0.5 bg-[--cyan] shadow-[0_0_4px_#00F5FF]"></span>
-        <span class="w-4 h-0.5 bg-[--cyan] shadow-[0_0_4px_#00F5FF]"></span>
-        <span class="w-4 h-0.5 bg-[--cyan] shadow-[0_0_4px_#00F5FF]"></span>
-      </button>
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
+        <span class="font-display text-[--cyan] text-xs font-bold">DECK</span>
+      </div>
       <div>
-        <h1 class="font-display text-base font-bold tracking-wide" id="console-header-title">DriveOS <span class="text-[--muted] font-normal">· Fleet Network Management</span></h1>
-        <p class="text-[0.65rem] text-[--muted]">Central operational cluster configurations loop</p>
+        <h1 class="font-display text-base font-bold tracking-wide">DriveOS <span class="text-[--muted] font-normal">· Central Command Deck</span></h1>
+        <p class="text-[0.65rem] text-[--muted]">Ecosystem monitoring array loop</p>
       </div>
     </div>
 
     <div class="flex items-center gap-3">
       <div class="tag" style="color:#00FF9C; border-color:rgba(0,255,156,0.3)">
-        <span class="status-dot" style="background:#00FF9C;"></span> SIGNED IN AS OVERLORD
+        <span class="status-dot" style="background:#00FF9C;"></span> CONNECTED AS OVERLORD
       </div>
       <div id="clock-ticker" class="font-display text-xs text-[--muted] tabular-nums"></div>
-      <button class="btn btn-ghost" onclick="lockConsoleWorkspace()">Lock Deck</button>
+      <button class="btn btn-ghost" onclick="lockConsoleWorkspace()">Lock Console</button>
     </div>
   </header>
 
-  <!-- Metric Strip Panels -->
+  <!-- Metric Strip Cards -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="panel rounded p-4">
       <p class="kv-label mb-1">Rigs Online</p>
@@ -187,100 +166,71 @@
     </div>
   </section>
 
-  <!-- Dynamic Component Page Switcher Modules -->
-  
-  <!-- VIEW MODULE 1: MAIN TELEMETRY OVERVIEW -->
-  <div id="view-dashboard" class="view-panel space-y-6">
-    <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">
-      
-      <!-- Left Box: Fleet Node Table Registry Grid Layout -->
-      <div class="panel rounded-md p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE GRID MATRIX</h2>
-          <span class="kv-label">Select rows to view live mirroring outputs</span>
-        </div>
-        <div id="fleet-card-grid" class="grid sm:grid-cols-2 gap-3">
-          <div class="col-span-2 text-center py-10 text-[--muted] text-xs">Awaiting hardware validation transmissions...</div>
-        </div>
-      </div>
-
-      <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
-      <div class="flex flex-col gap-5">
-        <div class="panel rounded-md p-5 flex flex-col flex-1">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">DEVICE MONITOR PREVIEW</h2>
-            <span class="kv-label">Mirror Node Terminal</span>
-          </div>
-          <div id="preview-empty-frame" class="flex-1 flex items-center justify-center text-center text-xs text-[--muted] py-10 px-4">
-            Select an operational node row frame from the inventory matrix grid to inspect hardware profiles.
-          </div>
-          <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between">
-            <div>
-              <div class="device-frame mb-4" id="mirror-canvas-inject"></div>
-              <p id="mirror-device-name" class="font-display text-sm font-bold mb-1 text-[--text]"></p>
-              <p id="mirror-device-meta" class="text-xs text-[--muted] mb-4"></p>
-            </div>
-            <button id="mirror-action-ban-btn" class="btn w-full font-bold"></button>
-          </div>
-        </div>
-
-        <div class="panel rounded-md p-5">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">VOLATILE AUTHORIZATION VAULT</h2>
-          <div id="vault-token-hook-rows" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs mt-2 pr-1">
-            <div class="text-center py-4 text-[--muted]">Memory registers clear.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Scrolling Packet Interceptor Ticker Console Panel -->
+  <!-- Main Component Grid Workspace Layout -->
+  <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
+    
+    <!-- Left Box: Fleet Hardware Index Inventory Table Grid -->
     <div class="panel rounded-md p-5">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
-        <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
+        <span class="kv-label">Select rows to view live mirroring outputs</span>
       </div>
-      <div id="log-feed" class="font-mono text-xs space-y-2 h-56 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
-        <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
+      <div id="fleet-card-grid" class="grid sm:grid-cols-2 gap-3">
+        <div class="col-span-2 text-center py-10 text-[--muted] text-xs">Awaiting grid telemetry loop frames...</div>
+      </div>
+    </div>
+
+    <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
+    <div class="flex flex-col gap-5">
+      <div class="panel rounded-md p-5 flex flex-col flex-1">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">DEVICE MONITOR PREVIEW</h2>
+          <span class="kv-label">Mirror Node Terminal</span>
+        </div>
+        <div id="preview-empty-frame" class="flex-1 flex items-center justify-center text-center text-xs text-[--muted] py-10 px-4">
+          Select an operational node row frame from the inventory matrix grid to inspect hardware profiles.
+        </div>
+        <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between">
+          <div>
+            <div class="device-frame mb-4" id="mirror-canvas-inject"></div>
+            <p id="mirror-device-name" class="font-display text-sm font-bold mb-1 text-[--text]"></p>
+            <p id="mirror-device-meta" class="text-xs text-[--muted] mb-4"></p>
+          </div>
+          <button id="mirror-action-ban-btn" class="btn w-full font-bold"></button>
+        </div>
       </div>
 
-      <!-- Secure Double-Gated Emergency Panic Purge Component Box Bar -->
-      <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
-        <div class="text-xs text-[--muted]">
-          <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Flushes internal memory map array frames. Input the current 12-digit companion application validation code to run.
-        </div>
-        <div class="flex gap-2">
-          <input id="panic-passphrase-field" type="text" maxlength="12" placeholder="12-DIGIT KEY CODE"
-            class="bg-black/50 border border-[--border-hi] rounded px-3 py-1.5 font-display text-xs text-[--cyan] text-center tracking-widest outline-none w-48 focus:border-[--rose]">
-          <button class="btn btn-rose font-bold px-4" onclick="executePanicPurgeCommand()">Purge System</button>
+      <div class="panel rounded-md p-5">
+        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">VOLATILE AUTHORIZATION VAULT</h2>
+        <div id="vault-token-hook-rows" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs mt-2 pr-1">
+          <div class="text-center py-4 text-[--muted]">Memory registers clear.</div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- VIEW MODULE 2: FUEL SYSTEM FUEL DIAGNOSTICS PAGE -->
-  <div id="view-fuel" class="view-panel hidden panel rounded-md p-6">
-    <h2 class="font-display text-sm font-bold text-[--cyan] mb-4 tracking-wider">FUEL HYDRAULICS METRIC GRID</h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
-      <div class="p-4 border border-[--border] rounded bg-black/20">
-        <div class="text-[--muted] mb-1">TOTAL STORAGE RECEPTACLE</div>
-        <div class="text-xl font-bold text-white">55 Liters</div>
+  <!-- Scrolling Packet Interceptor Ticker Console Panel -->
+  <section class="panel rounded-md p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
+      <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+    </div>
+    <div id="log-feed" class="font-mono text-xs space-y-2 h-56 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
+      <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
+    </div>
+
+    <!-- Dynamic Double-Gated Emergency Panic Purge Component Box Bar -->
+    <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
+      <div class="text-xs text-[--muted]">
+        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Flushes internal memory map array frames. Input the current 12-digit companion application validation code to run.
       </div>
-      <div class="p-4 border border-[--border] rounded bg-black/20">
-        <div class="text-[--muted] mb-1">REAL-TIME FLOW CONSUMPTION</div>
-        <div class="text-xl font-bold text-[--green]">6.4L / 100km</div>
-      </div>
-      <div class="p-4 border border-[--border] rounded bg-black/20">
-        <div class="text-[--muted] mb-1">REMAINING VECTOR RANGE</div>
-        <div class="text-xl font-bold text-[--amber]">680 km</div>
+      <div class="flex gap-2">
+        <input id="panic-passphrase-field" type="text" maxlength="12" placeholder="12-DIGIT KEY CODE"
+          class="bg-black/50 border border-[--border-hi] rounded px-3 py-1.5 font-display text-xs text-[--cyan] text-center tracking-widest outline-none w-48 focus:border-[--rose]">
+        <button class="btn btn-rose font-bold px-4" onclick="executePanicPurgeCommand()">Purge System</button>
       </div>
     </div>
-  </div>
-
-  <!-- VIEW MODULE 3: DRIVE TRACKING ANALYTICS PAGE -->
-  <div id="view-analytics" class="view-panel hidden panel rounded-md p-6">
-    <h2 class="font-display text-sm font-bold text-[--cyan] mb-4 tracking-wider">COMPUTED PERFORMANCE ANALYTICS LOG</h2>
-    <p class="font-mono text-xs text-[--muted]">System analytics engines are compiling telemetry loop matrices continuously.</p>
-  </div>
+  </section>
 
 </div>
 
@@ -297,7 +247,7 @@
   const pinInput = document.getElementById('pin-input');
   const pinError = document.getElementById('pin-error');
   const appShell = document.getElementById('app');
-  const drawer = document.getElementById('side-drawer');
+  const challengeOverlay = document.getElementById('challenge-overlay');
 
   pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') triggerHandshakeVerification(); });
 
@@ -336,10 +286,16 @@
         renderTokenVaultElements();
       } else if (packet.type === 'wiretap_intercept') {
         appendWiretapInterceptLog(packet);
+      } else if (packet.type === 'purge_handshake_challenge') {
+        // Trigger inter-app split-path decision prompt gate overlay view
+        challengeOverlay.classList.remove('hidden');
+      } else if (packet.type === 'lockout_alert_key') {
+        // Render generated emergency override token code inside the transaction log directly
+        appendForcedLockoutLogEntry(packet);
       } else if (packet.type === 'purge_auth_failed') {
         alert(packet.message);
       } else if (packet.type === 'purge_success') {
-        alert('MASTER INFRASTRUCTURE RESET EXECUTED SUCCESSFULLY. MEMORY RE-INITIALIZED.');
+        alert('MASTER INFRASTRUCTURE RESET EXECUTED SUCCESSFULLY. ALL DATA CLEANED.');
         document.getElementById('panic-passphrase-field').value = '';
         userSelectedId = null;
       }
@@ -360,30 +316,14 @@
     pinInput.focus();
   };
 
-  window.toggleNavigationDrawer = function() {
-    drawer.classList.toggle('open');
-  };
-
-  window.executeViewTransition = function(viewId) {
-    document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
-    document.getElementById(`view-${viewId}`).classList.remove('hidden');
-
-    document.querySelectorAll('.menu-block').forEach(m => {
-      m.classList.remove('active');
-      const textSpan = m.querySelector('.text-white');
-      if (textSpan) textSpan.className = 'text-xs font-bold text-[--text] mt-1';
-      const labelSpan = m.querySelector('.text-\\[--cyan\\]');
-      if (labelSpan) { labelSpan.className = 'font-display text-[10px] text-[--muted] tracking-widest'; }
-    });
-
-    const targetMenu = document.getElementById(`nav-${viewId}`);
-    targetMenu.classList.add('active');
-    
-    const cyanLabel = targetMenu.querySelector('.font-display');
-    if (cyanLabel) cyanLabel.className = 'font-display text-[10px] text-[--cyan] font-bold tracking-widest';
-
-    document.getElementById('console-header-title').innerHTML = `DriveOS <span class="text-[--muted] font-normal">· ${viewId.charAt(0).toUpperCase() + viewId.slice(1)} Channel</span>`;
-    toggleNavigationDrawer();
+  window.submitChallengeDecision = function(decision) {
+    challengeOverlay.classList.add('hidden');
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ 
+        type: 'admin_purge_response', 
+        decision: decision 
+      }));
+    }
   };
 
   function updateStaticMetricsUI(metrics) {
@@ -508,7 +448,7 @@
             <p class="text-[10px] text-[--muted] uppercase tracking-wider">Interface Connections Matrix</p>
             <p class="text-xs text-[--cyan] font-bold mt-1">HUD: ${node.headunitConnected ? 'ON':'OFF'} | PHONE: ${node.companionConnected ? 'ON':'OFF'}</p>
           </div>
-          <div class="text-[9px] text-[--muted] flex justify-between">
+          <div class="flex justify-between items-center text-[9px] text-[--muted]">
             <span>DriveOS Gateway 2.0</span>
             <span>Link Pools: ${node.activeGuests}</span>
           </div>
@@ -579,6 +519,27 @@
     `;
     feed.prepend(div);
     while (feed.children.length > 40) feed.removeChild(feed.lastChild);
+  }
+
+  function appendForcedLockoutLogEntry(p) {
+    const feed = document.getElementById('log-feed');
+    if (feed.querySelector('.text-center')) feed.innerHTML = '';
+
+    const div = document.createElement('div');
+    div.className = 'border border-[--rose]/30 bg-[--rose]/5 p-3 rounded text-[11px] font-mono mb-2 animate-[rowIn_0.3s_ease]';
+    const ts = new Date().toLocaleTimeString([], { hour12:false });
+
+    div.innerHTML = `
+      <div class="flex justify-between font-display text-[10px] text-[--rose] font-bold tracking-wider">
+        <span>🚨 [COMPANION BAN DISCONNECT LOCKOUT INITIATED]</span>
+        <span class="tabular-nums">${ts}</span>
+      </div>
+      <p class="text-[--text] mt-1 uppercase">Target device sequence identity profile '${p.deviceId.toUpperCase()}' has been disconnected and blocked.</p>
+      <div class="mt-2 text-xs text-white">
+        EMERGENCY BACKUP UNLOCK RECOVERY PASSCODE: <span class="bg-black px-2 py-0.5 rounded border border-[--border-hi] text-[--amber] font-bold select-all select-all tracking-widest">${p.code}</span>
+      </div>
+    `;
+    feed.prepend(div);
   }
 
   window.executePanicPurgeCommand = function() {
