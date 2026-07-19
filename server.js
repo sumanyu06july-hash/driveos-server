@@ -181,6 +181,7 @@ wss.on('connection', (ws, req) => {
                     const dev = devices.get(command.device);
                     if (dev) {
                         dev.guestTokens.delete(command.token);
+                        console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
                     }
                 }
 
@@ -230,7 +231,7 @@ wss.on('connection', (ws, req) => {
                 }
                 broadcastTopology();
             } catch (err) {
-                console.error('[ADMIN_COMMAND_ERR]', err.message);
+                console.error('[ADMIN_COMMAND_ERR] Malformed payload package packet:', err.message);
             }
         });
 
@@ -238,7 +239,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // --- 🛡==== GLOBAL FIREWALL SHIELD GATEKEEPER ====---
+    // --- 🛡️ FIREWALL SHIELD GATEKEEPER ---
     if (deviceId && blacklist.has(deviceId)) {
         return reject(ws, 'AUTHENTICATION_REVOKED', 'This hardware profile has been blacklisted.');
     }
@@ -274,7 +275,7 @@ wss.on('connection', (ws, req) => {
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake access token variable value invalid.');
-        
+
         if (dev.hud_banned) {
             return reject(ws, 'NODE_LOCKED', 'Headunit authorization explicitly suspended by administrative panel.');
         }
@@ -308,7 +309,10 @@ wss.on('connection', (ws, req) => {
             } catch (err) {}
         });
 
-        ws.on('close', () => {
+        ws.on('close', (code, reason) => {
+            const cleanReason = reason ? reason.toString() : "None";
+            console.warn(`[🚨 HUD DISCONNECT] Device: ${deviceId} | Code: ${code} | Reason: ${cleanReason}`);
+            
             if (dev.headunit === ws) dev.headunit = null;
             broadcastTopology();
         });
@@ -399,12 +403,11 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
-                // 🛠️ FIX: Intercept companion command frames and route them explicitly down the headunit stream pipeline
                 if (msg.type === 'state' || msg.type === 'companion_state') {
                     dev.companionState = msg;
                     broadcastTopology();
                 } else {
-                    // Check if a valid headunit channel is active before piping custom payloads
+                    // Safe verification gate ensuring companion app data relays down to active launcher sockets
                     if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                         dev.headunit.send(JSON.stringify(msg));
                         interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
