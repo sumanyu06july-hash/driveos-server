@@ -10,7 +10,7 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710'; // 👈 CHANGE YOUR 4-DIGIT PASSWORD HERE
+const ADMIN_PIN = '6710'; 
 const SEED_PASSPHRASE = 'DRIVEOS_SUPER_SECRET_SALT_2026';
 
 // Central State Dictionaries
@@ -23,8 +23,9 @@ let globalLogSequence = 1;
 let activeTimeSyncPurgeToken = null;
 let purgeTokenExpirationTime = 0;
 
-function generateTimeSyncToken() {
-    const timeStep = Math.floor(Date.now() / 60000); 
+// Algorithm generating the 12-digit numeric key based on a specific time step
+function generateTimeSyncToken(offsetMinutes = 0) {
+    const timeStep = Math.floor(Date.now() / 60000) + offsetMinutes; 
     const message = timeStep + SEED_PASSPHRASE;
     const hash = crypto.createHmac('sha256', GLOBAL_SECRET).update(message).digest('hex');
     const numericToken = BigInt('0x' + hash.substring(0, 15)).toString().substring(0, 12);
@@ -147,7 +148,6 @@ wss.on('connection', (ws, req) => {
     const role = urlParams.get('role');
     const token = urlParams.get('token');
 
-    // Hard parameter verification check to merge key types and guarantee dashboard capture
     let rawDevice = urlParams.get('deviceId') || urlParams.get('device');
     if (!rawDevice || rawDevice === 'null' || rawDevice === 'undefined') {
         rawDevice = 'myaura001'; 
@@ -178,7 +178,7 @@ wss.on('connection', (ws, req) => {
                     for (const [id, dev] of devices.entries()) {
                         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                             if (command.decision === 'approve') {
-                                activeTimeSyncPurgeToken = generateTimeSyncToken();
+                                activeTimeSyncPurgeToken = generateTimeSyncToken(0);
                                 purgeTokenExpirationTime = Date.now() + 90000; 
                                 dev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
                             } else {
@@ -230,11 +230,20 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (command.type === 'admin_panic_purge') {
-                    if (!activeTimeSyncPurgeToken || Date.now() > purgeTokenExpirationTime) {
+                    if (Date.now() > purgeTokenExpirationTime) {
                         ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL ERROR: DYNAMIC TOKEN EXPIRED' }));
                         return;
                     }
-                    if (command.purgeToken !== activeTimeSyncPurgeToken) {
+
+                    // HARDENED TIME-SYNC BUFFER ZONE
+                    // Validates current window (0) and adjacent drifting window (-1) to counter cloud clock mismatch
+                    const currentExpectedToken = generateTimeSyncToken(0);
+                    const backdatedExpectedToken = generateTimeSyncToken(-1);
+
+                    const tokenMatchesCurrent = (command.purgeToken === activeTimeSyncPurgeToken) || (command.purgeToken === currentExpectedToken);
+                    const tokenMatchesBackup = (command.purgeToken === backdatedExpectedToken);
+
+                    if (!tokenMatchesCurrent && !tokenMatchesBackup) {
                         ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL WARNING: CRYPTO TOKEN VALUE MISMATCH' }));
                         return;
                     }
