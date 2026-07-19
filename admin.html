@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveOS · Overlord Control Deck</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:        #050508;
+    --surface:   #0B0E14;
+    --surface-2: #0E131C;
+    --border:    #142028;
+    --border-hi: #1C3038;
+    --cyan:      #00F5FF;
+    --amber:     #FFB000;
+    --green:     #00FF9C;
+    --rose:      #FF3B5C;
+    --text:      #D8FBFF;
+    --muted:     #5C7480;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,245,255,0.06), transparent),
+      var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.01em;
+  }
+
+  .font-display{ font-family: 'JetBrains Mono', monospace; }
+
+  .scanlines::before{
+    content:''; position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    z-index: 50;
+  }
+
+  .glow-cyan  { box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 24px -8px rgba(0,245,255,0.35); }
+  .glow-rose  { box-shadow: 0 0 0 1px rgba(255,59,92,0.15), 0 0 24px -8px rgba(255,59,92,0.35); }
+  .text-glow-cyan  { text-shadow: 0 0 16px rgba(0,245,255,0.45); }
+
+  .panel{ background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); }
+  .kv-label{ color: var(--muted); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
+  .status-dot{ width: 7px; height: 7px; border-radius: 999px; display: inline-block; box-shadow: 0 0 8px currentColor; }
+
+  .btn{
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.5rem 0.75rem; border-radius: 3px; border: 1px solid var(--border-hi); transition: all 0.15s ease; cursor: pointer;
+  }
+  .btn:hover{ transform: translateY(-1px); }
+  .btn:active{ transform: translateY(0); }
+
+  .btn-cyan{ color: var(--cyan); border-color: rgba(0,245,255,0.35); }
+  .btn-cyan:hover:not(:disabled){ background: rgba(0,245,255,0.08); box-shadow: 0 0 16px -6px rgba(0,245,255,0.6); }
+  .btn-rose{ color: var(--rose); border-color: rgba(255,59,92,0.35); }
+  .btn-rose:hover:not(:disabled){ background: rgba(255,59,92,0.08); box-shadow: 0 0 16px -6px rgba(255,59,92,0.6); }
+  .btn-amber{ color: var(--amber); border-color: rgba(255,176,0,0.35); }
+  .btn-amber:hover:not(:disabled){ background: rgba(255,176,0,0.08); box-shadow: 0 0 16px -6px rgba(255,176,0,0.6); }
+  .btn-ghost{ color: var(--muted); }
+  .btn-ghost:hover:not(:disabled){ color: var(--text); border-color: var(--border-hi); }
+
+  .device-card{ background: var(--surface); border: 1px solid var(--border); transition: all 0.2s ease; }
+  .device-card.is-selected{ border-color: rgba(0,245,255,0.4); box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 30px -10px rgba(0,245,255,0.4); }
+  .device-card.banned{ border-color: rgba(255,59,92,0.3); background: rgba(255,59,92,0.02); }
+
+  .tag{
+    font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0.15rem 0.5rem; border-radius: 2px; border: 1px solid currentColor; display: inline-flex; align-items: center; gap: 0.35rem;
+  }
+
+  #log-feed{ scrollbar-width: thin; scrollbar-color: #1C3038 transparent; }
+  #log-feed::-webkit-scrollbar{ width: 6px; }
+  #log-feed::-webkit-scrollbar-thumb{ background: #1C3038; border-radius: 4px; }
+
+  .pulse-ring{ animation: pulseRing 2.4s ease-out infinite; }
+  @keyframes pulseRing{
+    0%   { box-shadow: 0 0 0 0 rgba(0,245,255,0.35); }
+    70%  { box-shadow: 0 0 0 10px rgba(0,245,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,245,255,0); }
+  }
+
+  .device-frame{ aspect-ratio: 16/10; background: #010204; border: 1px solid var(--border-hi); border-radius: 6px; position: relative; overflow: hidden; }
+</style>
+</head>
+
+<body class="scanlines min-h-screen">
+
+<!-- ===================== 🔐 AUTHENTICATION PASSCODE OVERLAY GATE ===================== -->
+<div id="pin-gate" class="fixed inset-0 z-40 flex items-center justify-center bg-[#050508]/95 backdrop-blur-sm">
+  <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="status-dot pulse-ring" style="background:#00F5FF; color:#00F5FF;"></span>
+      <span class="kv-label">Infrastructure Lock</span>
+    </div>
+    <h1 class="font-display text-lg font-bold text-glow-cyan tracking-wide mb-1">DRIVEOS COCKPIT</h1>
+    <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security credentials to open remote administration terminal lines.</p>
+
+    <input id="pin-input" type="password" placeholder="••••" maxlength="4"
+      class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" autocomplete="off">
+
+    <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3" onclick="initializeAdminAccess()">Verify Key Handshake</button>
+    <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
+  </div>
+</div>
+
+<!-- ===================== CORE CONSOLE OVERLAY SHELL ===================== -->
+<div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
+
+  <!-- Main Header Banner Bar -->
+  <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
+        <span class="font-display text-[--cyan] text-xs font-bold">DECK</span>
+      </div>
+      <div>
+        <h1 class="font-display text-base font-bold tracking-wide">DriveOS <span class="text-[--muted] font-normal">· Overlord Administration Console</span></h1>
+        <p class="text-[0.65rem] text-[--muted]">Central dynamic monitoring matrix environment</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="tag" id="network-status-badge" style="color:#5C7480;">
+        <span class="status-dot" id="system-status-dot"></span> <span id="system-status-text">INITIALIZING</span>
+      </div>
+      <div id="clock-display" class="font-display text-xs text-[--muted] tabular-nums"></div>
+      <button class="btn btn-ghost" onclick="lockConsoleDeck()">Lock Terminal</button>
+    </div>
+  </header>
+
+  <!-- Metric Strip Rows -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Active Clusters</p>
+      <p id="stat-active-clusters" class="font-display text-2xl font-bold text-[--cyan]">0</p>
+    </div>
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Banned Firewalls</p>
+      <p id="stat-banned-nodes" class="font-display text-2xl font-bold text-[--rose]">0</p>
+    </div>
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Average Latency</p>
+      <p id="stat-avg-latency" class="font-display text-2xl font-bold">0 <span class="text-xs text-[--muted] font-normal">ms</span></p>
+    </div>
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Volatile Vault Keys</p>
+      <p id="stat-vault-keys" class="font-display text-2xl font-bold text-[--amber]">0</p>
+    </div>
+  </section>
+
+  <!-- Main Grid Framework -->
+  <section class="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5 mb-6">
+    
+    <!-- Left Column: Node Configuration Registry Table -->
+    <div class="panel rounded-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX</h2>
+        <span class="kv-label">Click row to populate preview matrices</span>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse font-mono text-xs">
+          <thead>
+            <tr class="border-b border-[--border]">
+              <th class="pb-3 kv-label">Cluster Identity ID</th>
+              <th class="pb-3 kv-label">HUD Status</th>
+              <th class="pb-3 kv-label">Mobile Sync</th>
+              <th class="pb-3 kv-label">Streams</th>
+              <th class="pb-3 kv-label" style="text-align:right;">Shield Configuration</th>
+            </tr>
+          </thead>
+          <tbody id="fleet-rows-hook">
+            <tr><td colspan="5" class="py-6 text-center text-[--muted]">No verification packets streamed from server relay.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Canvas previews + Vault Action Matrix -->
+    <div class="flex flex-col gap-5">
+      <!-- Device preview Canvas console block -->
+      <div class="panel rounded-md p-5 flex flex-col flex-1">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">DEVICE MIRROR CONSOLE</h2>
+          <span class="kv-label">Active Receiver Output</span>
+        </div>
+
+        <div id="preview-empty" class="flex-1 flex items-center justify-center text-center text-xs text-[--muted] py-12 px-6">
+          Select an active target node parameter row from the registry grid to inspect telemetry configurations.
+        </div>
+
+        <div id="preview-content" class="hidden flex-1 flex flex-col justify-between">
+          <div>
+            <div class="device-frame mb-4" id="preview-frame-canvas"></div>
+            <p id="preview-title-text" class="font-display text-sm font-bold mb-1 text-[--text]"></p>
+            <p id="preview-meta-text" class="text-[11px] text-[--muted] mb-4"></p>
+          </div>
+
+          <div class="flex gap-2">
+            <button id="preview-action-ban-btn" class="btn flex-1"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Volatile Token Vault Management Matrix -->
+      <div class="panel rounded-md p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE VALIDATION VAULT</h2>
+          <span class="kv-label">Allocated snapshot rings</span>
+        </div>
+        
+        <div class="overflow-y-auto max-h-48 text-xs font-mono pr-1" id="vault-token-rows-hook">
+          <div class="text-center py-4 text-[--muted]">Vault registers clear.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Wiretap Live Intercept Feed Logs Console -->
+  <section class="panel rounded-md p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">LIVE TELEMETRY TRANSACTION WIRE-TAP INTERCEPTOR</h2>
+      <div class="flex items-center gap-2">
+        <span class="status-dot" style="background:#FFB000; color:#FFB000;"></span>
+        <span class="kv-label text-[--amber]">Live Packet Mirror Channel</span>
+      </div>
+    </div>
+    
+    <!-- Scrolling Wiretap log console wrapper -->
+    <div id="log-feed" class="font-mono text-xs space-y-2 h-64 overflow-y-auto pr-2 bg-black/30 p-4 border border-[--border] rounded">
+      <div class="text-[--muted] text-center py-16">Awaiting telemetry transmission strings...</div>
+    </div>
+
+    <!-- System Purge Control Block Bar -->
+    <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
+      <div class="text-xs text-[--muted]">
+        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY WIPEOUT]:</span> Flushes tracking map dictionaries and breaks websocket lines instantly.
+      </div>
+      <button class="btn btn-rose font-bold" onclick="executePanicPurgeCommand()">Execute Panic Purge</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  let ws = null;
+  let cachedClusters = [];
+  let activeSelectedClusterId = null;
+  let savedAdminPasscode = '';
+
+  const pinGate = document.getElementById('pin-gate');
+  const pinInput = document.getElementById('pin-input');
+  const pinError = document.getElementById('pin-error');
+  const appContainer = document.getElementById('app');
+
+  // Listen for Enter click on verification login screens
+  pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') initializeAdminAccess(); });
+
+  window.initializeAdminAccess = function() {
+    const inputVal = pinInput.value.trim();
+    if (!inputVal) return;
+
+    pinError.textContent = '';
+    
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const connectionUrl = `${wsProtocol}${window.location.host}?role=admin&auth=${encodeURIComponent(inputVal)}`;
+
+    ws = new WebSocket(connectionUrl);
+
+    ws.addEventListener('open', () => {
+      savedAdminPasscode = inputVal;
+      pinGate.classList.add('hidden');
+      appContainer.classList.remove('hidden');
+      pinInput.value = '';
+      
+      const badge = document.getElementById('network-status-badge');
+      badge.style.color = '#00FF9C';
+      document.getElementById('system-status-dot').style.background = '#00FF9C';
+      document.getElementById('system-status-text').textContent = 'OVERLORD ONLINE';
+      
+      startSystemClockTicker();
+    });
+
+    ws.addEventListener('message', (event) => {
+      let packet;
+      try { packet = JSON.parse(event.data); } catch(err) { return; }
+
+      // Core authentication validation intercept check
+      if (packet.type === 'auth_error') {
+        pinError.textContent = 'ACCESS LOCKED: INVALID PIN HANDSHAKE';
+        savedAdminPasscode = '';
+        return;
+      }
+
+      if (packet.type === 'topology_update') {
+        cachedClusters = packet.data;
+        updateDashboardMetrics(packet.metrics);
+        renderRegistryGrid();
+        renderPreviewConsole();
+        renderVaultTokenSection();
+      } else if (packet.type === 'wiretap_intercept') {
+        appendWiretapInterceptRow(packet);
+      }
+    });
+
+    ws.addEventListener('close', () => {
+      const badge = document.getElementById('network-status-badge');
+      badge.style.color = '#FF3B5C';
+      document.getElementById('system-status-dot').style.background = '#FF3B5C';
+      document.getElementById('system-status-text').textContent = 'LINK SEVERED';
+      
+      if (savedAdminPasscode) {
+        setTimeout(initializeAdminAccess, 5000);
+      }
+    });
+  };
+
+  window.lockConsoleDeck = function() {
+    savedAdminPasscode = '';
+    if(ws) { try { ws.close(); } catch(e){} }
+    appContainer.classList.add('hidden');
+    pinGate.classList.remove('hidden');
+    pinInput.focus();
+  };
+
+  function startSystemClockTicker(){
+    const clockEl = document.getElementById('clock-display');
+    if(window.__clockTimerActive) return;
+    window.__clockTimerActive = true;
+    
+    function updateTime(){
+      const date = new Date();
+      clockEl.textContent = date.toLocaleTimeString([], { hour12:false });
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+  }
+
+  function updateDashboardMetrics(metrics) {
+    document.getElementById('stat-active-clusters').textContent = cachedClusters.length;
+    
+    const banCount = cachedClusters.filter(c => c.isBlacklisted).length;
+    document.getElementById('stat-banned-nodes').textContent = banCount;
+    
+    const totalVaultKeys = cachedClusters.reduce((sum, c) => sum + c.activeSummaryTokens.length, 0);
+    document.getElementById('stat-vault-keys').textContent = totalVaultKeys;
+    
+    if (metrics && metrics.avgLatency !== undefined) {
+      document.getElementById('stat-avg-latency').innerHTML = `${metrics.avgLatency} <span class="text-xs text-[--muted] font-normal">ms</span>`;
+    }
+  }
+
+  function renderRegistryGrid() {
+    const hook = document.getElementById('fleet-rows-hook');
+    hook.innerHTML = '';
+
+    if (cachedClusters.length === 0) {
+      hook.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-[--muted]">No devices linked to backend cloud relay structures.</td></tr>';
+      return;
+    }
+
+    cachedClusters.forEach(node => {
+      const tr = document.createElement('tr');
+      tr.className = `border-b border-[--border] hover:bg-white/[0.01] cursor-pointer transition-all ${node.id === activeSelectedClusterId ? 'bg-white/[0.02]' : ''}`;
+      
+      if (node.isBlacklisted) tr.classList.add('text-[--rose]');
+
+      tr.innerHTML = `
+        <td class="py-3 font-bold">${node.id.toUpperCase()}</td>
+        <td class="py-3"><span class="status-dot" style="background:${node.headunitConnected ? '#00FF9C' : '#5C7480'}"></span></td>
+        <td class="py-3"><span class="status-dot" style="background:${node.companionConnected ? '#00FF9C' : '#5C7480'}"></span></td>
+        <td class="py-3 text-[--cyan]">${node.activeGuests} syncs</td>
+        <td class="py-3" style="text-align:right;">
+          <button class="btn py-1 px-2 ${node.isBlacklisted ? 'btn-cyan' : 'btn-rose'}" data-action="toggle-ban" data-id="${node.id}">
+            ${node.isBlacklisted ? 'UNBAN NODE' : 'SHIELD BAN'}
+          </button>
+        </td>
+      `;
+
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        activeSelectedClusterId = node.id;
+        renderRegistryGrid();
+        renderPreviewConsole();
+      });
+
+      hook.appendChild(tr);
+    });
+
+    hook.querySelectorAll('[data-action="toggle-ban"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.id;
+        const targetNode = cachedClusters.find(c => c.id === targetId);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: targetNode.isBlacklisted ? 'admin_allow_device' : 'admin_block_device',
+            device: targetId
+          }));
+        }
+      });
+    });
+  }
+
+  function renderPreviewConsole() {
+    const emptyView = document.getElementById('preview-empty');
+    const contentView = document.getElementById('preview-content');
+    const frameCanvas = document.getElementById('preview-frame-canvas');
+    const titleText = document.getElementById('preview-title-text');
+    const metaText = document.getElementById('preview-meta-text');
+    const actionBtn = document.getElementById('preview-action-ban-btn');
+
+    const node = cachedClusters.find(c => c.id === activeSelectedClusterId);
+    if (!node) {
+      emptyView.classList.remove('hidden');
+      contentView.classList.add('hidden');
+      return;
+    }
+
+    emptyView.add('hidden');
+    contentView.classList.remove('hidden');
+    titleText.textContent = `Cluster Registry: ${node.id.toUpperCase()}`;
+    metaText.textContent = `Latency mapping profiles: ${node.latency}ms · Status line: ${node.lastSeen}`;
+
+    if (node.isBlacklisted) {
+      frameCanvas.innerHTML = `
+        <div class="absolute inset-0 flex flex-col items-center justify-center bg-[#0C0507] border border-[--rose]/20 p-4">
+          <div class="tag text-[--rose] mb-2" style="border-color:var(--rose)">FIREWALL LOCKOUT</div>
+          <p class="text-[11px] text-[--muted] text-center">Hardware cluster completely blocked.<br>Access parameters revoked.</p>
+        </div>`;
+      actionBtn.textContent = 'Revoke Firewall Block';
+      actionBtn.className = 'btn flex-1 btn-cyan';
+      actionBtn.onclick = () => modifyDeviceBanState(node.id, false);
+    } else {
+      frameCanvas.innerHTML = `
+        <div class="absolute inset-0 p-4 flex flex-col justify-between bg-gradient-to-b from-[#030C10] to-[#020305]">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] text-[--green] font-bold tracking-widest font-display">● TELEM STREAM ACTIVE</span>
+            <span class="text-[10px] text-[--muted] tabular-nums">${node.latency} ms</span>
+          </div>
+          <div class="text-center">
+            <p class="text-[10px] text-[--muted] uppercase tracking-wide">Sync State</p>
+            <p class="text-xs text-[--cyan] font-bold font-display mt-1">
+              HUD: ${node.headunitConnected ? 'ONLINE':'OFFLINE'} | MOBILE: ${node.companionConnected ? 'SYNCED':'DEAD'}
+            </p>
+          </div>
+          <div class="flex justify-between items-center text-[9px] text-[--muted]">
+            <span>DriveOS Gateway Core</span>
+            <span>Guests: ${node.activeGuests}</span>
+          </div>
+        </div>`;
+      actionBtn.textContent = 'Firewall Block Node';
+      actionBtn.className = 'btn flex-1 btn-rose';
+      actionBtn.onclick = () => modifyDeviceBanState(node.id, true);
+    }
+  }
+
+  function modifyDeviceBanState(deviceId, banState) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: banState ? 'admin_block_device' : 'admin_allow_device',
+        device: deviceId
+      }));
+    }
+  }
+
+  function renderVaultTokenSection() {
+    const hook = document.getElementById('vault-token-rows-hook');
+    hook.innerHTML = '';
+
+    let totalTokensFound = 0;
+
+    cachedClusters.forEach(node => {
+      node.activeSummaryTokens.forEach(token => {
+        totalTokensFound++;
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between border-b border-[--border] py-2 hover:bg-white/[0.01]';
+        div.innerHTML = `
+          <div>
+            <code class="text-[--amber] text-sm font-bold tracking-wide">${token}</code>
+            <span class="text-[10px] text-[--muted] ml-2">(${node.id.toUpperCase()})</span>
+          </div>
+          <button class="btn btn-rose py-1 px-2 text-[9px]" data-action="burn-token" data-device="${node.id}" data-token="${token}">Burn Token</button>
+        `;
+        hook.appendChild(div);
+      });
+    });
+
+    if (totalTokensFound === 0) {
+      hook.innerHTML = '<div class="text-center py-4 text-[--muted]">No authorization snapshot tokens loaded in volatile vaults.</div>';
+      return;
+    }
+
+    hook.querySelectorAll('[data-action="burn-token"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'burn_access',
+            device: btn.dataset.device,
+            token: btn.dataset.token
+          }));
+        }
+      });
+    });
+  }
+
+  function appendWiretapInterceptRow(packet) {
+    const feed = document.getElementById('log-feed');
+    
+    // Clear initial greeting string notice on first update
+    if (feed.querySelector('.text-center')) feed.innerHTML = '';
+
+    const div = document.createElement('div');
+    div.className = 'flex items-start gap-4 border-b border-[--border] pb-2 text-[11px] text-[--text]/90 animate-[rowIn_0.2s_ease]';
+    
+    const ts = new Date().toLocaleTimeString([], { hour12:false });
+    div.innerHTML = `
+      <span class="text-[--muted] tabular-nums">${ts}</span>
+      <span class="text-[--muted]">#${packet.sequence}</span>
+      <span class="text-[--amber] font-bold font-display text-[10px] tracking-wider uppercase border border-[--border-hi] px-1.5 rounded">${packet.origin} ──► ${packet.target}</span>
+      <div class="flex-1 font-mono">
+        <span class="text-[--cyan] font-semibold">${packet.payload.type || 'RAW_FRAME'}</span>
+        <span class="block text-[10px] text-[--muted] bg-black/20 p-1 rounded mt-1 overflow-x-auto select-all">${JSON.stringify(packet.payload)}</span>
+      </div>
+    `;
+
+    feed.prepend(div);
+    while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+  }
+
+  window.executePanicPurgeCommand = function() {
+    if (confirm('🚨 EMERGENCY CONFIGURATION WARNING: Purging core registries dropped all telemetry connections. Continue?')) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'admin_panic_purge' }));
+        activeSelectedClusterId = null;
+      }
+    }
+  };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    pinInput.focus();
+  });
+
+})();
+</script>
+
+</body>
+</html>
