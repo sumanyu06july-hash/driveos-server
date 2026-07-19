@@ -83,7 +83,12 @@
     100% { box-shadow: 0 0 0 0 rgba(0,245,255,0); }
   }
 
-  .device-frame{ aspect-ratio: 16/10; background: #010204; border: 1px solid var(--border-hi); border-radius: 6px; position: relative; overflow: hidden; }
+  .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background-color: #142028; border: 1px solid var(--border-hi); transition: .2s; border-radius: 4px; }
+  .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: var(--muted); transition: .2s; border-radius: 2px; }
+  input:checked + .slider { border-color: var(--cyan); background-color: rgba(0,245,255,0.1); }
+  input:checked + .slider:before { transform: translateX(14px); background-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 </style>
 </head>
 
@@ -203,7 +208,7 @@
                 <div>Odometer: <span id="hud-stat-odo" class="text-white">-- KM</span></div>
                 <div>Fuel Capacity: <span id="hud-stat-fuel" class="text-white">-- %</span></div>
               </div>
-              <button id="hud-kill-btn" class="w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition">DISCONNECT HUD INSTANCE</button>
+              <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
             </div>
 
             <!-- Mobile Companion Dedicated Interface Box -->
@@ -216,7 +221,7 @@
                 <div>Hardware Profile: <span class="text-white">OnePlus Phone Node</span></div>
                 <div>Signal Stream: <span id="comp-stat-signal" class="text-[--green]">--</span></div>
               </div>
-              <button id="comp-kill-btn" class="w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition">DISCONNECT PHONE LINK</button>
+              <button id="comp-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
             </div>
           </div>
           <button id="mirror-action-ban-btn" class="btn w-full font-bold py-2.5"></button>
@@ -236,7 +241,16 @@
   <section class="panel rounded-md p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
-      <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 border border-[--border-hi] px-2.5 py-1 rounded bg-black/20">
+          <span class="text-[10px] font-display font-medium text-slate-400">SHOW SEC STATE STREAMS</span>
+          <label class="switch">
+            <input type="checkbox" id="state-stream-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+      </div>
     </div>
     <div id="log-feed" class="font-mono text-xs space-y-2 h-56 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
       <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
@@ -269,6 +283,7 @@
   const pinError = document.getElementById('pin-error');
   const appShell = document.getElementById('app');
   const challengeOverlay = document.getElementById('challenge-overlay');
+  const streamToggle = document.getElementById('state-stream-toggle');
 
   pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') window.triggerHandshakeVerification(); });
 
@@ -425,6 +440,8 @@
       const emptyFrame = document.getElementById('preview-empty-frame');
       const activeFrame = document.getElementById('preview-active-frame');
       const actionBtn = document.getElementById('mirror-action-ban-btn');
+      const hudBtn = document.getElementById('hud-kill-btn');
+      const compBtn = document.getElementById('comp-kill-btn');
 
       const node = serverClusterArray.find(c => c.id === userSelectedId);
       if (!node) {
@@ -442,13 +459,33 @@
       document.getElementById('hud-stat-speed').textContent = node.hud.connected ? `${Math.round(node.hud.state.speed || 0)} km/h` : '-- km/h';
       document.getElementById('hud-stat-odo').textContent = node.hud.connected ? `${node.hud.state.odometer || 0} KM` : '-- KM';
       document.getElementById('hud-stat-fuel').textContent = node.hud.connected ? `${node.hud.state.fuel_percent || 0} %` : '-- %';
-      document.getElementById('hud-kill-btn').onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'hud' }));
+      
+      // Dynamic Headunit Button Lockdown Text Sync
+      if (node.hud_banned) {
+          hudBtn.textContent = "REVOKE HUD NODE LOCKDOWN";
+          hudBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 hover:bg-[--cyan]/20 transition font-bold";
+          hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'hud' }));
+      } else {
+          hudBtn.textContent = "DISCONNECT & BAN HUD INSTANCE";
+          hudBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition font-bold";
+          hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'hud' }));
+      }
 
       // Map Companion properties
       document.getElementById('comp-badge').textContent = node.companion.connected ? 'ACTIVE' : 'OFFLINE';
       document.getElementById('comp-badge').className = `text-[9px] px-2 py-0.5 border rounded ${node.companion.connected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
       document.getElementById('comp-stat-signal').textContent = node.companion.connected ? (node.companion.state.signal || 'Excellent') : '--';
-      document.getElementById('comp-kill-btn').onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'companion' }));
+      
+      // Dynamic Companion Button Lockdown Text Sync
+      if (node.companion_banned) {
+          compBtn.textContent = "REVOKE PHONE NODE LOCKDOWN";
+          compBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 hover:bg-[--cyan]/20 transition font-bold";
+          compBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'companion' }));
+      } else {
+          compBtn.textContent = "DISCONNECT & BAN PHONE LINK";
+          compBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition font-bold";
+          compBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'companion' }));
+      }
 
       // Map dynamic button block definitions
       if (node.isBlacklisted) {
@@ -493,7 +530,14 @@
   }
 
   function appendWiretapInterceptLog(p) {
-    // 🛑 FRONTEND CONSOLE INTERCEPT FILTER: Skip rendering if payload frame explicitly matches application heartbeats
+    // 🛑 SLIDER INTERCEPT FILTER RULE: Drop structural updates if slider is unchecked
+    if (p.payload && p.payload.type === 'state') {
+      if (!streamToggle.checked) {
+        return;
+      }
+    }
+
+    // Drop explicit ping loop packets globally
     if (p.payload && p.payload.type === 'ping') {
       return;
     }

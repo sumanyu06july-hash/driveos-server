@@ -27,7 +27,9 @@ function getDevice(id) {
             summaryTokens: new Map(),
             guestTokens: new Map(),
             hudState: null,
-            companionState: null
+            companionState: null,
+            hud_banned: false,        // Role-specific lockouts
+            companion_banned: false  // Role-specific lockouts
         });
     }
     return devices.get(id);
@@ -88,6 +90,8 @@ function broadcastTopology() {
             data.push({
                 id: deviceId,
                 isBlacklisted: blacklist.has(deviceId),
+                hud_banned: dev.hud_banned,
+                companion_banned: dev.companion_banned,
                 activeGuests: dev.guests ? dev.guests.size : 0,
                 activeSummaryTokens: dev.guestTokens ? Array.from(dev.guestTokens.keys()) : [],
                 hud: {
@@ -177,7 +181,6 @@ wss.on('connection', (ws, req) => {
                     const dev = devices.get(command.device);
                     if (dev) {
                         dev.guestTokens.delete(command.token);
-                        console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
                     }
                 }
 
@@ -195,11 +198,26 @@ wss.on('connection', (ws, req) => {
                     blacklist.delete(command.device);
                 }
 
+                // 🛠️ SPLIT LOCKDOWN GATEWAY INTERCEPT COMMANDS
                 if (command.type === 'kill_node') {
                     const dev = devices.get(command.device);
                     if (dev) {
-                        if (command.node === 'hud' && dev.headunit) dev.headunit.close();
-                        if (command.node === 'companion' && dev.companion) dev.companion.close();
+                        if (command.node === 'hud') {
+                            dev.hud_banned = true;
+                            if (dev.headunit) dev.headunit.close();
+                        }
+                        if (command.node === 'companion') {
+                            dev.companion_banned = true;
+                            if (dev.companion) dev.companion.close();
+                        }
+                    }
+                }
+
+                if (command.type === 'revoke_node_ban') {
+                    const dev = devices.get(command.device);
+                    if (dev) {
+                        if (command.node === 'hud') dev.hud_banned = false;
+                        if (command.node === 'companion') dev.companion_banned = false;
                     }
                 }
 
@@ -213,7 +231,7 @@ wss.on('connection', (ws, req) => {
                 }
                 broadcastTopology();
             } catch (err) {
-                console.error('[ADMIN_COMMAND_ERR] Malformed payload package packet:', err.message);
+                console.error('[ADMIN_COMMAND_ERR]', err.message);
             }
         });
 
@@ -221,7 +239,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // --- 🛡️ FIREWALL SHIELD GATEKEEPER ---
+    // --- 🛡==== GLOBAL FIREWALL SHIELD GATEKEEPER ====---
     if (deviceId && blacklist.has(deviceId)) {
         return reject(ws, 'AUTHENTICATION_REVOKED', 'This hardware profile has been blacklisted.');
     }
@@ -257,6 +275,11 @@ wss.on('connection', (ws, req) => {
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake access token variable value invalid.');
+        
+        // 🛡️ ROLE ISOLATED BLACKLIST CHECK
+        if (dev.hud_banned) {
+            return reject(ws, 'NODE_LOCKED', 'Headunit authorization explicitly suspended by administrative panel.');
+        }
 
         if (dev.headunit) {
             dev.headunit.send(JSON.stringify({ type: 'error', message: 'Takeover instance running.' }));
@@ -271,7 +294,6 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
                 
-                // 🛑 BACKEND WIRE-TAP SILENT FILTER RULE FOR HIGH-FREQUENCY INTERFACES
                 if (msg && msg.type === 'ping') {
                     return; 
                 }
@@ -299,6 +321,11 @@ wss.on('connection', (ws, req) => {
     if (role === 'companion') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config key missing.');
+
+        // 🛡️ ROLE ISOLATED BLACKLIST CHECK
+        if (dev.companion_banned) {
+            return reject(ws, 'NODE_LOCKED', 'Companion mobile terminal link suspended by administrative panel.');
+        }
 
         if (dev.companion) { try { dev.companion.close(); } catch(e){} }
 
