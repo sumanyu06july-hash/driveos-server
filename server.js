@@ -91,7 +91,7 @@ function broadcastTopology() {
         let nodeLatency = 0;
         if (dev.lastState && dev.lastState.latency) {
             nodeLatency = parseInt(dev.lastState.latency) || 0;
-        } else if (huActive) {
+        } else if (huActive || compActive) {
             nodeLatency = 38 + Math.floor(Math.random() * 12);
         }
 
@@ -328,10 +328,22 @@ wss.on('connection', (ws, req) => {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config pipeline initialization key missing.');
 
-        if (dev.companion) dev.companion.close();
+        if (dev.companion) {
+            try { dev.companion.close(); } catch(e){}
+        }
 
         dev.companion = ws;
         ws._device = deviceId;
+        
+        // Force placeholder summary mapping context if app telemetry loop hasn't pushed metrics yet
+        if (!dev.lastState) {
+            dev.lastState = {
+                deviceName: `OnePlus Node (${deviceId})`,
+                owner: 'Primary Driver',
+                latency: 42
+            };
+        }
+        
         console.log(`[COMPANION MOBILE] Remote Deck Sync Node Synced: ${deviceId}`);
         broadcastTopology();
 
