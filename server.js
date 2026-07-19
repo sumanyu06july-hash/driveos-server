@@ -10,7 +10,7 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710'; 
+const ADMIN_PIN = '1234'; 
 const SEED_PASSPHRASE = 'DRIVEOS_SUPER_SECRET_SALT_2026';
 
 // Central State Dictionaries
@@ -230,18 +230,25 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (command.type === 'admin_panic_purge') {
+                    // DIAGNOSTIC LOG MATRIX INJECTION
+                    console.log(`\n--- 🔍 TOKENS PURGE VERIFICATION AUDIT ---`);
+                    console.log(`RECEIVED FROM FIELD: "${command.purgeToken}"`);
+                    console.log(`EXPECTED CURRENT (0): "${generateTimeSyncToken(0)}"`);
+                    console.log(`EXPECTED DRIFT (-1):  "${generateTimeSyncToken(-1)}"`);
+                    console.log(`EXPECTED DRIFT (+1):  "${generateTimeSyncToken(1)}"`);
+                    console.log(`----------------------------------------\n`);
+
                     if (Date.now() > purgeTokenExpirationTime) {
                         ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL ERROR: DYNAMIC TOKEN EXPIRED' }));
                         return;
                     }
 
-                    // HARDENED TIME-SYNC BUFFER ZONE
-                    // Validates current window (0) and adjacent drifting window (-1) to counter cloud clock mismatch
                     const currentExpectedToken = generateTimeSyncToken(0);
                     const backdatedExpectedToken = generateTimeSyncToken(-1);
+                    const forwardExpectedToken = generateTimeSyncToken(1);
 
                     const tokenMatchesCurrent = (command.purgeToken === activeTimeSyncPurgeToken) || (command.purgeToken === currentExpectedToken);
-                    const tokenMatchesBackup = (command.purgeToken === backdatedExpectedToken);
+                    const tokenMatchesBackup = (command.purgeToken === backdatedExpectedToken) || (command.purgeToken === forwardExpectedToken);
 
                     if (!tokenMatchesCurrent && !tokenMatchesBackup) {
                         ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL WARNING: CRYPTO TOKEN VALUE MISMATCH' }));
