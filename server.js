@@ -26,7 +26,8 @@ function getDevice(id) {
             summaryClients: new Map(),
             summaryTokens: new Map(),
             guestTokens: new Map(),
-            lastState: null
+            hudState: null,
+            companionState: null
         });
     }
     return devices.get(id);
@@ -67,30 +68,38 @@ function broadcastTopology() {
             const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
             const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
             
-            let nodeLatency = 0;
-            if (dev.lastState && dev.lastState.latency) {
-                nodeLatency = parseInt(dev.lastState.latency) || 0;
-            } else if (huActive || compActive) {
-                nodeLatency = 38 + Math.floor(Math.random() * 12);
+            let hudLatency = 0;
+            if (dev.hudState && dev.hudState.latency) {
+                hudLatency = parseInt(dev.hudState.latency) || 0;
+            } else if (huActive) {
+                hudLatency = 35 + Math.floor(Math.random() * 10);
             }
 
-            if (huActive || compActive) {
-                absoluteLatencySum += nodeLatency;
-                computedCount++;
+            let compLatency = 0;
+            if (dev.companionState && dev.companionState.latency) {
+                compLatency = parseInt(dev.companionState.latency) || 0;
+            } else if (compActive) {
+                compLatency = 40 + Math.floor(Math.random() * 12);
             }
+
+            if (huActive) { absoluteLatencySum += hudLatency; computedCount++; }
+            if (compActive) { absoluteLatencySum += compLatency; computedCount++; }
 
             data.push({
                 id: deviceId,
-                name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Rig Node: ${deviceId.toUpperCase()}`,
-                role: huActive ? 'headunit' : 'companion',
-                owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'Fleet Pool',
-                headunitConnected: huActive,
-                companionConnected: compActive,
-                activeGuests: dev.guests ? dev.guests.size : 0,
-                activeSummaryTokens: dev.summaryTokens ? Array.from(dev.summaryTokens.keys()) : [],
                 isBlacklisted: blacklist.has(deviceId),
-                latency: nodeLatency,
-                lastSeen: huActive || compActive ? "now" : "offline"
+                activeGuests: dev.guests ? dev.guests.size : 0,
+                activeSummaryTokens: dev.guestTokens ? Array.from(dev.guestTokens.keys()) : [],
+                hud: {
+                    connected: huActive,
+                    latency: hudLatency,
+                    state: dev.hudState || { speed: 0, fuel_percent: 100, odometer: 0 }
+                },
+                companion: {
+                    connected: compActive,
+                    latency: compLatency,
+                    state: dev.companionState || { battery: 100, signal: "Excellent" }
+                }
             });
         }
 
@@ -155,7 +164,6 @@ wss.on('connection', (ws, req) => {
                     for (const [id, dev] of devices.entries()) {
                         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                             if (command.decision === 'approve') {
-                                // Request dynamic device validation signature directly from the companion socket link
                                 dev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
                             } else {
                                 dev.companion.send(JSON.stringify({ type: 'purge_request_denied', overrideCode: '000000202688' }));
@@ -168,13 +176,6 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'burn_access') {
                     const dev = devices.get(command.device);
                     if (dev) {
-                        const browserClient = dev.summaryClients.get(command.token);
-                        if (browserClient && browserClient.readyState === WebSocket.OPEN) {
-                            browserClient.send(JSON.stringify({ type: 'demote_to_placeholder' }));
-                            setTimeout(() => browserClient.close(), 100);
-                        }
-                        dev.summaryTokens.delete(command.token);
-                        dev.summaryClients.delete(command.token);
                         dev.guestTokens.delete(command.token);
                         console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
                     }
@@ -188,17 +189,21 @@ wss.on('connection', (ws, req) => {
                         if (dev.companion) dev.companion.close();
                         dev.guests.forEach(g => g.close());
                     }
-                    console.log(`[FIREWALL MATRIX] Injected runtime ban for target: ${command.device}`);
                 }
 
                 if (command.type === 'admin_allow_device') {
                     blacklist.delete(command.device);
-                    console.log(`[FIREWALL MATRIX] Revoked dynamic tracking ban for target: ${command.device}`);
+                }
+
+                if (command.type === 'kill_node') {
+                    const dev = devices.get(command.device);
+                    if (dev) {
+                        if (command.node === 'hud' && dev.headunit) dev.headunit.close();
+                        if (command.node === 'companion' && dev.companion) dev.companion.close();
+                    }
                 }
 
                 if (command.type === 'admin_panic_purge') {
-                    console.log('[🚨 INITIATING EMERGENCY HARDWARE HANDSHAKE RESYNC]');
-                    // Push a live confirmation prompt directly to the connected phone socket
                     for (const [id, dev] of devices.entries()) {
                         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                             dev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
@@ -226,7 +231,7 @@ wss.on('connection', (ws, req) => {
     // --- SUMMARY WEB RECEIVER MODULE ---
     if (role === 'summary_client') {
         if (!token) return reject(ws, 'SUMMARY_AUTH_FAIL', 'Missing allocation verification vectors.');
-        if (!dev.summaryTokens.has(token)) return reject(ws, 'SUMMARY_EXPIRED', 'Token index mismatch or link reference expired.');
+        if (!dev.guestTokens.has(token)) return reject(ws, 'SUMMARY_EXPIRED', 'Token index mismatch or link reference expired.');
 
         ws._role = 'summary_client';
         ws._device = deviceId;
@@ -259,7 +264,6 @@ wss.on('connection', (ws, req) => {
         }
 
         dev.headunit = ws;
-        ws._device = deviceId;
         console.log(`[HEADUNIT MODULE] Cluster Track Active: ${deviceId}`);
         broadcastTopology();
 
@@ -268,17 +272,12 @@ wss.on('connection', (ws, req) => {
                 const msg = JSON.parse(message);
                 interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,4)})`, 'SERVER', msg);
 
-                if (msg.type === 'register_summary_token') {
-                    dev.summaryTokens.set(msg.token, msg.data);
-                    broadcastTopology();
-                    return;
-                }
-
                 if (msg.type === 'state') {
-                    dev.lastState = msg;
+                    dev.hudState = msg;
                     dev.guests.forEach(guest => {
                         if (guest.readyState === WebSocket.OPEN) guest.send(JSON.stringify(msg));
                     });
+                    broadcastTopology();
                 }
             } catch (err) {}
         });
@@ -293,21 +292,11 @@ wss.on('connection', (ws, req) => {
     // --- COMPANION CONTROLLER DEVICE MATRIX ---
     if (role === 'companion') {
         const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config pipeline initialization key missing.');
+        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config key missing.');
 
-        if (dev.companion) {
-            try { dev.companion.close(); } catch(e){}
-        }
+        if (dev.companion) { try { dev.companion.close(); } catch(e){} }
 
         dev.companion = ws;
-        ws._device = deviceId;
-        
-        dev.lastState = {
-            deviceName: `OnePlus Node (${deviceId})`,
-            owner: 'Primary Driver',
-            latency: 42
-        };
-        
         console.log(`[COMPANION MOBILE] Remote Deck Sync Node Synced: ${deviceId}`);
         broadcastTopology();
 
@@ -328,8 +317,6 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
-                // SECURE PHONE RESPONSE INTERCEPT OVERRIDE
-                // Tapping confirm on the phone passes this message directly to fire the wipe sequence cleanly
                 if (msg.type === 'companion_purge_confirmed') {
                     console.log('[🚨 CRITICAL SYSTEM PANIC EXECUTED VIA VERIFIED PHONE SIGNATURE]');
                     for (const [id, targetDev] of devices.entries()) {
@@ -341,7 +328,6 @@ wss.on('connection', (ws, req) => {
                     devices.clear();
                     blacklist.clear();
                     
-                    // Keep this active connection alive but refreshed
                     devices.set(deviceId, dev);
                     
                     adminClients.forEach(admin => {
@@ -353,23 +339,20 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (msg.type === 'request_guest_token') {
-                    const guestToken = Math.random().toString(36).substring(2, 18);
+                    const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
                     dev.guestTokens.set(guestToken, true);
                     ws.send(JSON.stringify({ type: 'token_registered', token: guestToken }));
+                    broadcastTopology();
                     return;
                 }
 
                 if (msg.type === 'approve_summary_access') {
                     const browserClient = dev.summaryClients.get(msg.token);
-                    const cachedDataString = dev.summaryTokens.get(msg.token);
-
-                    if (browserClient && cachedDataString && browserClient.readyState === WebSocket.OPEN) {
-                        browserClient.send(JSON.stringify({ type: 'summary_payload', data: cachedDataString }));
+                    if (browserClient && browserClient.readyState === WebSocket.OPEN) {
+                        browserClient.send(JSON.stringify({ type: 'summary_payload', data: dev.hudState }));
                     }
-
                     setTimeout(() => {
                         try { if (browserClient) browserClient.close(); } catch (e) {}
-                        dev.summaryTokens.delete(msg.token);
                         dev.summaryClients.delete(msg.token);
                         broadcastTopology();
                     }, 1500);
@@ -381,15 +364,14 @@ wss.on('connection', (ws, req) => {
                     if (browserClient && browserClient.readyState === WebSocket.OPEN) {
                         browserClient.send(JSON.stringify({ type: 'error', message: 'ACCESS_DENIED_BY_OWNER' }));
                     }
-                    dev.summaryTokens.delete(msg.token);
                     dev.summaryClients.delete(msg.token);
                     broadcastTopology();
                     return;
                 }
 
-                if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-                    dev.headunit.send(JSON.stringify(msg));
-                    interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
+                if (msg.type === 'state' || msg.type === 'companion_state') {
+                    dev.companionState = msg;
+                    broadcastTopology();
                 }
             } catch (err) {}
         });
@@ -403,18 +385,14 @@ wss.on('connection', (ws, req) => {
 
     // --- PASSENGER INTERACTION CONNECTIONS ---
     if (role === 'guest') {
-        ws._authenticated = false;
-        ws._device = deviceId;
-
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
                 if (msg.type === 'guest_auth') {
                     if (dev.guestTokens.has(msg.token)) {
-                        ws._authenticated = true;
                         dev.guests.add(ws);
                         ws.send(JSON.stringify({ type: 'auth_ok', message: 'Connected to passenger node.' }));
-                        if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
+                        if (dev.hudState) ws.send(JSON.stringify(dev.hudState));
                         broadcastTopology();
                         return;
                     }
@@ -434,8 +412,5 @@ wss.on('connection', (ws, req) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`\n=============================================================`);
-    console.log(`🟢 DriveOS 2.0 Centralized Hybrid Cluster Network Core Online`);
-    console.log(`📡 Cloud Deployment Port Bindings Active Processing On: ${PORT}`);
-    console.log(`=============================================================\n`);
+    console.log(`🟢 DriveOS 2.0 Centralized Hybrid Cluster Network Core Online Processing On: ${PORT}`);
 });
