@@ -80,48 +80,57 @@ function reject(ws, type, message) {
 }
 
 function broadcastTopology() {
-    const data = [];
-    let absoluteLatencySum = 0;
-    let computedCount = 0;
+    try {
+        const data = [];
+        let absoluteLatencySum = 0;
+        let computedCount = 0;
 
-    for (const [deviceId, dev] of devices.entries()) {
-        const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
-        const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
-        
-        let nodeLatency = 0;
-        if (dev.lastState && dev.lastState.latency) {
-            nodeLatency = parseInt(dev.lastState.latency) || 0;
-        } else if (huActive || compActive) {
-            nodeLatency = 38 + Math.floor(Math.random() * 12);
+        for (const [deviceId, dev] of devices.entries()) {
+            const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
+            const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
+            
+            let nodeLatency = 0;
+            if (dev.lastState && dev.lastState.latency) {
+                nodeLatency = parseInt(dev.lastState.latency) || 0;
+            } else if (huActive || compActive) {
+                nodeLatency = 38 + Math.floor(Math.random() * 12);
+            }
+
+            if (huActive || compActive) {
+                absoluteLatencySum += nodeLatency;
+                computedCount++;
+            }
+
+            data.push({
+                id: deviceId,
+                name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Rig Node: ${deviceId.toUpperCase()}`,
+                role: huActive ? 'headunit' : 'companion',
+                owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'Fleet Pool',
+                headunitConnected: huActive,
+                companionConnected: compActive,
+                activeGuests: dev.guests ? dev.guests.size : 0,
+                activeSummaryTokens: dev.summaryTokens ? Array.from(dev.summaryTokens.keys()) : [],
+                isBlacklisted: blacklist.has(deviceId),
+                latency: nodeLatency,
+                lastSeen: huActive || compActive ? "now" : "offline"
+            });
         }
 
-        if (huActive || compActive) {
-            absoluteLatencySum += nodeLatency;
-            computedCount++;
-        }
-
-        data.push({
-            id: deviceId,
-            name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Rig Node: ${deviceId.toUpperCase()}`,
-            role: huActive ? 'headunit' : 'companion',
-            owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'Fleet Pool',
-            headunitConnected: huActive,
-            companionConnected: compActive,
-            activeGuests: dev.guests.size,
-            activeSummaryTokens: Array.from(dev.summaryTokens.keys()),
-            isBlacklisted: blacklist.has(deviceId),
-            latency: nodeLatency,
-            lastSeen: huActive || compActive ? "now" : "offline"
+        const avgLatency = computedCount ? Math.round(absoluteLatencySum / computedCount) : 0;
+        const packet = JSON.stringify({ 
+            type: 'topology_update', 
+            data, 
+            metrics: { avgLatency } 
         });
-    }
 
-    const avgLatency = computedCount ? Math.round(absoluteLatencySum / computedCount) : 0;
-    const packet = JSON.stringify({ 
-        type: 'topology_update', 
-        data, 
-        metrics: { avgLatency } 
-    });
-    adminClients.forEach(admin => { if (admin.readyState === WebSocket.OPEN) admin.send(packet); });
+        adminClients.forEach(admin => { 
+            if (admin.readyState === WebSocket.OPEN) {
+                admin.send(packet); 
+            }
+        });
+    } catch (err) {
+        console.error('[CRITICAL TOPO ERROR]: broadcastTopology crashed internally:', err.message);
+    }
 }
 
 function interceptTelemetryTransaction(origin, target, payload) {
@@ -340,14 +349,12 @@ wss.on('connection', (ws, req) => {
         dev.companion = ws;
         ws._device = deviceId;
         
-        // Populate structural layout payload data directly on configuration link runtime
-        if (!dev.lastState) {
-            dev.lastState = {
-                deviceName: `OnePlus Node (${deviceId})`,
-                owner: 'Primary Driver',
-                latency: 42
-            };
-        }
+        // Ensure standard UI state mapping arrays exist immediately
+        dev.lastState = {
+            deviceName: `OnePlus Node (${deviceId})`,
+            owner: 'Primary Driver',
+            latency: 42
+        };
         
         console.log(`[COMPANION MOBILE] Remote Deck Sync Node Synced: ${deviceId}`);
         broadcastTopology();
