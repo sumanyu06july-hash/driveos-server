@@ -28,8 +28,8 @@ function getDevice(id) {
             guestTokens: new Map(),
             hudState: null,
             companionState: null,
-            hud_banned: false,        // Role-specific lockouts
-            companion_banned: false  // Role-specific lockouts
+            hud_banned: false,
+            companion_banned: false
         });
     }
     return devices.get(id);
@@ -198,7 +198,6 @@ wss.on('connection', (ws, req) => {
                     blacklist.delete(command.device);
                 }
 
-                // 🛠️ SPLIT LOCKDOWN GATEWAY INTERCEPT COMMANDS
                 if (command.type === 'kill_node') {
                     const dev = devices.get(command.device);
                     if (dev) {
@@ -276,7 +275,6 @@ wss.on('connection', (ws, req) => {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake access token variable value invalid.');
         
-        // 🛡️ ROLE ISOLATED BLACKLIST CHECK
         if (dev.hud_banned) {
             return reject(ws, 'NODE_LOCKED', 'Headunit authorization explicitly suspended by administrative panel.');
         }
@@ -322,7 +320,6 @@ wss.on('connection', (ws, req) => {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config key missing.');
 
-        // 🛡️ ROLE ISOLATED BLACKLIST CHECK
         if (dev.companion_banned) {
             return reject(ws, 'NODE_LOCKED', 'Companion mobile terminal link suspended by administrative panel.');
         }
@@ -402,9 +399,16 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
+                // 🛠️ FIX: Intercept companion command frames and route them explicitly down the headunit stream pipeline
                 if (msg.type === 'state' || msg.type === 'companion_state') {
                     dev.companionState = msg;
                     broadcastTopology();
+                } else {
+                    // Check if a valid headunit channel is active before piping custom payloads
+                    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                        dev.headunit.send(JSON.stringify(msg));
+                        interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
+                    }
                 }
             } catch (err) {}
         });
