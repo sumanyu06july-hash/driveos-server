@@ -64,7 +64,7 @@
   .btn-ghost:hover{ color: var(--text); border-color: var(--border-hi); }
 
   .device-card{ background: var(--surface); border: 1px solid var(--border); transition: all 0.2s ease; }
-  .device-card.is-selected{ border-color: rgba(0,245,255,0.4); box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 30px -10px rgba(0,245,255,0.4); }
+  .device-card.is-selected{ border-color: rgba(0,245,255,0.7); box-shadow: 0 0 0 1px rgba(0,245,255,0.3), 0 0 30px -10px rgba(0,245,255,0.5); }
   .device-card.banned{ border-color: rgba(255,59,92,0.35); background: rgba(255,59,92,0.02); }
 
   .tag{
@@ -193,7 +193,7 @@
         <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between">
           <div>
             <div class="device-frame mb-4" id="mirror-canvas-inject"></div>
-            <p id="mirror-device-name" class="font-display text-sm font-bold mb-1 text-[--text]"></p>
+            <h3 id="mirror-device-name" class="font-display text-sm font-bold mb-1 text-[--text]"></h3>
             <p id="mirror-device-meta" class="text-xs text-[--muted] mb-4"></p>
           </div>
           <button id="mirror-action-ban-btn" class="btn w-full font-bold"></button>
@@ -283,6 +283,12 @@
         if (packet.type === 'topology_update') {
           console.log("[CONSOLE TRACE] Processing topology array layout frame updates:", packet.data);
           serverClusterArray = packet.data || [];
+          
+          // Fallback selection assignment to prevent blank screen profiles on load
+          if (!userSelectedId && serverClusterArray.length > 0) {
+              userSelectedId = serverClusterArray[0].id;
+          }
+          
           updateStaticMetricsUI(packet.metrics);
           renderHardwareMatricesGrid();
           renderMirrorViewScreen();
@@ -390,12 +396,13 @@
             <span>Guests Running: <span class="text-[--cyan]">${dev.activeGuests}</span></span>
           </div>
           <div class="flex gap-2">
-            <button data-action="toggle-firewall" data-id="${dev.id}" class="btn ${dev.isBlacklisted ? 'btn-cyan':'btn-rose'} flex-1 py-1.5">
+            <button data-action="toggle-firewall" data-id="${dev.id}" class="btn ${dev.isBlacklisted ? 'btn-cyan':'btn-rose'} flex-1 py-1.5 font-bold">
               ${dev.isBlacklisted ? 'Revoke Firewall Block' : 'Firewall Shield Ban'}
             </button>
           </div>
         `;
 
+        // Direct layout capture adjustment fixing grid targeting frames
         card.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
           userSelectedId = dev.id;
@@ -492,7 +499,8 @@
       let counter = 0;
 
       serverClusterArray.forEach(node => {
-        if (node.activeSummaryTokens) {
+        // Populates active dynamic guest and connection tokens loaded in the mapping pools
+        if (node.activeSummaryTokens && node.activeSummaryTokens.length > 0) {
           node.activeSummaryTokens.forEach(token => {
             counter++;
             const item = document.createElement('div');
@@ -510,7 +518,7 @@
       });
 
       if (counter === 0) {
-        hook.innerHTML = '<div class="text-center py-4 text-[--muted]">No authorization codes loaded in local vaults.</div>';
+        hook.innerHTML = '<div class="text-center py-4 text-[--muted] uppercase tracking-wider text-[10px]">No active authorization tokens loaded in local registries.</div>';
         return;
       }
 
