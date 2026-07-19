@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -9,13 +10,23 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710'; // Master administrative passcode configuration string
+const ADMIN_PIN = '1234'; 
+const SEED_PASSPHRASE = 'DRIVEOS_SUPER_SECRET_SALT_2026';
 
-// Global Volatile State Registers
+// Master Global State Storage Registers
 const devices = new Map();
 const adminClients = new Set();
-const blacklist = new Set(); // Stores banned hardware cluster identities dynamically
+const blacklist = new Set();
 let globalLogSequence = 1;
+
+// Math Engine: Generates the exact 12-digit token based on the current 60-second time-block window
+function generateTimeSyncToken() {
+    const timeStep = Math.floor(Date.now() / 60000); 
+    const message = timeStep + SEED_PASSPHRASE;
+    const hash = crypto.createHmac('sha256', GLOBAL_SECRET).update(message).digest('hex');
+    const numericToken = BigInt('0x' + hash.substring(0, 15)).toString().substring(0, 12);
+    return numericToken.padStart(12, '0');
+}
 
 function getDevice(id) {
     if (!devices.has(id)) {
@@ -32,7 +43,7 @@ function getDevice(id) {
     return devices.get(id);
 }
 
-// Static Assets Routing Layer
+// Serve Static App Framework Roots
 app.use(express.static(path.join(__dirname)));
 
 app.get('/admin', (req, res) => {
@@ -48,16 +59,15 @@ app.get('/summary', (req, res) => {
 });
 
 function reject(ws, type, message) {
-    console.warn(`[REJECT] ${type} — ${message}`);
+    console.warn(`[REJECTED_HANDSHAKE] ${type} — ${message}`);
     try {
         ws.send(JSON.stringify({ type: 'error', message }));
         ws.close();
     } catch (e) {
-        console.error('[REJECT_ERR] Failed to cleanly sever socket matrix:', e.message);
+        console.error('[SOCKET_CLOSE_ERR] Failed to cleanly sever connection matrix:', e.message);
     }
 }
 
-// Broadcast Active Network Layout Metrics to Admin Panels
 function broadcastTopology() {
     const data = [];
     let absoluteLatencySum = 0;
@@ -67,12 +77,11 @@ function broadcastTopology() {
         const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
         const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
         
-        // Compute running latency markers dynamically from state payload arrays if active
         let nodeLatency = 0;
         if (dev.lastState && dev.lastState.latency) {
             nodeLatency = parseInt(dev.lastState.latency) || 0;
         } else if (huActive) {
-            nodeLatency = 35 + Math.floor(Math.random() * 15); // Dynamic mock base delta for runtime tracking
+            nodeLatency = 38 + Math.floor(Math.random() * 12);
         }
 
         if (huActive || compActive) {
@@ -82,10 +91,12 @@ function broadcastTopology() {
 
         data.push({
             id: deviceId,
-            name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Cluster Profile: ${deviceId.toUpperCase()}`,
+            name: dev.lastState && dev.lastState.deviceName ? dev.lastState.deviceName : `Cluster: ${deviceId.toUpperCase()}`,
+            role: huActive ? 'headunit' : 'companion',
+            owner: dev.lastState && dev.lastState.owner ? dev.lastState.owner : 'System Fleet',
             headunitConnected: huActive,
             companionConnected: compActive,
-            activeGuests: Array.from(dev.guests).filter(g => g.readyState === WebSocket.OPEN).length,
+            activeGuests: dev.guests.size,
             activeSummaryTokens: Array.from(dev.summaryTokens.keys()),
             isBlacklisted: blacklist.has(deviceId),
             latency: nodeLatency,
@@ -105,12 +116,11 @@ function broadcastTopology() {
     });
 }
 
-// Telemetry Stream Wiretap Interceptor Hook
 function interceptTelemetryTransaction(origin, target, payload) {
-    const sequenceId = String(globalLogSequence++).padStart(4, '0');
+    const sequence = String(globalLogSequence++).padStart(4, '0');
     const packet = JSON.stringify({
         type: 'wiretap_intercept',
-        sequence: sequenceId,
+        sequence,
         origin,
         target,
         payload
@@ -128,23 +138,20 @@ wss.on('connection', (ws, req) => {
     const token = urlParams.get('token');
 
     if (!role) {
-        return reject(ws, 'BAD_HANDSHAKE', 'Missing system configuration role parameters.');
+        return reject(ws, 'BAD_HANDSHAKE', 'Missing system configuration role identifier parameters.');
     }
 
-    // --- 🔐 ADMINISTRATIVE CONTROLS INTERCEPT LOOP ---
+    // --- 🔐 ADMINISTRATIVE CONTROLS PIPELINE ---
     if (role === 'admin') {
         const inputAuth = urlParams.get('auth');
         if (inputAuth !== ADMIN_PIN) {
-            // Send clear structural message parameter packet to unlock overlay before disconnecting lines
             ws.send(JSON.stringify({ type: 'auth_error', message: 'INCORRECT_PIN_REJECTED' }));
             setTimeout(() => { try { ws.close(); } catch(e){} }, 200);
             return;
         }
 
         adminClients.add(ws);
-        console.log('[ADMIN] Secure overlay panel loaded and attached to core mapping array.');
-        
-        ws.send(JSON.stringify({ type: 'handshake_ok', message: 'Core admin terminal gateway open.' }));
+        ws.send(JSON.stringify({ type: 'handshake_ok', message: 'Ecosystem dashboard control bridge authenticated.' }));
         broadcastTopology();
 
         ws.on('message', (message) => {
@@ -156,14 +163,13 @@ wss.on('connection', (ws, req) => {
                     if (dev) {
                         const browserClient = dev.summaryClients.get(command.token);
                         if (browserClient && browserClient.readyState === WebSocket.OPEN) {
-                            // Target demotion placeholder trigger deployment
                             browserClient.send(JSON.stringify({ type: 'demote_to_placeholder' }));
                             setTimeout(() => browserClient.close(), 100);
                         }
                         dev.summaryTokens.delete(command.token);
                         dev.summaryClients.delete(command.token);
                         dev.guestTokens.delete(command.token);
-                        console.log(`[BURNT ACCESS] Terminated active token register: ${command.token}`);
+                        console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
                     }
                 }
 
@@ -175,16 +181,21 @@ wss.on('connection', (ws, req) => {
                         if (dev.companion) dev.companion.close();
                         dev.guests.forEach(g => g.close());
                     }
-                    console.log(`[FIREWALL MATRIX] Injected runtime blacklist ban for target profile: ${command.device}`);
+                    console.log(`[FIREWALL MATRIX] Injected runtime ban for target: ${command.device}`);
                 }
 
                 if (command.type === 'admin_allow_device') {
                     blacklist.delete(command.device);
-                    console.log(`[FIREWALL MATRIX] Revoked active tracking ban for target profile: ${command.device}`);
+                    console.log(`[FIREWALL MATRIX] Revoked dynamic tracking ban for target: ${command.device}`);
                 }
 
                 if (command.type === 'admin_panic_purge') {
-                    console.log('[🚨 INFRASTRUCTURE EMERGENCY PURGE ACTIVATED] Flashing core variables...');
+                    const expectedToken = generateTimeSyncToken();
+                    if (command.purgeToken !== expectedToken) {
+                        ws.send(JSON.stringify({ type: 'purge_auth_failed', message: 'CRITICAL SECURITY ALERT: INVALID 12-DIGIT PASSPHRASE MATRIX CODE' }));
+                        return;
+                    }
+                    console.log('[🚨 INFRASTRUCTURE EMERGENCY WIPEOUT INITIATED]');
                     for (const [id, dev] of devices.entries()) {
                         if (dev.headunit) dev.headunit.close();
                         if (dev.companion) dev.companion.close();
@@ -193,36 +204,33 @@ wss.on('connection', (ws, req) => {
                     }
                     devices.clear();
                     blacklist.clear();
+                    ws.send(JSON.stringify({ type: 'purge_success' }));
                 }
 
                 broadcastTopology();
             } catch (err) {
-                console.error('[ADMIN_CMD_ERR] Failed processing inbound override packet array:', err.message);
+                console.error('[ADMIN_COMMAND_ERR] Malformed loop payload package packet:', err.message);
             }
         });
 
         ws.on('close', () => {
             adminClients.delete(ws);
-            console.log('[ADMIN] Command dashboard instance detached.');
         });
         return;
     }
 
-    // --- 🛡️ FIREWALL BLACKLIST SHIELD ENFORCER ---
+    // --- 🛡️ FIREWALL SHIELD GATEKEEPER ---
     if (deviceId && blacklist.has(deviceId)) {
-        return reject(ws, 'AUTHENTICATION_REVOKED', 'This cluster terminal identity profile has been permanently blacklisted.');
+        return reject(ws, 'AUTHENTICATION_REVOKED', 'This hardware cluster identification profile has been blacklisted.');
     }
 
-    if (!deviceId) {
-        return reject(ws, 'BAD_HANDSHAKE', 'Missing unique parameter cluster node reference.');
-    }
-
+    if (!deviceId) return reject(ws, 'BAD_HANDSHAKE', 'Missing unique parameter node cluster references.');
     const dev = getDevice(deviceId);
 
-    // --- SUMMARY WEB CLIENT LOUNGE ---
+    // --- SUMMARY WEB RECEIVER MODULE ---
     if (role === 'summary_client') {
-        if (!token) return reject(ws, 'SUMMARY_AUTH_FAIL', 'Missing verification token references.');
-        if (!dev.summaryTokens.has(token)) return reject(ws, 'SUMMARY_EXPIRED', 'Token index mismatch or link expired.');
+        if (!token) return reject(ws, 'SUMMARY_AUTH_FAIL', 'Missing allocation verification vectors.');
+        if (!dev.summaryTokens.has(token)) return reject(ws, 'SUMMARY_EXPIRED', 'Token index mismatch or link reference expired.');
 
         ws._role = 'summary_client';
         ws._device = deviceId;
@@ -244,26 +252,22 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // --- AUTOMOTIVE HEADUNIT HUD CLIENT ---
+    // --- HEADUNIT TELEMETRY CORE ENGINE ---
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake token validation error.');
+        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Handshake access token variable value invalid.');
 
-        if (dev.headunit) {
-            dev.headunit.send(JSON.stringify({ type: 'error', message: 'Concurrent takeover instance running.' }));
-            dev.headunit.close();
-        }
+        if (dev.headunit) dev.headunit.close();
 
         dev.headunit = ws;
         ws._device = deviceId;
-        console.log(`[HEADUNIT CORE] Registered target cluster link: ${deviceId}`);
+        console.log(`[HEADUNIT MODULE] Cluster Track Active: ${deviceId}`);
         broadcastTopology();
 
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
-                
-                interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,6)})`, 'RELAY_GATEWAY', msg);
+                interceptTelemetryTransaction(`HUD_UNIT(${deviceId.substring(0,4)})`, 'SERVER_RELAY', msg);
 
                 if (msg.type === 'register_summary_token') {
                     dev.summaryTokens.set(msg.token, msg.data);
@@ -282,29 +286,27 @@ wss.on('connection', (ws, req) => {
 
         ws.on('close', () => {
             if (dev.headunit === ws) dev.headunit = null;
-            console.log(`[HEADUNIT CORE] Dropped link connection state: ${deviceId}`);
             broadcastTopology();
         });
         return;
     }
 
-    // --- REMOTE COMPANION MOBILE HANDLER ---
+    // --- COMPANION CONTROLLER DEVICE MATRIX ---
     if (role === 'companion') {
         const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion channel setup parameters missing.');
+        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion config pipeline initialization key missing.');
 
         if (dev.companion) dev.companion.close();
 
         dev.companion = ws;
         ws._device = deviceId;
-        console.log(`[COMPANION PHONE] Connected configuration reference: ${deviceId}`);
+        console.log(`[COMPANION MOBILE] Remote Deck Sync Node Synced: ${deviceId}`);
         broadcastTopology();
 
         ws.on('message', (message) => {
             try {
                 const msg = JSON.parse(message);
-                
-                interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,6)})`, 'RELAY_GATEWAY', msg);
+                interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER_RELAY', msg);
 
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 18);
@@ -343,20 +345,19 @@ wss.on('connection', (ws, req) => {
 
                 if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                     dev.headunit.send(JSON.stringify(msg));
-                    interceptTelemetryTransaction('RELAY_GATEWAY', `HUD_UNIT(${deviceId.substring(0,6)})`, msg);
+                    interceptTelemetryTransaction('SERVER_RELAY', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
                 }
             } catch (err) {}
         });
 
         ws.on('close', () => {
             if (dev.companion === ws) dev.companion = null;
-            console.log(`[COMPANION PHONE] Connection severed mapping index: ${deviceId}`);
             broadcastTopology();
         });
         return;
     }
 
-    // --- PASSENGER STREAM NEST CHANNELS ---
+    // --- PASSENGER INTERACTION CONNECTIONS ---
     if (role === 'guest') {
         ws._authenticated = false;
         ws._device = deviceId;
@@ -368,15 +369,15 @@ wss.on('connection', (ws, req) => {
                     if (dev.guestTokens.has(msg.token)) {
                         ws._authenticated = true;
                         dev.guests.add(ws);
-                        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Passenger stream synced.' }));
+                        ws.send(JSON.stringify({ type: 'auth_ok', message: 'Connected to passenger node.' }));
                         if (dev.lastState) ws.send(JSON.stringify(dev.lastState));
                         broadcastTopology();
                         return;
                     }
-                    return reject(ws, 'AUTH_FAILED', 'Passenger entry token evaluation mapping parameter error.');
+                    return reject(ws, 'AUTH_FAILED', 'Passenger security vector array mismatch.');
                 }
             } catch (err) {
-                return reject(ws, 'PARSE_ERROR', 'Malformed initialization array strings.');
+                return reject(ws, 'PARSE_ERROR', 'Malformed data strings packet intercepted.');
             }
         });
 
@@ -386,8 +387,6 @@ wss.on('connection', (ws, req) => {
         });
         return;
     }
-
-    return reject(ws, 'UNKNOWN_ROLE', 'Passed identification context route missing.');
 });
 
 server.listen(PORT, () => {
