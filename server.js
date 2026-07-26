@@ -197,6 +197,13 @@ wss.on('connection', (ws, req) => {
                         dev.guestTokens.delete(command.token);
                         console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
 
+                        // Log to wiretap intercept console
+                        interceptTelemetryTransaction('ADMIN_PANEL', `PHONE_APP(${command.device.substring(0,4)})`, {
+                            action: 'TOKEN_BURNED',
+                            token: command.token,
+                            type: tokenTypeLabel
+                        });
+
                         // 📲 NOTIFY COMPANION PHONE OF BURN EVENT
                         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                             dev.companion.send(JSON.stringify({
