@@ -9,7 +9,7 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '1234'; 
+const ADMIN_PIN = '6710'; 
 
 // Central State Dictionaries
 const devices = new Map();
