@@ -89,12 +89,14 @@
   .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: var(--muted); transition: .2s; border-radius: 2px; }
   input:checked + .slider { border-color: var(--cyan); background-color: rgba(0,245,255,0.1); }
   input:checked + .slider:before { transform: translateX(14px); background-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+  .stale-text { opacity: 0.45; filter: grayscale(1); }
 </style>
 </head>
 
 <body class="scanlines min-h-screen">
 
-<!-- ===================== 🔐 GATEWAYS AUTHENTICATION OVERLAY ===================== -->
+<!-- ===================== 🔐 AUTH OVERLAY ===================== -->
 <div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
   <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
     <div class="flex items-center gap-2 mb-1">
@@ -112,25 +114,10 @@
   </div>
 </div>
 
-<!-- ===================== 🛑 DYNAMIC SPLIT-PATH HANDSHAKE OVERLAY ===================== -->
-<div id="challenge-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
-  <div class="panel glow-rose rounded-md w-[min(95vw,440px)] p-6 text-center animate-[rowIn_0.25s_ease]">
-    <div class="tag text-[--rose] mb-3" style="border-color:var(--rose)">SECURITY HANDSHAKE CHALLENGE</div>
-    <h2 class="font-display text-base font-bold text-white mb-2">PURGE ATTEMPT INTERCEPTED</h2>
-    <p class="text-xs text-[--muted] mb-5 leading-relaxed">
-      A remote device connected as a Companion app is currently requesting authority to execute an infrastructure system purge. Are you the one initializing this transaction?
-    </p>
-    <div class="flex gap-3 justify-center">
-      <button class="btn btn-cyan w-32 py-2" onclick="window.submitChallengeDecision('approve')">YES, APPROVE</button>
-      <button class="btn btn-rose w-32 py-2" onclick="window.submitChallengeDecision('deny')">NO, DENY ACC</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
 <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
 
-  <!-- Main Banner Header -->
+  <!-- Main Header -->
   <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
@@ -174,7 +161,7 @@
   <!-- Main Component Grid Workspace Layout -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
     
-    <!-- Left Box: Fleet Hardware Index Inventory Table Grid -->
+    <!-- Left Box: Fleet Hardware Index Inventory -->
     <div class="panel rounded-md p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
@@ -197,7 +184,7 @@
         </div>
         <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between space-y-4">
           <div>
-            <!-- DriveOS Headunit Dedicated Interface Box -->
+            <!-- Headunit Box -->
             <div class="border border-[--border] p-3 rounded mb-3 bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">HEADUNIT LAUNCHER APPLICATION</span>
@@ -207,11 +194,12 @@
                 <div>Speed Vector: <span id="hud-stat-speed" class="text-[--cyan]">-- km/h</span></div>
                 <div>Odometer: <span id="hud-stat-odo" class="text-white">-- KM</span></div>
                 <div>Fuel Capacity: <span id="hud-stat-fuel" class="text-white">-- %</span></div>
+                <div>Battery Voltage: <span id="hud-stat-voltage" class="text-white">-- V</span></div>
               </div>
               <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
             </div>
 
-            <!-- Mobile Companion Dedicated Interface Box -->
+            <!-- Mobile Companion Box -->
             <div class="border border-[--border] p-3 rounded bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">MOBILE COMPANION NEXUS</span>
@@ -237,7 +225,7 @@
     </div>
   </section>
 
-  <!-- Scrolling Packet Interceptor Ticker Console Panel -->
+  <!-- Wiretap Console -->
   <section class="panel rounded-md p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
@@ -256,10 +244,10 @@
       <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
     </div>
 
-    <!-- Dynamic Session-Gated Emergency Confirmation Bar Panel -->
+    <!-- Emergency Confirmation Bar -->
     <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
       <div class="text-xs text-[--muted]">
-        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Flushes remote runtime cache storage mappings. Sends a real-time verification challenge directly to the verified primary driver's mobile device configuration array context.
+        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
       </div>
       <div class="flex gap-2">
         <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executePanicPurgeCommand()">Initialize Command Purge Handshake</button>
@@ -282,22 +270,13 @@
   const pinInput = document.getElementById('pin-input');
   const pinError = document.getElementById('pin-error');
   const appShell = document.getElementById('app');
-  const challengeOverlay = document.getElementById('challenge-overlay');
   const streamToggle = document.getElementById('state-stream-toggle');
 
   pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') window.triggerHandshakeVerification(); });
 
-  // 🔑 GLOBALLY EXPOSED TOKEN BURN FUNCTION
   window.burnToken = function(deviceId, token) {
     if (socket && socket.readyState === WebSocket.OPEN) {
-      console.log(`[ADMIN ACTION] Burning token ${token} for device ${deviceId}`);
-      socket.send(JSON.stringify({ 
-        type: 'burn_access', 
-        device: deviceId, 
-        token: token 
-      }));
-    } else {
-      console.error("[ADMIN ACTION FAILED] WebSocket is not open.");
+      socket.send(JSON.stringify({ type: 'burn_access', device: deviceId, token: token }));
     }
   };
 
@@ -309,11 +288,9 @@
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const connectionUrl = `${protocol}${window.location.host}?role=admin&auth=${encodeURIComponent(value)}`;
 
-    console.log("[CONSOLE TRACE] Connecting to:", connectionUrl);
     socket = new WebSocket(connectionUrl);
 
     socket.addEventListener('open', () => {
-      console.log("[CONSOLE TRACE] Socket successfully open");
       validatedPasscode = value;
       pinGate.classList.add('hidden');
       appShell.classList.remove('hidden');
@@ -326,17 +303,14 @@
         let packet = JSON.parse(event.data);
 
         if (packet.type === 'auth_error') {
-          pinError.textContent = 'ACCESS LOCKED: INVALID INFRASTRUCTURE PASSCODE';
+          pinError.textContent = 'ACCESS LOCKED: INVALID PASSCODE';
           validatedPasscode = '';
           return;
         }
 
         if (packet.type === 'topology_update') {
           serverClusterArray = packet.data || [];
-          
-          if (!userSelectedId && serverClusterArray.length > 0) {
-              userSelectedId = serverClusterArray[0].id;
-          }
+          if (!userSelectedId && serverClusterArray.length > 0) userSelectedId = serverClusterArray[0].id;
           
           updateStaticMetricsUI(packet.metrics);
           renderHardwareMatricesGrid();
@@ -344,21 +318,12 @@
           renderTokenVaultElements();
         } else if (packet.type === 'wiretap_intercept') {
           appendWiretapInterceptLog(packet);
-        } else if (packet.type === 'purge_handshake_challenge') {
-          challengeOverlay.classList.remove('hidden');
-        } else if (packet.type === 'purge_success') {
-          alert('MASTER INFRASTRUCTURE RESET EXECUTED.');
-          userSelectedId = null;
         }
-      } catch (err) {
-        console.error("[CRITICAL RENDER FAILURE]", err);
-      }
+      } catch (err) {}
     });
 
-    socket.addEventListener('close', (e) => {
-      if (validatedPasscode) {
-        setTimeout(window.triggerHandshakeVerification, 5000);
-      }
+    socket.addEventListener('close', () => {
+      if (validatedPasscode) setTimeout(window.triggerHandshakeVerification, 5000);
     });
   };
 
@@ -368,16 +333,6 @@
     appShell.classList.add('hidden');
     pinGate.classList.remove('hidden');
     pinInput.focus();
-  };
-
-  window.submitChallengeDecision = function(decision) {
-    challengeOverlay.classList.add('hidden');
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ 
-        type: 'admin_purge_response', 
-        decision: decision 
-      }));
-    }
   };
 
   function updateStaticMetricsUI(metrics) {
@@ -390,9 +345,7 @@
 
       let keyCount = 0;
       serverClusterArray.forEach(curr => {
-        if (curr.activeSummaryTokens && curr.activeSummaryTokens.length) {
-          keyCount += curr.activeSummaryTokens.length;
-        }
+        if (curr.activeSummaryTokens && curr.activeSummaryTokens.length) keyCount += curr.activeSummaryTokens.length;
       });
       document.getElementById('metric-vault-keys').textContent = keyCount;
 
@@ -444,9 +397,7 @@
 
         container.appendChild(card);
       });
-    } catch (e) {
-      console.error("Error in renderHardwareMatricesGrid:", e);
-    }
+    } catch (e) {}
   }
 
   function renderMirrorViewScreen() {
@@ -467,41 +418,56 @@
       emptyFrame.classList.add('hidden');
       activeFrame.classList.remove('hidden');
 
-      // Map Headunit properties
-      document.getElementById('hud-badge').textContent = node.hud.connected ? 'ACTIVE' : 'OFFLINE';
-      document.getElementById('hud-badge').className = `text-[9px] px-2 py-0.5 border rounded ${node.hud.connected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
-      document.getElementById('hud-stat-speed').textContent = node.hud.connected ? `${Math.round(node.hud.state.speed || 0)} km/h` : '-- km/h';
-      document.getElementById('hud-stat-odo').textContent = node.hud.connected ? `${node.hud.state.odometer || 0} KM` : '-- KM';
-      document.getElementById('hud-stat-fuel').textContent = node.hud.connected ? `${node.hud.state.fuel_percent || 0} %` : '-- %';
-      
-      // Dynamic Headunit Button Lockdown Text Sync
+      const isConnected = node.hud.connected;
+      const speedEl = document.getElementById('hud-stat-speed');
+      const odoEl = document.getElementById('hud-stat-odo');
+      const fuelEl = document.getElementById('hud-stat-fuel');
+      const voltEl = document.getElementById('hud-stat-voltage');
+
+      // STALE DATA CACHING LOGIC
+      let staleTimeLabel = '';
+      if (!isConnected && node.hud.lastSeen) {
+        const minutesAgo = Math.floor((Date.now() - node.hud.lastSeen) / 60000);
+        staleTimeLabel = ` [STALE - ${minutesAgo < 1 ? 'Just now' : minutesAgo + 'm ago'}]`;
+      }
+
+      document.getElementById('hud-badge').textContent = isConnected ? 'ACTIVE' : `OFFLINE${staleTimeLabel}`;
+      document.getElementById('hud-badge').className = `text-[9px] px-2 py-0.5 border rounded ${isConnected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
+
+      speedEl.textContent = `${Math.round(node.hud.state.speed || 0)} km/h`;
+      odoEl.textContent = `${node.hud.state.odometer || 0} KM`;
+      fuelEl.textContent = `${node.hud.state.fuel_percent || 0} %`;
+      voltEl.textContent = `${node.hud.state.battery_voltage || 12.6} V`;
+
+      [speedEl, odoEl, fuelEl, voltEl].forEach(el => {
+        if (isConnected) el.classList.remove('stale-text');
+        else el.classList.add('stale-text');
+      });
+
       if (node.hud_banned) {
           hudBtn.textContent = "REVOKE HUD NODE LOCKDOWN";
-          hudBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 hover:bg-[--cyan]/20 transition font-bold";
+          hudBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
           hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'hud' }));
       } else {
           hudBtn.textContent = "DISCONNECT & BAN HUD INSTANCE";
-          hudBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition font-bold";
+          hudBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
           hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'hud' }));
       }
 
-      // Map Companion properties
       document.getElementById('comp-badge').textContent = node.companion.connected ? 'ACTIVE' : 'OFFLINE';
       document.getElementById('comp-badge').className = `text-[9px] px-2 py-0.5 border rounded ${node.companion.connected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
       document.getElementById('comp-stat-signal').textContent = node.companion.connected ? (node.companion.state.signal || 'Excellent') : '--';
-      
-      // Dynamic Companion Button Lockdown Text Sync
+
       if (node.companion_banned) {
           compBtn.textContent = "REVOKE PHONE NODE LOCKDOWN";
-          compBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 hover:bg-[--cyan]/20 transition font-bold";
+          compBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
           compBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'companion' }));
       } else {
           compBtn.textContent = "DISCONNECT & BAN PHONE LINK";
-          compBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 hover:bg-[--rose]/20 transition font-bold";
+          compBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
           compBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'companion' }));
       }
 
-      // Map dynamic button block definitions
       if (node.isBlacklisted) {
         actionBtn.textContent = 'Revoke Cluster Firewall Block';
         actionBtn.className = 'btn w-full btn-cyan font-bold py-2.5';
@@ -511,9 +477,7 @@
         actionBtn.className = 'btn w-full btn-rose font-bold py-2.5';
         actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_block_device', device: userSelectedId }));
       }
-    } catch (e) {
-      console.error("Error in renderMirrorViewScreen:", e);
-    }
+    } catch (e) {}
   }
 
   function renderTokenVaultElements() {
@@ -546,21 +510,12 @@
         `;
         hook.appendChild(item);
       });
-    } catch (e) {
-      console.error("Error in renderTokenVaultElements:", e);
-    }
+    } catch (e) {}
   }
 
   function appendWiretapInterceptLog(p) {
-    if (p.payload && p.payload.type === 'state') {
-      if (!streamToggle.checked) {
-        return;
-      }
-    }
-
-    if (p.payload && p.payload.type === 'ping') {
-      return;
-    }
+    if (p.payload && p.payload.type === 'state' && !streamToggle.checked) return;
+    if (p.payload && p.payload.type === 'ping') return;
 
     const feed = document.getElementById('log-feed');
     if (feed.querySelector('.text-center')) feed.innerHTML = '';
@@ -581,11 +536,16 @@
     while (feed.children.length > 40) feed.removeChild(feed.lastChild);
   }
 
+  // 🛡️ SECURITY HARDENED EMERGENCY PURGE (Requires PIN)
   window.executePanicPurgeCommand = function() {
-    if (confirm('🚨 EMERGENCY NOTICE: Dispatch panic challenge now?')) {
+    const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
+    if (enteredPin === '1234') {
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'admin_panic_purge' }));
+        alert('Emergency Panic Purge Challenge Dispatched!');
       }
+    } else if (enteredPin !== null) {
+      alert('❌ AUTHORIZATION DENIED: Incorrect Security PIN.');
     }
   };
 
