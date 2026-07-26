@@ -513,14 +513,23 @@
         return;
       }
 
-      node.activeSummaryTokens.forEach(token => {
+      node.activeSummaryTokens.forEach(itemData => {
+        // Handle string array vs object array backwards compatibility
+        const tokenStr = (typeof itemData === 'object' && itemData.token) ? itemData.token : itemData;
+        const tokenType = (typeof itemData === 'object' && itemData.type) ? itemData.type : 'guest';
+        
+        const isSummary = tokenType === 'summary';
+        const badgeLabel = isSummary ? '[SUMMARY LINK]' : '[GUEST PASS]';
+        const badgeColor = isSummary ? 'text-[--cyan] border-[--cyan]/40' : 'text-[--amber] border-[--amber]/40';
+
         const item = document.createElement('div');
         item.className = 'flex items-center justify-between border-b border-[--border] py-2';
         item.innerHTML = `
-          <div>
-            <code class="text-[--amber] text-sm font-bold tracking-wider">${token}</code>
+          <div class="flex items-center gap-2 font-mono">
+            <span class="text-[9px] px-1.5 py-0.5 border rounded font-display font-bold ${badgeColor}">${badgeLabel}</span>
+            <code class="text-[--amber] text-sm font-bold tracking-wider">${tokenStr}</code>
           </div>
-          <button class="text-[--rose] hover:underline font-bold text-[10px]" onclick="socket.send(JSON.stringify({ type: 'burn_access', device: '${userSelectedId}', token: '${token}' }))">[BURN ACCESS]</button>
+          <button class="text-[--rose] hover:underline font-bold text-[10px]" onclick="socket.send(JSON.stringify({ type: 'burn_access', device: '${userSelectedId}', token: '${tokenStr}' }))">[BURN ACCESS]</button>
         `;
         hook.appendChild(item);
       });
@@ -530,14 +539,12 @@
   }
 
   function appendWiretapInterceptLog(p) {
-    // 🛑 SLIDER INTERCEPT FILTER RULE: Drop structural updates if slider is unchecked
     if (p.payload && p.payload.type === 'state') {
       if (!streamToggle.checked) {
         return;
       }
     }
 
-    // Drop explicit ping loop packets globally
     if (p.payload && p.payload.type === 'ping') {
       return;
     }

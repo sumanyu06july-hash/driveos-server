@@ -25,7 +25,7 @@ function getDevice(id) {
             guests: new Set(),
             summaryClients: new Map(),
             summaryTokens: new Map(),
-            guestTokens: new Map(),
+            guestTokens: new Map(), // Stores token string -> { type: 'guest' | 'summary' }
             hudState: null,
             companionState: null,
             hud_banned: false,
@@ -87,13 +87,24 @@ function broadcastTopology() {
             if (huActive) { absoluteLatencySum += hudLatency; computedCount++; }
             if (compActive) { absoluteLatencySum += compLatency; computedCount++; }
 
+            // Map token details including explicit type metadata
+            const tokenList = [];
+            if (dev.guestTokens) {
+                for (const [tokenKey, meta] of dev.guestTokens.entries()) {
+                    tokenList.push({
+                        token: tokenKey,
+                        type: (typeof meta === 'object' && meta.type) ? meta.type : 'guest'
+                    });
+                }
+            }
+
             data.push({
                 id: deviceId,
                 isBlacklisted: blacklist.has(deviceId),
                 hud_banned: dev.hud_banned,
                 companion_banned: dev.companion_banned,
                 activeGuests: dev.guests ? dev.guests.size : 0,
-                activeSummaryTokens: dev.guestTokens ? Array.from(dev.guestTokens.keys()) : [],
+                activeSummaryTokens: tokenList,
                 hud: {
                     connected: huActive,
                     latency: hudLatency,
@@ -180,8 +191,21 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'burn_access') {
                     const dev = devices.get(command.device);
                     if (dev) {
+                        const tokenMeta = dev.guestTokens.get(command.token);
+                        const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
+                        
                         dev.guestTokens.delete(command.token);
                         console.log(`[ADMIN ACTION] Access token permanently burned: ${command.token}`);
+
+                        // 📲 NOTIFY COMPANION PHONE OF BURN EVENT
+                        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                            dev.companion.send(JSON.stringify({
+                                type: 'token_burned',
+                                token: command.token,
+                                tokenType: tokenTypeLabel,
+                                message: `Authorization token [${command.token}] (${tokenTypeLabel}) has been burned from Overlord Control Center.`
+                            }));
+                        }
                     }
                 }
 
@@ -374,8 +398,9 @@ wss.on('connection', (ws, req) => {
 
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
-                    dev.guestTokens.set(guestToken, true);
-                    ws.send(JSON.stringify({ type: 'token_registered', token: guestToken }));
+                    const tokenCategory = msg.tokenType || 'guest';
+                    dev.guestTokens.set(guestToken, { type: tokenCategory });
+                    ws.send(JSON.stringify({ type: 'token_registered', token: guestToken, tokenType: tokenCategory }));
                     broadcastTopology();
                     return;
                 }
@@ -407,7 +432,6 @@ wss.on('connection', (ws, req) => {
                     dev.companionState = msg;
                     broadcastTopology();
                 } else {
-                    // Safe verification gate ensuring companion app data relays down to active launcher sockets
                     if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
                         dev.headunit.send(JSON.stringify(msg));
                         interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
