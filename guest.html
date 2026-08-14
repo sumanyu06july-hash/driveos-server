@@ -20,7 +20,7 @@
     --cyan-glow:     rgba(0,245,255,0.18);
     --cyan-soft:     rgba(0,245,255,0.08);
     --gold:          #ffd700;
-    --gold-glow:     rgba(255,215,0,0.3);
+    --gold-glow:     rgba(255,215,0,0.35);
     --slate:         #64748b;
     --slate-lt:      #94a3b8;
     --red:           #ff2244;
@@ -106,7 +106,7 @@
   .header-left {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
 
   .brand {
@@ -116,8 +116,13 @@
     color: var(--cyan);
     text-transform: uppercase;
   }
-
   .brand span { color: var(--slate); font-weight: 400; }
+
+  .user-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
   .user-badge {
     font-size: 9px;
@@ -131,15 +136,35 @@
     font-weight: 700;
   }
 
+  .reset-badge-btn {
+    background: rgba(0, 245, 255, 0.08);
+    border: 1px solid var(--glass-border);
+    color: var(--cyan);
+    font-family: var(--font);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  }
+  .reset-badge-btn:hover {
+    background: var(--cyan);
+    color: var(--bg);
+    box-shadow: 0 0 10px var(--cyan-glow);
+  }
+
   .conn-status {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 9px;
+    font-size: 8.5px;
     letter-spacing: 0.15em;
     color: var(--slate);
     text-transform: uppercase;
-    margin-top: 2px;
+    margin-top: 1px;
   }
 
   .conn-dot {
@@ -189,28 +214,29 @@
   }
 
   /* ═══════════════════════════════════════
-      OWNER COMMAND DOCK (SECRET MENU)
+      OWNER COMMAND DOCK (SECRET ROOT MENU)
   ═══════════════════════════════════════ */
   #owner-command-dock {
     display: none;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    margin: 10px 14px 0;
+    gap: 10px;
+    padding: 14px 16px;
+    margin: 12px 14px 0;
     border: 1px solid var(--gold);
     box-shadow: 0 0 25px var(--gold-glow), inset 0 0 15px rgba(255,215,0,0.05);
-    background: rgba(20,16,0,0.7);
+    background: rgba(22,18,2,0.85);
+    border-radius: 12px;
   }
   #owner-command-dock.visible {
     display: flex;
-    animation: gold-pulse 2s ease-in-out infinite alternate;
+    animation: gold-pulse 2.5s ease-in-out infinite alternate;
   }
   @keyframes gold-pulse {
-    0% { border-color: rgba(255,215,0,0.4); }
-    100% { border-color: rgba(255,215,0,1); }
+    0% { border-color: rgba(255,215,0,0.4); box-shadow: 0 0 15px rgba(255,215,0,0.2); }
+    100% { border-color: rgba(255,215,0,1); box-shadow: 0 0 28px rgba(255,215,0,0.45); }
   }
   .owner-dock-title {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
     letter-spacing: 0.25em;
     color: var(--gold);
@@ -251,7 +277,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 4px;
+    margin-top: 2px;
   }
   .owner-vol-slider {
     flex: 1;
@@ -822,7 +848,7 @@
     background: rgba(10,10,10,0.9);
     backdrop-filter: blur(20px);
     padding: 0;
-    height: 100px;
+    height: 90px;
     overflow: hidden;
   }
 
@@ -835,14 +861,9 @@
     border-bottom: 1px solid rgba(0,245,255,0.06);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-  }
-  .log-header-left {
-    display: flex;
-    align-items: center;
     gap: 6px;
   }
-  .log-header-left::before {
+  .log-header::before {
     content: '▶';
     font-size: 6px;
     color: var(--cyan);
@@ -850,21 +871,8 @@
   }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-  .reset-session-btn {
-    background: none;
-    border: none;
-    color: var(--slate);
-    font-family: var(--font);
-    font-size: 7.5px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: color 0.2s;
-  }
-  .reset-session-btn:hover { color: var(--cyan); }
-
   #log-stream {
-    height: 70px;
+    height: 68px;
     overflow: hidden;
     padding: 4px 14px;
     display: flex;
@@ -1229,7 +1237,10 @@
 <header id="header">
   <div class="header-left">
     <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
-    <div class="user-badge" id="user-badge">PASSENGER CO-PILOT</div>
+    <div class="user-badge-row">
+      <div class="user-badge" id="user-badge">PASSENGER CO-PILOT</div>
+      <button class="reset-badge-btn" onclick="resetProfile()">[ ↻ RESET ]</button>
+    </div>
     <div class="conn-status">
       <div class="conn-dot" id="conn-dot"></div>
       <span id="conn-text">Initializing...</span>
@@ -1242,7 +1253,7 @@
   </div>
 </header>
 
-<!-- SECRET OWNER OVERRIDE MENU -->
+<!-- SECRET OWNER ROOT COMMAND DOCK -->
 <div id="owner-command-dock" class="glass">
   <div class="owner-dock-title">
     <span>👑 Master Root Console</span>
@@ -1352,10 +1363,7 @@
 <div id="suggest-toast">Suggestion Dispatched to Driver Queue ⚡</div>
 
 <footer id="footer">
-  <div class="log-header">
-    <div class="log-header-left">System Log</div>
-    <button class="reset-session-btn" onclick="resetProfile()">[ ↻ Switch User / Reset ]</button>
-  </div>
+  <div class="log-header">System Log</div>
   <div id="log-stream"></div>
 </footer>
 
@@ -1385,7 +1393,7 @@ let firstConnect = true;
 // ── guest identity / fingerprint / permissions ──
 let guestName       = localStorage.getItem('guest_name') || '';
 let fingerprintHash = localStorage.getItem('device_fingerprint') || '';
-let isOwner         = guestName.trim() === 'Owner:Sumanyu';
+let isOwner         = guestName.trim().toLowerCase() === 'owner:sumanyu';
 let deviceBanned    = localStorage.getItem('device_banned') === '1';
 let permissions      = { allowPlayback: true, allowSuggestions: true };
 
@@ -1512,20 +1520,20 @@ async function initFingerprint() {
 
 function completeOnboarding(name) {
   guestName = name.trim();
-  isOwner = guestName === 'Owner:Sumanyu';
+  isOwner = guestName.toLowerCase() === 'owner:sumanyu';
   localStorage.setItem('guest_name', guestName);
 
-  // Show Welcoming Greeting Animation
   onboardCard.style.display = 'none';
   welcomeGreeting.classList.add('visible');
 
   if (isOwner) {
     $('greeting-title').textContent = '👑 Master Override Active';
-    $('greeting-sub').textContent = 'Root Permissions Granted to Sumanyu...';
     $('greeting-title').style.color = 'var(--gold)';
+    $('greeting-sub').textContent = 'Root Permissions Granted to Sumanyu...';
     enableOwnerFeatures();
   } else {
     $('greeting-title').textContent = `Welcome Aboard, ${guestName}`;
+    $('greeting-title').style.color = 'var(--cyan)';
     $('greeting-sub').textContent = 'Synchronizing Cockpit Telemetry & Media Stream...';
   }
 
@@ -1590,7 +1598,7 @@ function beginConnection() {
 //  BAN / SENTRY OVERLAY
 // ═══════════════════════════════════════════════
 function showDeviceBanned(reason) {
-  if (isOwner) return; // Master owner can never be banned
+  if (isOwner) return;
   deviceBanned = true;
   authDenied = true;
   localStorage.setItem('device_banned', '1');
@@ -1606,7 +1614,6 @@ function showDeviceBanned(reason) {
 // ═══════════════════════════════════════════════
 function applyPermissions() {
   if (isOwner) {
-    // Owner bypasses all driver lockouts
     $('media-controls').classList.remove('controls-locked');
     $('controls-locked-label').classList.remove('visible');
     $('spotify-search-input').classList.remove('locked');
