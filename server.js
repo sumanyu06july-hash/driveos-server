@@ -20,9 +20,7 @@ let spotifyTokenExpiresAt = 0;
 
 async function getSpotifyToken() {
     const now = Date.now();
-    if (spotifyToken && now < spotifyTokenExpiresAt) {
-        return spotifyToken;
-    }
+    if (spotifyToken && now < spotifyTokenExpiresAt) return spotifyToken;
 
     try {
         const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
@@ -39,7 +37,7 @@ async function getSpotifyToken() {
         if (data.access_token) {
             spotifyToken = data.access_token;
             spotifyTokenExpiresAt = now + (data.expires_in - 60) * 1000;
-            console.log('⚡ [SPOTIFY]: Application token generated/refreshed successfully.');
+            console.log('⚡ [SPOTIFY]: Application access token refreshed successfully.');
             return spotifyToken;
         } else {
             console.error('❌ [SPOTIFY TOKEN ERROR]:', data);
@@ -59,7 +57,6 @@ async function querySpotifyTracks(query) {
         const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
         const data = await res.json();
         if (!data.tracks || !data.tracks.items) return [];
 
@@ -75,12 +72,18 @@ async function querySpotifyTracks(query) {
     }
 }
 
-// ── CENTRAL STATE DICTIONARIES ──
+// ── CENTRAL VOLATILE IN-MEMORY REGISTERS ──
 const devices = new Map();
 const adminClients = new Set();
 const blacklist = new Set();
 const fingerprintBlacklist = new Set();
 let globalLogSequence = 1;
+
+console.log('====================================================');
+console.log('🛡️  [DRIVEOS HYBRID CORE]: Initializing Clean State');
+console.log(`📦  Blacklisted Clusters:       ${blacklist.size}`);
+console.log(`🔒  Quarantined Fingerprints:   ${fingerprintBlacklist.size}`);
+console.log('====================================================');
 
 function getDevice(id) {
     if (!devices.has(id)) {
@@ -96,6 +99,7 @@ function getDevice(id) {
             hudState: null,
             hudLastSeen: null,
             companionState: null,
+            currentTrack: null,
             hud_banned: false,
             companion_banned: false,
             parkedGuardActive: false,
@@ -111,6 +115,18 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html'))
 app.get('/guest', (req, res) => res.sendFile(path.join(__dirname, 'guest.html')));
 app.get('/summary', (req, res) => res.sendFile(path.join(__dirname, 'summary.html')));
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
+
+// 🔓 1-Click Emergency Unban Endpoint
+app.get('/api/unban-all', (req, res) => {
+    blacklist.clear();
+    fingerprintBlacklist.clear();
+    for (const [, dev] of devices.entries()) {
+        dev.hud_banned = false;
+        dev.companion_banned = false;
+    }
+    broadcastTopology();
+    res.send('<h1 style="font-family:sans-serif;color:#00c853;">✅ SUCCESS: All device bans and fingerprint quarantines cleared from memory!</h1>');
+});
 
 function reject(ws, type, message) {
     console.warn(`[REJECT] ${type} — ${message}`);
@@ -130,19 +146,8 @@ function broadcastTopology() {
             const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
             const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
             
-            let hudLatency = 0;
-            if (dev.hudState && dev.hudState.latency) {
-                hudLatency = parseInt(dev.hudState.latency) || 0;
-            } else if (huActive) {
-                hudLatency = 35 + Math.floor(Math.random() * 10);
-            }
-
-            let compLatency = 0;
-            if (dev.companionState && dev.companionState.latency) {
-                compLatency = parseInt(dev.companionState.latency) || 0;
-            } else if (compActive) {
-                compLatency = 40 + Math.floor(Math.random() * 12);
-            }
+            let hudLatency = dev.hudState?.latency ? parseInt(dev.hudState.latency) || 0 : (huActive ? 35 + Math.floor(Math.random() * 10) : 0);
+            let compLatency = dev.companionState?.latency ? parseInt(dev.companionState.latency) || 0 : (compActive ? 40 + Math.floor(Math.random() * 12) : 0);
 
             if (huActive) { absoluteLatencySum += hudLatency; computedCount++; }
             if (compActive) { absoluteLatencySum += compLatency; computedCount++; }
@@ -189,7 +194,12 @@ function broadcastTopology() {
         }
 
         const avgLatency = computedCount ? Math.round(absoluteLatencySum / computedCount) : 0;
-        const packet = JSON.stringify({ type: 'topology_update', data, metrics: { avgLatency } });
+        const packet = JSON.stringify({ 
+            type: 'topology_update', 
+            data, 
+            metrics: { avgLatency },
+            bannedFingerprints: Array.from(fingerprintBlacklist)
+        });
 
         adminClients.forEach(admin => { 
             if (admin.readyState === WebSocket.OPEN) admin.send(packet); 
@@ -292,6 +302,18 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
+                if (command.type === 'admin_unban_fingerprint') {
+                    if (command.deviceFingerprint) {
+                        fingerprintBlacklist.delete(command.deviceFingerprint);
+                        console.log(`[FIREWALL]: Revoked ban on device signature: ${command.deviceFingerprint}`);
+                    }
+                }
+
+                if (command.type === 'admin_unban_all_fingerprints') {
+                    fingerprintBlacklist.clear();
+                    console.log('🔓 [FIREWALL]: All device fingerprint bans purged.');
+                }
+
                 if (command.type === 'admin_kick_all_guests') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
@@ -309,12 +331,10 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'cmd_spotify_play') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
-                        if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
-                            targetDev.headunit.send(JSON.stringify(command));
-                        }
-                        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-                            targetDev.companion.send(JSON.stringify(command));
-                        }
+                        targetDev.currentTrack = command.track || { uri: command.uri };
+                        if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) targetDev.headunit.send(JSON.stringify(command));
+                        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) targetDev.companion.send(JSON.stringify(command));
+                        targetDev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(command)); });
                     }
                 }
 
@@ -371,7 +391,6 @@ wss.on('connection', (ws, req) => {
     // ── 🎵 GUEST PASSENGER NEXUS ──
     if (role === 'guest') {
         dev.guests.add(ws);
-        console.log(`[PASSENGER NEXUS] New connection on ${deviceId}`);
 
         ws.send(JSON.stringify({
             type: 'permissions_update',
@@ -379,9 +398,8 @@ wss.on('connection', (ws, req) => {
             allowSuggestions: dev.guestPermissions.allowSuggestions
         }));
 
-        if (dev.hudState) {
-            ws.send(JSON.stringify(dev.hudState));
-        }
+        if (dev.hudState) ws.send(JSON.stringify(dev.hudState));
+        if (dev.currentTrack) ws.send(JSON.stringify({ type: 'cmd_spotify_play', track: dev.currentTrack }));
 
         ws.on('message', async (message) => {
             try {
@@ -419,11 +437,8 @@ wss.on('connection', (ws, req) => {
 
                 if (msg.type === 'cmd_guest_suggest_song') {
                     adminClients.forEach(admin => {
-                        if (admin.readyState === WebSocket.OPEN) {
-                            admin.send(JSON.stringify(msg));
-                        }
+                        if (admin.readyState === WebSocket.OPEN) admin.send(JSON.stringify(msg));
                     });
-
                     if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                         dev.companion.send(JSON.stringify(msg));
                     }
@@ -431,12 +446,8 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (msg.type === 'cmd_music' || msg.type === 'cmd_panic' || msg.type === 'cmd_volume' || msg.type === 'cmd_trigger_failover' || msg.type === 'toggle_parked_guard') {
-                    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-                        dev.headunit.send(JSON.stringify(msg));
-                    }
-                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-                        dev.companion.send(JSON.stringify(msg));
-                    }
+                    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) dev.headunit.send(JSON.stringify(msg));
+                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) dev.companion.send(JSON.stringify(msg));
                     return;
                 }
             } catch (err) {}
@@ -475,6 +486,14 @@ wss.on('connection', (ws, req) => {
                 if (msg.type === 'state') {
                     dev.hudState = msg;
                     dev.hudLastSeen = Date.now();
+
+                    if (msg.music_title || msg.title) {
+                        dev.currentTrack = {
+                            title: msg.music_title || msg.title,
+                            artist: msg.music_artist || msg.artist,
+                            cover: msg.music_cover || msg.cover || msg.album_art
+                        };
+                    }
 
                     const fuel = parseFloat(msg.fuel_percent) || 100;
                     const battery = parseFloat(msg.battery_voltage) || 12.6;
@@ -522,7 +541,7 @@ wss.on('connection', (ws, req) => {
         if (dev.companion) { try { dev.companion.close(); } catch(e){} }
 
         dev.companion = ws;
-        console.log(`[COMPANION MOBILE] Remote Deck Sync Synced: ${deviceId}`);
+        console.log(`[COMPANION MOBILE] Remote Deck Sync: ${deviceId}`);
         broadcastTopology();
 
         ws.on('message', (message) => {

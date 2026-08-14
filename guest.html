@@ -9,27 +9,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-  /* ── RESET & BASE CONFIGURATION ── */
+  /* ── RESET & BASE ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
     --bg:            #06070a;
     --bg2:           #090c12;
-    --card:          #0b0e14;
-    --card-alt:      #0e131d;
     --cyan:          #00F5FF;
     --cyan-dim:      #00c8d4;
     --cyan-glow:     rgba(0,245,255,0.22);
     --cyan-soft:     rgba(0,245,255,0.08);
-    --gold:          #FFD700;
+    --gold:          #ffd700;
     --gold-glow:     rgba(255,215,0,0.35);
     --slate:         #52687a;
     --slate-lt:      #8ba3b5;
     --red:           #ff2244;
     --red-glow:      rgba(255,34,68,0.28);
-    --green:         #00FF9C;
-    --border:        #14202c;
-    --border-hi:     #1d3244;
     --glass-bg:      rgba(255,255,255,0.025);
     --glass-border:  rgba(0,245,255,0.18);
     --font: 'JetBrains Mono', 'Roboto Mono', monospace;
@@ -51,7 +46,7 @@
     position: relative;
   }
 
-  /* ── CRT SCANLINE OVERLAY ── */
+  /* ── SCANLINE OVERLAY ── */
   body::before {
     content: '';
     position: fixed;
@@ -67,7 +62,7 @@
     z-index: 1000;
   }
 
-  /* ── AMBIENT CYBER GRID BG ── */
+  /* ── AMBIENT GRID BG ── */
   body::after {
     content: '';
     position: fixed;
@@ -80,7 +75,7 @@
     z-index: 0;
   }
 
-  /* ── GLASS PANEL CONTAINER ── */
+  /* ── GLASS PANEL ── */
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(12px) saturate(1.4);
@@ -92,10 +87,9 @@
       inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
-  /* ── MASTER COCKPIT CONTAINER ── */
   .app-container {
     width: 100%;
-    max-width: 1280px;
+    max-width: 1240px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -232,7 +226,7 @@
   }
 
   /* ═══════════════════════════════════════
-      MAIN COCKPIT GRID (DESKTOP / MOBILE)
+      MAIN COCKPIT GRID
   ═══════════════════════════════════════ */
   #main {
     flex: 1;
@@ -1262,8 +1256,8 @@
     [SECURITY PROTOCOL]: THIS HARDWARE DEVICE HAS BEEN<br>
     BANNED BY THE COCKPIT ADMIN.
   </div>
-  <button class="denied-btn" onclick="localStorage.clear(); location.reload();">
-    ▶ Clear Local Storage & Reconnect
+  <button class="denied-btn" onclick="resetProfile()">
+    ▶ Clear Local Cache & Reconnect
   </button>
 </div>
 
@@ -1568,7 +1562,13 @@ function getWebGLSignature() {
 }
 
 async function generateDeviceFingerprint() {
+  let salt = localStorage.getItem('fp_salt');
+  if (!salt) {
+    salt = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    localStorage.setItem('fp_salt', salt);
+  }
   const parts = [
+    salt,
     getCanvasSignature(),
     getWebGLSignature(),
     `${screen.width}x${screen.height}`,
@@ -1646,6 +1646,7 @@ function updateUserBadge() {
 
 function resetProfile() {
   localStorage.clear();
+  localStorage.setItem('fp_salt', 'fresh_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36));
   location.reload();
 }
 

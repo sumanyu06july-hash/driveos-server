@@ -105,7 +105,7 @@
 
 <body class="scanlines min-h-screen">
 
-<!-- 🔐 AUTH OVERLAY -->
+<!-- ===================== 🔐 AUTH OVERLAY ===================== -->
 <div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
   <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
     <div class="flex items-center gap-2 mb-1">
@@ -123,8 +123,10 @@
   </div>
 </div>
 
+<!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
 <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
 
+  <!-- Main Header -->
   <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
@@ -145,6 +147,7 @@
     </div>
   </header>
 
+  <!-- Metric Strip Cards -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="panel rounded p-4">
       <p class="kv-label mb-1">Rigs Online</p>
@@ -164,8 +167,10 @@
     </div>
   </section>
 
+  <!-- Guest Master Permissions & Song Approval Strip -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] gap-5 mb-6">
     
+    <!-- Master Guest Permissions Deck -->
     <div class="panel rounded-md p-5 flex flex-col justify-between">
       <div>
         <div class="flex items-center justify-between mb-3">
@@ -202,6 +207,7 @@
       <button class="btn btn-rose w-full mt-4 font-bold py-2" onclick="window.kickAllGuests()">🚨 Burn All Guest Sessions (Kick All)</button>
     </div>
 
+    <!-- Incoming Spotify DJ Song Request Queue -->
     <div class="panel rounded-md p-5 flex flex-col">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
@@ -218,10 +224,13 @@
 
   </section>
 
+  <!-- Main Component Grid Workspace Layout -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
     
+    <!-- Left Box: Fleet Hardware Index & Active Guests -->
     <div class="space-y-5">
       
+      <!-- Fleet Hardware Inventory -->
       <div class="panel rounded-md p-5">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
@@ -232,7 +241,7 @@
         </div>
       </div>
 
-      <!-- Active Passenger Guest Sessions Table with Ban & Unban Controls -->
+      <!-- Active Passenger Guest Sessions Table -->
       <div class="panel rounded-md p-5">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE PASSENGER NEXUS ROSTER</h2>
@@ -262,7 +271,7 @@
       <div class="panel rounded-md p-5">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-display text-sm font-bold tracking-wide text-[--rose]">PERMANENTLY BANNED HARDWARE SIGNATURES</h2>
-          <span class="kv-label">Quarantine Gate</span>
+          <button class="btn btn-green text-[9px] py-1 px-3 font-bold" onclick="window.unbanAllFingerprints()">🔓 UNBAN ALL DEVICES</button>
         </div>
         <div id="banned-fingerprints-list" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs pr-1">
           <div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>
@@ -271,6 +280,7 @@
 
     </div>
 
+    <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
     <div class="flex flex-col gap-5">
       <div class="panel rounded-md p-5 flex flex-col flex-1">
         <div class="flex items-center justify-between mb-4">
@@ -282,6 +292,7 @@
         </div>
         <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between space-y-4">
           <div>
+            <!-- Headunit Box -->
             <div class="border border-[--border] p-3 rounded mb-3 bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">HEADUNIT LAUNCHER APPLICATION</span>
@@ -296,6 +307,7 @@
               <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
             </div>
 
+            <!-- Mobile Companion Box -->
             <div class="border border-[--border] p-3 rounded bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">MOBILE COMPANION NEXUS</span>
@@ -321,6 +333,7 @@
     </div>
   </section>
 
+  <!-- Wiretap Console -->
   <section class="panel rounded-md p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
@@ -339,6 +352,7 @@
       <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
     </div>
 
+    <!-- Emergency Confirmation Bar -->
     <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
       <div class="text-xs text-[--muted]">
         <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
@@ -435,6 +449,14 @@
           device: userSelectedId,
           deviceFingerprint: fingerprint
         }));
+      }
+    }
+  };
+
+  window.unbanAllFingerprints = function() {
+    if (confirm('🔓 Clear ALL quarantined device fingerprints from server memory?')) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'admin_unban_all_fingerprints' }));
       }
     }
   };
