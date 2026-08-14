@@ -105,7 +105,7 @@
 
 <body class="scanlines min-h-screen">
 
-<!-- ===================== 🔐 AUTH OVERLAY ===================== -->
+<!-- 🔐 AUTH OVERLAY -->
 <div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
   <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
     <div class="flex items-center gap-2 mb-1">
@@ -123,10 +123,8 @@
   </div>
 </div>
 
-<!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
 <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
 
-  <!-- Main Header -->
   <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
@@ -147,7 +145,6 @@
     </div>
   </header>
 
-  <!-- Metric Strip Cards -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="panel rounded p-4">
       <p class="kv-label mb-1">Rigs Online</p>
@@ -167,10 +164,8 @@
     </div>
   </section>
 
-  <!-- Guest Master Permissions & Song Approval Strip -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] gap-5 mb-6">
     
-    <!-- Master Guest Permissions Deck -->
     <div class="panel rounded-md p-5 flex flex-col justify-between">
       <div>
         <div class="flex items-center justify-between mb-3">
@@ -207,7 +202,6 @@
       <button class="btn btn-rose w-full mt-4 font-bold py-2" onclick="window.kickAllGuests()">🚨 Burn All Guest Sessions (Kick All)</button>
     </div>
 
-    <!-- Incoming Spotify DJ Song Request Queue -->
     <div class="panel rounded-md p-5 flex flex-col">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
@@ -224,13 +218,10 @@
 
   </section>
 
-  <!-- Main Component Grid Workspace Layout -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
     
-    <!-- Left Box: Fleet Hardware Index & Active Guests -->
     <div class="space-y-5">
       
-      <!-- Fleet Hardware Inventory -->
       <div class="panel rounded-md p-5">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
@@ -241,7 +232,7 @@
         </div>
       </div>
 
-      <!-- Active Passenger Guest Sessions Table -->
+      <!-- Active Passenger Guest Sessions Table with Ban & Unban Controls -->
       <div class="panel rounded-md p-5">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE PASSENGER NEXUS ROSTER</h2>
@@ -267,9 +258,19 @@
         </div>
       </div>
 
+      <!-- Banned Fingerprints Quarantine Vault -->
+      <div class="panel rounded-md p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--rose]">PERMANENTLY BANNED HARDWARE SIGNATURES</h2>
+          <span class="kv-label">Quarantine Gate</span>
+        </div>
+        <div id="banned-fingerprints-list" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs pr-1">
+          <div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
     <div class="flex flex-col gap-5">
       <div class="panel rounded-md p-5 flex flex-col flex-1">
         <div class="flex items-center justify-between mb-4">
@@ -281,7 +282,6 @@
         </div>
         <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between space-y-4">
           <div>
-            <!-- Headunit Box -->
             <div class="border border-[--border] p-3 rounded mb-3 bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">HEADUNIT LAUNCHER APPLICATION</span>
@@ -296,7 +296,6 @@
               <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
             </div>
 
-            <!-- Mobile Companion Box -->
             <div class="border border-[--border] p-3 rounded bg-black/20">
               <div class="flex justify-between items-center mb-2">
                 <span class="font-display text-xs font-bold text-white">MOBILE COMPANION NEXUS</span>
@@ -322,7 +321,6 @@
     </div>
   </section>
 
-  <!-- Wiretap Console -->
   <section class="panel rounded-md p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
@@ -341,7 +339,6 @@
       <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
     </div>
 
-    <!-- Emergency Confirmation Bar -->
     <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
       <div class="text-xs text-[--muted]">
         <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
@@ -360,6 +357,7 @@
 
   let socket = null;
   let serverClusterArray = [];
+  let bannedFingerprintsList = [];
   let userSelectedId = 'myaura001';
   let validatedPasscode = '';
   let pendingSongRequests = [];
@@ -429,6 +427,18 @@
     }
   };
 
+  window.unbanGuestFingerprint = function(fingerprint) {
+    if (confirm(`✅ Revoke ban for hardware fingerprint?\nFP: ${fingerprint}`)) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'admin_unban_fingerprint',
+          device: userSelectedId,
+          deviceFingerprint: fingerprint
+        }));
+      }
+    }
+  };
+
   window.acceptSongRequest = function(reqId) {
     const req = pendingSongRequests.find(r => r.id === reqId);
     if (!req) return;
@@ -485,6 +495,7 @@
 
         if (packet.type === 'topology_update') {
           serverClusterArray = packet.data || [];
+          bannedFingerprintsList = packet.bannedFingerprints || [];
           if (!userSelectedId && serverClusterArray.length > 0) userSelectedId = serverClusterArray[0].id;
           
           updateStaticMetricsUI(packet.metrics);
@@ -492,6 +503,7 @@
           renderMirrorViewScreen();
           renderTokenVaultElements();
           renderGuestRoster();
+          renderBannedFingerprintsVault();
         } else if (packet.type === 'cmd_guest_suggest_song') {
           handleIncomingSongSuggestion(packet);
         } else if (packet.type === 'wiretap_intercept') {
@@ -588,6 +600,29 @@
     });
   }
 
+  function renderBannedFingerprintsVault() {
+    const container = document.getElementById('banned-fingerprints-list');
+    container.innerHTML = '';
+
+    if (!bannedFingerprintsList || bannedFingerprintsList.length === 0) {
+      container.innerHTML = '<div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>';
+      return;
+    }
+
+    bannedFingerprintsList.forEach(fp => {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between border-b border-[--border] py-2';
+      div.innerHTML = `
+        <div class="flex items-center gap-2 font-mono">
+          <span class="text-[9px] px-1.5 py-0.5 border border-[--rose]/40 text-[--rose] rounded font-bold font-display">[QUARANTINED]</span>
+          <code class="text-white text-xs font-bold">${fp.slice(0, 18)}…</code>
+        </div>
+        <button class="btn btn-cyan text-[9px] py-0.5 px-2 font-bold" onclick="window.unbanGuestFingerprint('${fp}')">✓ UNBAN</button>
+      `;
+      container.appendChild(div);
+    });
+  }
+
   window.lockConsoleWorkspace = function() {
     validatedPasscode = '';
     if (socket) { try { socket.close(); } catch(e){} }
@@ -612,7 +647,7 @@
       });
       document.getElementById('metric-guests-count').textContent = totalGuests;
 
-      const bannedNodes = serverClusterArray.filter(c => c.isBlacklisted).length;
+      const bannedNodes = (serverClusterArray.filter(c => c.isBlacklisted).length) + (bannedFingerprintsList ? bannedFingerprintsList.length : 0);
       document.getElementById('metric-banned-count').textContent = bannedNodes;
       updateHeaderCounters();
     } catch (e) {}
@@ -657,6 +692,7 @@
           renderMirrorViewScreen();
           renderTokenVaultElements();
           renderGuestRoster();
+          renderBannedFingerprintsVault();
         });
 
         container.appendChild(card);
@@ -801,7 +837,7 @@
 
   window.executePanicPurgeCommand = function() {
     const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
-    if (enteredPin === '1234') {
+    if (enteredPin === '6710') {
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'admin_panic_purge' }));
         alert('Emergency Panic Purge Challenge Dispatched!');

@@ -9,7 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-  /* ── RESET & BASE ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -46,7 +45,6 @@
     position: relative;
   }
 
-  /* ── SCANLINE OVERLAY ── */
   body::before {
     content: '';
     position: fixed;
@@ -62,7 +60,6 @@
     z-index: 1000;
   }
 
-  /* ── AMBIENT GRID BG ── */
   body::after {
     content: '';
     position: fixed;
@@ -75,7 +72,6 @@
     z-index: 0;
   }
 
-  /* ── GLASS PANEL ── */
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(12px) saturate(1.4);
@@ -87,9 +83,6 @@
       inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
-  /* ═══════════════════════════════════════
-      HEADER
-  ═══════════════════════════════════════ */
   #header {
     position: relative;
     z-index: 10;
@@ -213,9 +206,6 @@
     letter-spacing: 0.05em;
   }
 
-  /* ═══════════════════════════════════════
-      OWNER COMMAND DOCK (SECRET ROOT MENU)
-  ═══════════════════════════════════════ */
   #owner-command-dock {
     display: none;
     flex-direction: column;
@@ -284,9 +274,6 @@
     accent-color: var(--gold);
   }
 
-  /* ═══════════════════════════════════════
-      MAIN CONTENT
-  ═══════════════════════════════════════ */
   #main {
     flex: 1;
     display: flex;
@@ -298,7 +285,6 @@
     overflow-y: auto;
   }
 
-  /* ── SPEEDOMETER ── */
   .speed-panel {
     display: flex;
     flex-direction: column;
@@ -369,7 +355,6 @@
   .speed-arc:nth-child(2) { width:180px; height:90px; border-color:rgba(0,245,255,0.05); bottom:14px; }
   .speed-arc:nth-child(3) { width:140px; height:70px; border-color:rgba(0,245,255,0.04); bottom:18px; }
 
-  /* ── TELEMETRY GRID ── */
   .telem-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -540,7 +525,6 @@
     letter-spacing: 0.05em;
   }
 
-  /* ── MEDIA CENTER ── */
   .media-panel {
     padding: 14px;
     display: flex;
@@ -548,6 +532,16 @@
     gap: 14px;
     position: relative;
     overflow: hidden;
+  }
+
+  .now-playing-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 245, 255, 0.08);
   }
 
   .visualizer {
@@ -584,7 +578,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 3px;
   }
 
   .media-sync-tag {
@@ -605,8 +599,8 @@
   .sync-dot.paused { background: var(--slate); animation: none; }
 
   .media-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--cyan);
     white-space: nowrap;
     overflow: hidden;
@@ -615,7 +609,7 @@
   }
 
   .media-artist {
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--slate-lt);
     white-space: nowrap;
     overflow: hidden;
@@ -628,14 +622,11 @@
     letter-spacing: 0.15em;
     color: var(--slate);
     text-transform: uppercase;
-    margin-top: 2px;
+    margin-top: 1px;
   }
   .media-state.on  { color: var(--cyan); }
   .media-state.off { color: var(--slate); }
 
-  /* ═══════════════════════════════════════
-      MEDIA CONTROL BAR
-  ═══════════════════════════════════════ */
   .media-controls {
     display: flex;
     align-items: center;
@@ -683,9 +674,6 @@
   }
   .controls-locked-label.visible { display: flex; }
 
-  /* ═══════════════════════════════════════
-      SPOTIFY DJ JUKEBOX
-  ═══════════════════════════════════════ */
   .jukebox-panel {
     padding: 14px;
     display: flex;
@@ -813,7 +801,6 @@
     text-transform: uppercase;
   }
 
-  /* ── SUGGESTION TOAST ── */
   #suggest-toast {
     position: fixed;
     left: 50%;
@@ -839,7 +826,6 @@
     transform: translateX(-50%) translateY(0);
   }
 
-  /* ── FOOTER / LOG ── */
   #footer {
     flex-shrink: 0;
     position: relative;
@@ -903,7 +889,6 @@
   .log-line .tag-link  { color: #f472b6; }
   .log-msg { color: var(--slate-lt); }
 
-  /* ── ONBOARDING MODAL & WELCOME SCREEN ── */
   #onboard-overlay {
     position: fixed;
     inset: 0;
@@ -1011,7 +996,6 @@
   .onboard-btn:active:not(:disabled) { transform: scale(0.98); }
   .onboard-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
-  /* ── GREETING BADGE / TRANSITION OVERLAY ── */
   #welcome-greeting {
     display: none;
     flex-direction: column;
@@ -1034,7 +1018,6 @@
     text-transform: uppercase;
   }
 
-  /* ── ACCESS DENIED & BANNED SCREENS ── */
   #access-denied, #device-banned {
     position: fixed;
     inset: 0;
@@ -1097,7 +1080,6 @@
     box-shadow: 0 0 20px var(--red-glow);
   }
 
-  /* ── RECONNECT BANNER ── */
   #reconnect-banner {
     display: none;
     position: fixed;
@@ -1114,7 +1096,6 @@
   }
   #reconnect-banner.visible { display: block; }
 
-  /* ── INIT LOADER ── */
   #init-overlay {
     position: fixed;
     inset: 0;
@@ -1208,7 +1189,6 @@
   </div>
 </div>
 
-<!-- ONBOARDING & WELCOME OVERLAY -->
 <div id="onboard-overlay">
   <div class="glass onboard-card" id="onboard-form-card">
     <div class="onboard-title">Co-Pilot Nexus</div>
@@ -1253,7 +1233,6 @@
   </div>
 </header>
 
-<!-- SECRET OWNER ROOT COMMAND DOCK -->
 <div id="owner-command-dock" class="glass">
   <div class="owner-dock-title">
     <span>👑 Master Root Console</span>
@@ -1332,7 +1311,9 @@
 
   </div>
 
+  <!-- Real-time Media Panel & Now Playing Metadata Display -->
   <div class="glass media-panel">
+    <img id="now-playing-thumb" class="now-playing-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><rect width='44' height='44' fill='%230e131c'/><text x='50%25' y='55%25' font-size='16' fill='%2300F5FF' text-anchor='middle' font-family='monospace'>♪</text></svg>" alt="Album Art" />
     <div class="visualizer" id="visualizer"></div>
     <div class="media-info">
       <div class="media-sync-tag">
@@ -1372,9 +1353,6 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
-//  CONFIG & STATE
-// ═══════════════════════════════════════════════
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
@@ -1390,16 +1368,12 @@ let connected    = false;
 let authDenied   = false;
 let firstConnect = true;
 
-// ── guest identity / fingerprint / permissions ──
 let guestName       = localStorage.getItem('guest_name') || '';
 let fingerprintHash = localStorage.getItem('device_fingerprint') || '';
 let isOwner         = guestName.trim().toLowerCase() === 'owner:sumanyu';
 let deviceBanned    = localStorage.getItem('device_banned') === '1';
 let permissions      = { allowPlayback: true, allowSuggestions: true };
 
-// ═══════════════════════════════════════════════
-//  ELEMENTS
-// ═══════════════════════════════════════════════
 const $  = id => document.getElementById(id);
 const connDot     = $('conn-dot');
 const connText    = $('conn-text');
@@ -1416,9 +1390,6 @@ const btnGuestLogin   = $('btn-guest-login');
 const onboardFpDot    = $('onboard-fp-dot');
 const onboardFpStatus = $('onboard-fp-status');
 
-// ═══════════════════════════════════════════════
-//  SYSTEM LOG
-// ═══════════════════════════════════════════════
 const LOG_TAGS = {
   SYS:   'tag-sys',
   OWNER: 'tag-owner',
@@ -1442,9 +1413,6 @@ function sysLog(category, message) {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  HARDWARE + CANVAS FINGERPRINT GENERATOR
-// ═══════════════════════════════════════════════
 async function sha256Hex(str) {
   const buf = new TextEncoder().encode(str);
   const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -1501,9 +1469,6 @@ async function generateDeviceFingerprint() {
   return sha256Hex(parts.join('|'));
 }
 
-// ═══════════════════════════════════════════════
-//  ONBOARDING & WELCOME FLOW
-// ═══════════════════════════════════════════════
 function checkOnboardReady() {
   const nameOk = guestNameInput.value.trim().length > 0;
   const fpOk   = !!fingerprintHash;
@@ -1594,9 +1559,6 @@ function beginConnection() {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  BAN / SENTRY OVERLAY
-// ═══════════════════════════════════════════════
 function showDeviceBanned(reason) {
   if (isOwner) return;
   deviceBanned = true;
@@ -1609,9 +1571,6 @@ function showDeviceBanned(reason) {
   setStatus('error', 'Device Banned');
 }
 
-// ═══════════════════════════════════════════════
-//  PERMISSIONS
-// ═══════════════════════════════════════════════
 function applyPermissions() {
   if (isOwner) {
     $('media-controls').classList.remove('controls-locked');
@@ -1653,9 +1612,6 @@ function handlePermissionsUpdate(data) {
   sysLog('SYS', `PERMISSIONS UPDATED — PLAYBACK:${permissions.allowPlayback} SUGGEST:${permissions.allowSuggestions}`);
 }
 
-// ═══════════════════════════════════════════════
-//  MEDIA CONTROL BUTTONS
-// ═══════════════════════════════════════════════
 function sendMusicCmd(action) {
   if (!isOwner && permissions.allowPlayback === false) return;
   sendJson({ type: 'cmd_music', action: action, device: deviceId });
@@ -1668,17 +1624,28 @@ function setupMediaControls() {
   $('btn-next').addEventListener('click', () => sendMusicCmd('next'));
 }
 
-// ═══════════════════════════════════════════════
-//  LIVE SPOTIFY DJ JUKEBOX (WebSockets Query)
-// ═══════════════════════════════════════════════
+const SPOTIFY_CATALOG = [
+  { title: 'Starboy',            artist: 'The Weeknd, Daft Punk', uri: 'spotify:track:7MXVkk9YMctZqd1Srtv4MB', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
+  { title: 'Blinding Lights',    artist: 'The Weeknd',            uri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b', cover: 'https://i.scdn.co/image/ab67616d0000b273ef122c118cb1d5b3f7f9c96e' },
+  { title: 'Levitating',         artist: 'Dua Lipa',              uri: 'spotify:track:39LLxExYz6ewLAcYrzQQyP', cover: 'https://i.scdn.co/image/ab67616d0000b2739da85ff9ecf14a705d24e6c1' },
+  { title: 'Save Your Tears',    artist: 'The Weeknd',            uri: 'spotify:track:5QO79kh1waicV47BqGRL3g', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
+  { title: 'Cruel Summer',       artist: 'Taylor Swift',          uri: 'spotify:track:1BxfuPKGuaTgP7aM0Bbdwr', cover: 'https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647' },
+  { title: 'As It Was',          artist: 'Harry Styles',          uri: 'spotify:track:4Dvkj6JhhA12EX05fT7y2e', cover: 'https://i.scdn.co/image/ab67616d0000b2732e8ed79e177ff6011076f5f0' }
+];
+
 let spotifyDebounceTimer = null;
 
 function performSpotifySearch(query) {
-  const q = query.trim();
+  const q = query.trim().toLowerCase();
   if (!q) {
-    $('spotify-results').innerHTML = '';
+    renderSpotifyResults(SPOTIFY_CATALOG);
     return;
   }
+
+  const localMatches = SPOTIFY_CATALOG.filter(t =>
+    t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
+  );
+  if (localMatches.length > 0) renderSpotifyResults(localMatches);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     sendJson({
@@ -1693,15 +1660,9 @@ function renderSpotifyResults(tracks) {
   const container = $('spotify-results');
   container.innerHTML = '';
 
-  if (!tracks || tracks.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'jukebox-empty';
-    empty.textContent = 'No tracks found';
-    container.appendChild(empty);
-    return;
-  }
+  const list = (tracks && tracks.length > 0) ? tracks : SPOTIFY_CATALOG;
 
-  tracks.forEach(track => {
+  list.forEach(track => {
     const row = document.createElement('div');
     row.className = 'spotify-track';
 
@@ -1746,7 +1707,7 @@ function dispatchSuggestion(track, btnEl) {
       cover: track.cover,
     },
   });
-  sysLog('MED', `SUGGESTION SENT — ${track.title.toUpperCase()} / ${track.artist.toUpperCase()}`);
+  sysLog('MED', `SUGGESTION SENT — ${track.title.toUpperCase()}`);
   showSuggestToast();
   if (btnEl) {
     btnEl.textContent = 'SENT ✓';
@@ -1765,16 +1726,13 @@ function showSuggestToast() {
 
 function setupSpotifySearch() {
   const input = $('spotify-search-input');
+  renderSpotifyResults(SPOTIFY_CATALOG);
   input.addEventListener('input', () => {
     clearTimeout(spotifyDebounceTimer);
-    const val = input.value;
-    spotifyDebounceTimer = setTimeout(() => performSpotifySearch(val), 350);
+    spotifyDebounceTimer = setTimeout(() => performSpotifySearch(input.value), 300);
   });
 }
 
-// ═══════════════════════════════════════════════
-//  WEBSOCKET & NETWORKING
-// ═══════════════════════════════════════════════
 function setStatus(state, text) {
   connDot.className = 'conn-dot';
   if (state === 'active') { connDot.classList.add('active'); }
@@ -1853,6 +1811,11 @@ function connect() {
       return;
     }
 
+    if (data.type === 'cmd_spotify_play') {
+      updateNowPlayingTrack(data.track || data);
+      return;
+    }
+
     if (data.type === 'state') {
       updateTelemetry(data);
     }
@@ -1877,9 +1840,25 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, RECONNECT_INTERVAL);
 }
 
-// ═══════════════════════════════════════════════
-//  TELEMETRY UPDATE
-// ═══════════════════════════════════════════════
+function updateNowPlayingTrack(track) {
+  if (!track) return;
+  const title = track.title || track.music_title || track.name;
+  const artist = track.artist || track.music_artist;
+  const cover = track.cover || track.album_art || track.artwork;
+
+  if (title) $('media-title').textContent = title;
+  if (artist) $('media-artist').textContent = artist;
+  if (cover) $('now-playing-thumb').src = cover;
+
+  updateVisualizer(true);
+  const stateEl = $('media-state');
+  const syncDot = $('sync-dot');
+  stateEl.textContent = '[ TRANSMITTING ]';
+  stateEl.className = 'media-state on';
+  syncDot.className = 'sync-dot';
+  $('sync-label').textContent = 'Now Playing';
+}
+
 function updateTelemetry(d) {
   if (d.speed !== undefined) {
     const s = Math.round(d.speed);
@@ -1941,8 +1920,14 @@ function updateTelemetry(d) {
   }
 
   const playing = d.music_playing === true || d.music_playing === 'true' || d.music_playing === 1;
-  if (d.music_title  !== undefined) $('media-title').textContent  = d.music_title  || 'No Signal';
-  if (d.music_artist !== undefined) $('media-artist').textContent = d.music_artist || '—';
+  const currentTitle = d.music_title || d.title;
+  const currentArtist = d.music_artist || d.artist;
+  const currentCover = d.music_cover || d.cover || d.album_art;
+
+  if (currentTitle) $('media-title').textContent = currentTitle;
+  if (currentArtist) $('media-artist').textContent = currentArtist;
+  if (currentCover) $('now-playing-thumb').src = currentCover;
+
   updateVisualizer(playing);
   const stateEl = $('media-state');
   const syncDot = $('sync-dot');
@@ -1950,7 +1935,7 @@ function updateTelemetry(d) {
     stateEl.textContent = '[ TRANSMITTING ]';
     stateEl.className = 'media-state on';
     syncDot.className = 'sync-dot';
-    $('sync-label').textContent = 'Now Syncing';
+    $('sync-label').textContent = 'Now Playing';
   } else {
     stateEl.textContent = '[ STANDBY ]';
     stateEl.className = 'media-state off';
@@ -1959,9 +1944,6 @@ function updateTelemetry(d) {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  VISUALIZER
-// ═══════════════════════════════════════════════
 const VIS_BARS = 14;
 
 function buildVisualizer() {
@@ -1994,9 +1976,6 @@ function updateVisualizer(playing) {
   });
 }
 
-// ═══════════════════════════════════════════════
-//  BOOST SEGMENTS INIT
-// ═══════════════════════════════════════════════
 function initBoostSegs() {
   const segs = $('boost-segs');
   for (let i=0; i<10; i++) {
@@ -2006,9 +1985,6 @@ function initBoostSegs() {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  DEMO MODE
-// ═══════════════════════════════════════════════
 function startDemo() {
   sysLog('WARN', 'NO AUTH PARAMS — DEMO MODE ACTIVE');
   $('no-params-msg').style.display = 'block';
@@ -2021,16 +1997,13 @@ function startDemo() {
       acceleration: parseFloat((Math.sin(t*1.1)*8 + Math.random()*1).toFixed(1)),
       fuel_percent: parseFloat((72 - t*0.05).toFixed(1)),
       odometer:     parseFloat((12345.6 + t*0.1).toFixed(1)),
-      music_title:  'GHOST PROTOCOL',
-      music_artist: 'SYNTHETIC DIVISION',
+      music_title:  'STARBOY',
+      music_artist: 'THE WEEKND',
       music_playing: Math.sin(t) > -0.3,
     });
   }, 300);
 }
 
-// ═══════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════
 function init() {
   buildVisualizer();
   initBoostSegs();
