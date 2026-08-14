@@ -110,6 +110,7 @@ app.use(express.static(path.join(__dirname)));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/guest', (req, res) => res.sendFile(path.join(__dirname, 'guest.html')));
 app.get('/summary', (req, res) => res.sendFile(path.join(__dirname, 'summary.html')));
+app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 
 function reject(ws, type, message) {
     console.warn(`[REJECT] ${type} — ${message}`);
