@@ -1669,36 +1669,31 @@ function setupMediaControls() {
 }
 
 // ═══════════════════════════════════════════════
-//  SPOTIFY DJ JUKEBOX
+//  LIVE SPOTIFY DJ JUKEBOX (WebSockets Query)
 // ═══════════════════════════════════════════════
-const SPOTIFY_DEMO_CATALOG = [
-  { title: 'Starboy',            artist: 'The Weeknd',        uri: 'spotify:track:7MXVkk9YMctZqd1Srtv4MB', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
-  { title: 'Blinding Lights',    artist: 'The Weeknd',        uri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b', cover: 'https://i.scdn.co/image/ab67616d0000b273ef122c118cb1d5b3f7f9c96e' },
-  { title: 'Levitating',         artist: 'Dua Lipa',          uri: 'spotify:track:39LLxExYz6ewLAcYrzQQyP', cover: 'https://i.scdn.co/image/ab67616d0000b2739da85ff9ecf14a705d24e6c1' },
-  { title: 'Save Your Tears',    artist: 'The Weeknd',        uri: 'spotify:track:5QO79kh1waicV47BqGRL3g', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
-  { title: 'As It Was',          artist: 'Harry Styles',      uri: 'spotify:track:4Dvkj6JhhA12EX05fT7y2e', cover: 'https://i.scdn.co/image/ab67616d0000b2732e8ed79e177ff6011076f5f0' },
-  { title: 'Flowers',            artist: 'Miley Cyrus',       uri: 'spotify:track:4LRPiXqCikLlN15c3yImP7', cover: 'https://i.scdn.co/image/ab67616d0000b273f429549123dbe8552764ba1e' },
-  { title: 'Anti-Hero',          artist: 'Taylor Swift',      uri: 'spotify:track:0V3wPSX9ygBnCm8psDIegu', cover: 'https://i.scdn.co/image/ab67616d0000b273bb54dde68cd23e2a268ae0f5' },
-  { title: 'Vampire',            artist: 'Olivia Rodrigo',    uri: 'spotify:track:1kuGVB7EU95pJObxwvfwKS', cover: 'https://i.scdn.co/image/ab67616d0000b273e85259a1cae29a8d91f2093d' },
-  { title: 'Peaches',            artist: 'Justin Bieber',     uri: 'spotify:track:4iJyoBOLtHqaGxP12qzhQI', cover: 'https://i.scdn.co/image/ab67616d0000b273e6f407c7f3a0ec98845e4431' },
-  { title: 'Cruel Summer',       artist: 'Taylor Swift',      uri: 'spotify:track:1BxfuPKGuaTgP7aM0Bbdwr', cover: 'https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647' },
-  { title: 'Redbone',            artist: 'Childish Gambino',  uri: 'spotify:track:2LxnfXfEDpEE09rmDetgKY', cover: 'https://i.scdn.co/image/ab67616d0000b273a2c68f5db1c4d7fb35f8d78c' },
-  { title: 'Night Drive',        artist: 'Synthetic Division', uri: 'spotify:track:demoNightDrive000001',  cover: '' },
-];
-
 let spotifyDebounceTimer = null;
 
-function renderSpotifyResults(query) {
+function performSpotifySearch(query) {
+  const q = query.trim();
+  if (!q) {
+    $('spotify-results').innerHTML = '';
+    return;
+  }
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    sendJson({
+      type: 'search_spotify',
+      device: deviceId,
+      query: q
+    });
+  }
+}
+
+function renderSpotifyResults(tracks) {
   const container = $('spotify-results');
   container.innerHTML = '';
-  const q = query.trim().toLowerCase();
-  if (!q) return;
 
-  const matches = SPOTIFY_DEMO_CATALOG.filter(t =>
-    t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
-  ).slice(0, 8);
-
-  if (matches.length === 0) {
+  if (!tracks || tracks.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'jukebox-empty';
     empty.textContent = 'No tracks found';
@@ -1706,7 +1701,7 @@ function renderSpotifyResults(query) {
     return;
   }
 
-  matches.forEach(track => {
+  tracks.forEach(track => {
     const row = document.createElement('div');
     row.className = 'spotify-track';
 
@@ -1773,7 +1768,7 @@ function setupSpotifySearch() {
   input.addEventListener('input', () => {
     clearTimeout(spotifyDebounceTimer);
     const val = input.value;
-    spotifyDebounceTimer = setTimeout(() => renderSpotifyResults(val), 300);
+    spotifyDebounceTimer = setTimeout(() => performSpotifySearch(val), 350);
   });
 }
 
@@ -1840,6 +1835,11 @@ function connect() {
 
     if (data.type === 'auth_ok' || data.type === 'handshake_ok') {
       sysLog('SYS', 'HANDSHAKE VERIFIED — NEXUS ACCESS GRANTED');
+      return;
+    }
+
+    if (data.type === 'search_spotify_results') {
+      renderSpotifyResults(data.tracks);
       return;
     }
 

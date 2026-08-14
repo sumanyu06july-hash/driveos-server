@@ -95,7 +95,6 @@
 
   .stale-text { opacity: 0.45; filter: grayscale(1); }
 
-  /* Track Card Pop animation */
   .req-card-in { animation: reqIn 0.3s ease-out forwards; }
   @keyframes reqIn {
     from { opacity: 0; transform: translateY(-8px); }
@@ -373,15 +372,14 @@
 
   pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') window.triggerHandshakeVerification(); });
 
-  // 🔔 Web Audio Alert Chime for Incoming Song Suggestions
   function playAlertChime() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
       osc.connect(gain);
@@ -572,7 +570,7 @@
     }
 
     guests.forEach(g => {
-      const isOwner = g.isOwner || g.name === 'Owner:Sumanyu';
+      const isOwner = g.isOwner || (g.name && g.name.toLowerCase() === 'owner:sumanyu');
       const fpShort = g.fingerprint ? (g.fingerprint.slice(0, 10) + '…') : 'N/A';
       
       const tr = document.createElement('tr');
@@ -801,7 +799,6 @@
     while (feed.children.length > 40) feed.removeChild(feed.lastChild);
   }
 
-  // 🛡️ SECURITY HARDENED EMERGENCY PURGE (Requires PIN)
   window.executePanicPurgeCommand = function() {
     const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
     if (enteredPin === '1234') {
