@@ -7,31 +7,37 @@
 <title>DriveOS 2.0 · Passenger Nexus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
+  /* ── RESET & BASE CONFIGURATION ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:            #0a0a0a;
-    --bg2:           #0d0d0f;
+    --bg:            #06070a;
+    --bg2:           #090c12;
+    --card:          #0b0e14;
+    --card-alt:      #0e131d;
     --cyan:          #00F5FF;
     --cyan-dim:      #00c8d4;
-    --cyan-glow:     rgba(0,245,255,0.18);
+    --cyan-glow:     rgba(0,245,255,0.22);
     --cyan-soft:     rgba(0,245,255,0.08);
-    --gold:          #ffd700;
+    --gold:          #FFD700;
     --gold-glow:     rgba(255,215,0,0.35);
-    --slate:         #64748b;
-    --slate-lt:      #94a3b8;
+    --slate:         #52687a;
+    --slate-lt:      #8ba3b5;
     --red:           #ff2244;
-    --red-glow:      rgba(255,34,68,0.25);
-    --glass-bg:      rgba(255,255,255,0.03);
+    --red-glow:      rgba(255,34,68,0.28);
+    --green:         #00FF9C;
+    --border:        #14202c;
+    --border-hi:     #1d3244;
+    --glass-bg:      rgba(255,255,255,0.025);
     --glass-border:  rgba(0,245,255,0.18);
     --font: 'JetBrains Mono', 'Roboto Mono', monospace;
   }
 
   html, body {
     height: 100%;
-    background: var(--bg);
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,245,255,0.07), transparent 70%), var(--bg);
     color: var(--cyan);
     font-family: var(--font);
     overflow-x: hidden;
@@ -45,6 +51,7 @@
     position: relative;
   }
 
+  /* ── CRT SCANLINE OVERLAY ── */
   body::before {
     content: '';
     position: fixed;
@@ -53,13 +60,14 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(0,0,0,0.07) 2px,
-      rgba(0,0,0,0.07) 4px
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
     );
     pointer-events: none;
     z-index: 1000;
   }
 
+  /* ── AMBIENT CYBER GRID BG ── */
   body::after {
     content: '';
     position: fixed;
@@ -72,6 +80,7 @@
     z-index: 0;
   }
 
+  /* ── GLASS PANEL CONTAINER ── */
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(12px) saturate(1.4);
@@ -79,19 +88,34 @@
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     box-shadow:
-      0 0 20px rgba(0,245,255,0.05),
+      0 0 24px rgba(0,245,255,0.04),
       inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
-  #header {
+  /* ── MASTER COCKPIT CONTAINER ── */
+  .app-container {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
     position: relative;
     z-index: 10;
+  }
+
+  /* ═══════════════════════════════════════
+      HEADER
+  ═══════════════════════════════════════ */
+  #header {
+    position: relative;
+    z-index: 50;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0,245,255,0.1);
-    background: rgba(10,10,10,0.85);
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(0,245,255,0.12);
+    background: rgba(6,7,10,0.9);
     backdrop-filter: blur(20px);
     flex-shrink: 0;
   }
@@ -104,7 +128,7 @@
 
   .brand {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.25em;
     color: var(--cyan);
     text-transform: uppercase;
@@ -122,11 +146,12 @@
     letter-spacing: 0.15em;
     color: var(--slate-lt);
     text-transform: uppercase;
+    font-weight: 600;
   }
   .user-badge.owner {
     color: var(--gold);
     text-shadow: 0 0 10px var(--gold-glow);
-    font-weight: 700;
+    font-weight: 800;
   }
 
   .reset-badge-btn {
@@ -137,7 +162,7 @@
     font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.1em;
-    padding: 2px 7px;
+    padding: 2px 8px;
     border-radius: 4px;
     cursor: pointer;
     text-transform: uppercase;
@@ -145,7 +170,7 @@
   }
   .reset-badge-btn:hover {
     background: var(--cyan);
-    color: var(--bg);
+    color: #000;
     box-shadow: 0 0 10px var(--cyan-glow);
   }
 
@@ -201,20 +226,59 @@
   }
   .vid-odo-val {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--cyan);
     letter-spacing: 0.05em;
   }
 
+  /* ═══════════════════════════════════════
+      MAIN COCKPIT GRID (DESKTOP / MOBILE)
+  ═══════════════════════════════════════ */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .cockpit-view-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 980px) {
+    .cockpit-view-layout {
+      grid-template-columns: 1.15fr 1fr;
+      align-items: start;
+    }
+  }
+
+  .left-instrument-bay {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .right-cockpit-bay {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ═══════════════════════════════════════
+      OWNER COMMAND DOCK (SECRET ROOT MENU)
+  ═══════════════════════════════════════ */
   #owner-command-dock {
     display: none;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px 16px;
-    margin: 12px 14px 0;
+    gap: 12px;
+    padding: 16px 18px;
     border: 1px solid var(--gold);
     box-shadow: 0 0 25px var(--gold-glow), inset 0 0 15px rgba(255,215,0,0.05);
-    background: rgba(22,18,2,0.85);
+    background: rgba(18,14,2,0.92);
     border-radius: 12px;
   }
   #owner-command-dock.visible {
@@ -227,7 +291,7 @@
   }
   .owner-dock-title {
     font-size: 9.5px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.25em;
     color: var(--gold);
     text-transform: uppercase;
@@ -243,7 +307,7 @@
   .owner-btn {
     font-family: var(--font);
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #000;
@@ -260,7 +324,7 @@
   .owner-btn.panic {
     background: var(--red);
     color: #fff;
-    box-shadow: 0 0 10px var(--red-glow);
+    box-shadow: 0 0 12px var(--red-glow);
     grid-column: 1 / -1;
   }
   .owner-vol-wrap {
@@ -269,44 +333,39 @@
     gap: 8px;
     margin-top: 2px;
   }
+  .owner-vol-wrap span { font-size: 8.5px; font-weight: 700; color: var(--gold); }
   .owner-vol-slider {
     flex: 1;
     accent-color: var(--gold);
+    cursor: pointer;
   }
 
-  #main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px 14px 8px;
-    position: relative;
-    z-index: 2;
-    overflow-y: auto;
-  }
-
+  /* ═══════════════════════════════════════
+      SPEEDOMETER VELOCITY HUD
+  ═══════════════════════════════════════ */
   .speed-panel {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px 20px 18px;
+    padding: 34px 20px 28px;
     position: relative;
     overflow: hidden;
   }
 
   .speed-label {
     font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0.35em;
     color: var(--slate);
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
 
   .speed-value {
-    font-size: clamp(72px, 22vw, 110px);
-    font-weight: 700;
-    line-height: 1;
+    font-size: clamp(76px, 15vw, 112px);
+    font-weight: 800;
+    line-height: 0.95;
     color: var(--cyan);
     letter-spacing: -2px;
     position: relative;
@@ -335,9 +394,10 @@
 
   .speed-unit {
     font-size: 13px;
+    font-weight: 700;
     letter-spacing: 0.3em;
     color: var(--slate-lt);
-    margin-top: 2px;
+    margin-top: 6px;
     text-transform: uppercase;
   }
 
@@ -355,14 +415,17 @@
   .speed-arc:nth-child(2) { width:180px; height:90px; border-color:rgba(0,245,255,0.05); bottom:14px; }
   .speed-arc:nth-child(3) { width:140px; height:70px; border-color:rgba(0,245,255,0.04); bottom:18px; }
 
+  /* ═══════════════════════════════════════
+      TELEMETRY INSTRUMENTS
+  ═══════════════════════════════════════ */
   .telem-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 12px;
   }
 
   .telem-tile {
-    padding: 14px 14px 12px;
+    padding: 16px 14px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -381,6 +444,7 @@
 
   .tile-label {
     font-size: 8px;
+    font-weight: 700;
     letter-spacing: 0.25em;
     color: var(--slate);
     text-transform: uppercase;
@@ -388,7 +452,7 @@
 
   .tile-value {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--cyan);
     line-height: 1;
     text-shadow: 0 0 20px rgba(0,245,255,0.4);
@@ -460,11 +524,10 @@
   .boost-seg.lit.max  { background: var(--red);  box-shadow: 0 0 8px var(--red); }
 
   .fuel-tile {
-    grid-column: 1 / -1;
     flex-direction: row;
     align-items: center;
     gap: 14px;
-    padding: 12px 14px;
+    padding: 14px 16px;
   }
   .fuel-info {
     display: flex;
@@ -477,7 +540,7 @@
     align-items: baseline;
     gap: 3px;
   }
-  .fuel-big { font-size: 22px; font-weight: 700; color: var(--cyan); line-height: 1; }
+  .fuel-big { font-size: 24px; font-weight: 800; color: var(--cyan); line-height: 1; }
   .fuel-big.warn { color: #f59e0b; text-shadow: 0 0 10px #f59e0b; }
   .fuel-big.crit { color: var(--red);  text-shadow: 0 0 10px var(--red); }
 
@@ -520,13 +583,16 @@
   .fuel-tick-row {
     display: flex;
     justify-content: space-between;
-    font-size: 7px;
+    font-size: 7.5px;
     color: rgba(100,116,139,0.5);
     letter-spacing: 0.05em;
   }
 
+  /* ═══════════════════════════════════════
+      MEDIA RECEIVER & SCRUBBER
+  ═══════════════════════════════════════ */
   .media-panel {
-    padding: 14px;
+    padding: 14px 16px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -548,7 +614,7 @@
     display: flex;
     align-items: flex-end;
     gap: 3px;
-    height: 40px;
+    height: 38px;
     flex-shrink: 0;
   }
 
@@ -578,7 +644,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
   }
 
   .media-sync-tag {
@@ -630,7 +696,7 @@
   .media-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
     position: relative;
   }
@@ -649,7 +715,7 @@
   }
   .media-ctrl-btn:hover:not(:disabled) { background: rgba(0,245,255,0.14); box-shadow: 0 0 10px var(--cyan-glow); }
   .media-ctrl-btn:active:not(:disabled) { transform: scale(0.92); }
-  #btn-play-pause { width: 40px; height: 40px; font-size: 15px; }
+  #btn-play-pause { width: 38px; height: 38px; font-size: 15px; }
   .media-ctrl-btn:disabled { cursor: not-allowed; }
 
   .controls-locked {
@@ -674,18 +740,24 @@
   }
   .controls-locked-label.visible { display: flex; }
 
+  /* ═══════════════════════════════════════
+      SPOTIFY DJ JUKEBOX
+  ═══════════════════════════════════════ */
   .jukebox-panel {
-    padding: 14px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   .jukebox-title {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.2em;
     color: var(--cyan);
     text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   .jukebox-lock-label {
     display: none;
@@ -708,7 +780,7 @@
     background: rgba(0,245,255,0.04);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 11px 14px;
     outline: none;
     width: 100%;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -724,16 +796,17 @@
   #spotify-results {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 280px;
+    gap: 8px;
+    max-height: 260px;
     overflow-y: auto;
+    padding-right: 4px;
   }
 
   .spotify-track {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px;
+    padding: 8px 10px;
     border-radius: 8px;
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(0,245,255,0.08);
@@ -742,7 +815,7 @@
   .spotify-track:hover { background: rgba(0,245,255,0.05); border-color: rgba(0,245,255,0.2); }
 
   .spotify-thumb {
-    width: 40px; height: 40px;
+    width: 38px; height: 38px;
     border-radius: 6px;
     flex-shrink: 0;
     object-fit: cover;
@@ -758,14 +831,14 @@
   }
   .spotify-track-title {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--cyan);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .spotify-track-artist {
-    font-size: 9px;
+    font-size: 9.5px;
     color: var(--slate-lt);
     white-space: nowrap;
     overflow: hidden;
@@ -774,15 +847,15 @@
 
   .spotify-suggest-btn {
     font-family: var(--font);
-    font-size: 8px;
-    font-weight: 700;
+    font-size: 8.5px;
+    font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--bg);
     background: var(--cyan);
     border: none;
     border-radius: 6px;
-    padding: 8px 10px;
+    padding: 8px 12px;
     cursor: pointer;
     flex-shrink: 0;
     box-shadow: 0 0 10px var(--cyan-glow);
@@ -790,29 +863,22 @@
   }
   .spotify-suggest-btn:hover { opacity: 0.85; }
   .spotify-suggest-btn:active { transform: scale(0.95); }
-  .spotify-suggest-btn.sent { background: var(--slate); color: var(--bg); box-shadow: none; pointer-events: none; }
+  .spotify-suggest-btn.sent { background: var(--slate); color: #fff; box-shadow: none; pointer-events: none; }
 
-  .jukebox-empty {
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    color: var(--slate);
-    text-align: center;
-    padding: 14px 4px;
-    text-transform: uppercase;
-  }
-
+  /* ── SUGGESTION TOAST ── */
   #suggest-toast {
     position: fixed;
     left: 50%;
-    bottom: 108px;
+    bottom: 110px;
     transform: translateX(-50%) translateY(20px);
     z-index: 6000;
-    background: rgba(0,20,22,0.92);
+    background: rgba(0,20,22,0.95);
     border: 1px solid var(--cyan);
     box-shadow: 0 0 20px var(--cyan-glow), 0 0 40px var(--cyan-glow);
     border-radius: 8px;
     padding: 10px 18px;
     font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--cyan);
     text-transform: uppercase;
@@ -826,24 +892,28 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  /* ═══════════════════════════════════════
+      SYSTEM LOG CONSOLE FOOTER
+  ═══════════════════════════════════════ */
   #footer {
     flex-shrink: 0;
     position: relative;
     z-index: 10;
-    border-top: 1px solid rgba(0,245,255,0.1);
-    background: rgba(10,10,10,0.9);
+    border-top: 1px solid rgba(0,245,255,0.12);
+    background: rgba(6,7,10,0.92);
     backdrop-filter: blur(20px);
     padding: 0;
-    height: 90px;
+    height: 96px;
     overflow: hidden;
   }
 
   .log-header {
     font-size: 8px;
+    font-weight: 700;
     letter-spacing: 0.25em;
     color: var(--slate);
     text-transform: uppercase;
-    padding: 6px 14px 4px;
+    padding: 6px 16px 4px;
     border-bottom: 1px solid rgba(0,245,255,0.06);
     display: flex;
     align-items: center;
@@ -858,9 +928,9 @@
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
   #log-stream {
-    height: 68px;
+    height: 72px;
     overflow: hidden;
-    padding: 4px 14px;
+    padding: 4px 16px;
     display: flex;
     flex-direction: column-reverse;
     gap: 2px;
@@ -889,12 +959,13 @@
   .log-line .tag-link  { color: #f472b6; }
   .log-msg { color: var(--slate-lt); }
 
+  /* ── ONBOARDING MODAL & WELCOME SCREEN ── */
   #onboard-overlay {
     position: fixed;
     inset: 0;
     z-index: 9500;
-    background: rgba(5,5,7,0.94);
-    backdrop-filter: blur(14px);
+    background: rgba(5,5,7,0.96);
+    backdrop-filter: blur(16px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -905,7 +976,7 @@
 
   .onboard-card {
     width: 100%;
-    max-width: 360px;
+    max-width: 380px;
     padding: 28px 24px;
     display: flex;
     flex-direction: column;
@@ -917,7 +988,7 @@
 
   .onboard-title {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.3em;
     color: var(--cyan);
     text-shadow: 0 0 20px var(--cyan);
@@ -940,6 +1011,7 @@
   }
   .onboard-label {
     font-size: 8px;
+    font-weight: 700;
     letter-spacing: 0.25em;
     color: var(--slate);
     text-transform: uppercase;
@@ -980,7 +1052,7 @@
   .onboard-btn {
     font-family: var(--font);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--bg);
@@ -1006,7 +1078,7 @@
   #welcome-greeting.visible { display: flex; }
   .greeting-title {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.25em;
     color: var(--cyan);
     text-transform: uppercase;
@@ -1018,6 +1090,7 @@
     text-transform: uppercase;
   }
 
+  /* ── ACCESS DENIED & BANNED SCREENS ── */
   #access-denied, #device-banned {
     position: fixed;
     inset: 0;
@@ -1047,7 +1120,7 @@
   .denied-icon svg { stroke: var(--red); }
   .denied-title {
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.3em;
     color: var(--red);
     text-shadow: 0 0 20px var(--red);
@@ -1069,7 +1142,7 @@
     font-family: var(--font);
     font-size: 10px;
     letter-spacing: 0.2em;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     color: var(--bg);
     background: var(--red);
@@ -1080,6 +1153,7 @@
     box-shadow: 0 0 20px var(--red-glow);
   }
 
+  /* ── RECONNECT BANNER ── */
   #reconnect-banner {
     display: none;
     position: fixed;
@@ -1096,6 +1170,7 @@
   }
   #reconnect-banner.visible { display: block; }
 
+  /* ── INIT LOADER ── */
   #init-overlay {
     position: fixed;
     inset: 0;
@@ -1111,7 +1186,7 @@
   #init-overlay.fade { opacity: 0; pointer-events: none; }
   .init-logo {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.4em;
     color: var(--cyan);
     text-shadow: 0 0 20px var(--cyan);
@@ -1187,8 +1262,12 @@
     [SECURITY PROTOCOL]: THIS HARDWARE DEVICE HAS BEEN<br>
     BANNED BY THE COCKPIT ADMIN.
   </div>
+  <button class="denied-btn" onclick="localStorage.clear(); location.reload();">
+    ▶ Clear Local Storage & Reconnect
+  </button>
 </div>
 
+<!-- ONBOARDING & WELCOME OVERLAY -->
 <div id="onboard-overlay">
   <div class="glass onboard-card" id="onboard-form-card">
     <div class="onboard-title">Co-Pilot Nexus</div>
@@ -1214,145 +1293,170 @@
   ⚠ [LINK LOST]: Attempting to re-establish sync...
 </div>
 
-<header id="header">
-  <div class="header-left">
-    <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
-    <div class="user-badge-row">
-      <div class="user-badge" id="user-badge">PASSENGER CO-PILOT</div>
-      <button class="reset-badge-btn" onclick="resetProfile()">[ ↻ RESET ]</button>
-    </div>
-    <div class="conn-status">
-      <div class="conn-dot" id="conn-dot"></div>
-      <span id="conn-text">Initializing...</span>
-    </div>
-  </div>
-  <div class="vehicle-id">
-    <div class="vid-device" id="vid-device">—</div>
-    <div class="vid-odo-label">Chassis Odo</div>
-    <div class="vid-odo-val" id="vid-odo">[ — KM ]</div>
-  </div>
-</header>
+<!-- APP WRAPPER -->
+<div class="app-container">
 
-<div id="owner-command-dock" class="glass">
-  <div class="owner-dock-title">
-    <span>👑 Master Root Console</span>
-    <span style="font-size: 8px; color: var(--gold);">AUTHENTICATED: SUMANYU</span>
-  </div>
-  <div class="owner-grid">
-    <button class="owner-btn" onclick="sendJson({type: 'cmd_trigger_failover'})">⚡ Trigger Failover</button>
-    <button class="owner-btn" onclick="sendJson({type: 'toggle_parked_guard', active: true})">🛡️ Toggle Sentry</button>
-    <button class="owner-btn panic" onclick="sendJson({type: 'cmd_panic', active: true})">🚨 Master Emergency Cockpit Panic</button>
-  </div>
-  <div class="owner-vol-wrap">
-    <span style="font-size: 8px; color: var(--gold);">MASTER VOL:</span>
-    <input type="range" class="owner-vol-slider" min="0" max="100" value="75" onchange="sendJson({type: 'cmd_volume', action: 'set', value: this.value})"/>
-  </div>
+  <header id="header" class="glass">
+    <div class="header-left">
+      <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
+      <div class="user-badge-row">
+        <div class="user-badge" id="user-badge">PASSENGER CO-PILOT</div>
+        <button class="reset-badge-btn" onclick="resetProfile()">[ ↻ RESET ]</button>
+      </div>
+      <div class="conn-status">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-text">Initializing...</span>
+      </div>
+    </div>
+    <div class="vehicle-id">
+      <div class="vid-device" id="vid-device">—</div>
+      <div class="vid-odo-label">Chassis Odo</div>
+      <div class="vid-odo-val" id="vid-odo">[ — KM ]</div>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <div class="cockpit-view-layout">
+
+      <!-- LEFT COLUMN: SENSORS & VELOCITY -->
+      <div class="left-instrument-bay">
+        
+        <div class="glass speed-panel">
+          <div class="speed-arc"></div>
+          <div class="speed-arc"></div>
+          <div class="speed-arc"></div>
+          <div class="speed-label">Vehicle Velocity</div>
+          <div class="speed-value" id="speed-val">000</div>
+          <div class="speed-unit">km / h</div>
+        </div>
+
+        <div class="telem-grid">
+          <div class="glass telem-tile">
+            <div class="tile-label">G-Force</div>
+            <div>
+              <span class="tile-value" id="gforce-val">0.00</span>
+              <span class="tile-unit">G</span>
+            </div>
+            <div class="gforce-bar-wrap">
+              <div class="gforce-bar-track">
+                <div class="gforce-bar-fill" id="gforce-bar"></div>
+              </div>
+              <div class="gforce-label-row">
+                <span>0.0G</span>
+                <span id="stability-tag" class="stability-tag">STABLE</span>
+                <span>2.0G</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass telem-tile">
+            <div class="tile-label">Acceleration</div>
+            <div>
+              <span class="tile-value" id="accel-val">0.0</span>
+              <span class="tile-unit">m/s²</span>
+            </div>
+            <div class="boost-row" id="boost-segs"></div>
+            <div class="tile-label" id="boost-label" style="color:var(--cyan)">NOMINAL</div>
+          </div>
+        </div>
+
+        <div class="glass telem-tile fuel-tile">
+          <div class="fuel-info">
+            <div class="tile-label">Fuel Reserve</div>
+            <div class="fuel-val-row">
+              <span class="fuel-big" id="fuel-val">--</span>
+              <span class="tile-unit">%</span>
+            </div>
+            <div class="tile-label" id="fuel-status" style="color:var(--cyan)">NOMINAL</div>
+          </div>
+          <div class="fuel-bar-wrap">
+            <div class="fuel-bar-track">
+              <div class="fuel-bar-fill" id="fuel-bar"></div>
+            </div>
+            <div class="fuel-tick-row">
+              <span>E</span><span>25</span><span>50</span><span>75</span><span>F</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: OWNER ROOT DOCK, MEDIA & SPOTIFY JUKEBOX -->
+      <div class="right-cockpit-bay">
+        
+        <!-- SECRET OWNER ROOT COMMAND DOCK -->
+        <div id="owner-command-dock" class="glass">
+          <div class="owner-dock-title">
+            <span>👑 Master Root Console</span>
+            <span style="font-size: 8px; color: var(--gold);">AUTHENTICATED: SUMANYU</span>
+          </div>
+          <div class="owner-grid">
+            <button class="owner-btn" onclick="sendJson({type: 'cmd_trigger_failover'})">⚡ Trigger Failover</button>
+            <button class="owner-btn" onclick="sendJson({type: 'toggle_parked_guard', active: true})">🛡️ Toggle Sentry</button>
+            <button class="owner-btn panic" onclick="sendJson({type: 'cmd_panic', active: true})">🚨 Master Emergency Cockpit Panic</button>
+          </div>
+          <div class="owner-vol-wrap">
+            <span>MASTER VOL:</span>
+            <input type="range" class="owner-vol-slider" min="0" max="100" value="75" onchange="sendJson({type: 'cmd_volume', action: 'set', value: this.value})"/>
+          </div>
+        </div>
+
+        <!-- Real-time Media Panel & Now Playing Metadata Display -->
+        <div class="glass media-panel">
+          <img id="now-playing-thumb" class="now-playing-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><rect width='44' height='44' fill='%230e131c'/><text x='50%25' y='55%25' font-size='16' fill='%2300F5FF' text-anchor='middle' font-family='monospace'>♪</text></svg>" alt="Album Art" />
+          <div class="visualizer" id="visualizer"></div>
+          <div class="media-info">
+            <div class="media-sync-tag">
+              <div class="sync-dot" id="sync-dot"></div>
+              <span id="sync-label">Freq Monitor</span>
+            </div>
+            <div class="media-title" id="media-title">No Signal</div>
+            <div class="media-artist" id="media-artist">—</div>
+            <div class="media-state off" id="media-state">[ STANDBY ]</div>
+          </div>
+          <div class="media-controls" id="media-controls">
+            <div class="controls-locked-label" id="controls-locked-label">[ CONTROLS<br>LOCKED BY<br>DRIVER ]</div>
+            <button class="media-ctrl-btn" id="btn-prev" title="Previous">⏮</button>
+            <button class="media-ctrl-btn" id="btn-play-pause" title="Play/Pause">⏯</button>
+            <button class="media-ctrl-btn" id="btn-next" title="Next">⏭</button>
+          </div>
+        </div>
+
+        <!-- Spotify DJ Jukebox -->
+        <div class="glass jukebox-panel">
+          <div class="jukebox-title">
+            <span>🎵 Spotify DJ Jukebox</span>
+            <span style="font-size: 8px; color: var(--slate);">Global Track Engine</span>
+          </div>
+          <div class="jukebox-lock-label" id="jukebox-lock-label">[ SUGGESTIONS DISABLED ]</div>
+          <input id="spotify-search-input" type="text" placeholder="Search any track or artist on Spotify..." autocomplete="off"/>
+          <div id="spotify-results"></div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer id="footer">
+    <div class="log-header">System Log</div>
+    <div id="log-stream"></div>
+  </footer>
+
 </div>
 
-<main id="main">
-
-  <div class="glass speed-panel">
-    <div class="speed-arc"></div>
-    <div class="speed-arc"></div>
-    <div class="speed-arc"></div>
-    <div class="speed-label">Vehicle Velocity</div>
-    <div class="speed-value" id="speed-val">000</div>
-    <div class="speed-unit">km / h</div>
-  </div>
-
-  <div class="telem-grid">
-
-    <div class="glass telem-tile">
-      <div class="tile-label">G-Force</div>
-      <div>
-        <span class="tile-value" id="gforce-val">0.00</span>
-        <span class="tile-unit">G</span>
-      </div>
-      <div class="gforce-bar-wrap">
-        <div class="gforce-bar-track">
-          <div class="gforce-bar-fill" id="gforce-bar"></div>
-        </div>
-        <div class="gforce-label-row">
-          <span>0.0G</span>
-          <span id="stability-tag" class="stability-tag">STABLE</span>
-          <span>2.0G</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="glass telem-tile">
-      <div class="tile-label">Acceleration</div>
-      <div>
-        <span class="tile-value" id="accel-val">0.0</span>
-        <span class="tile-unit">m/s²</span>
-      </div>
-      <div class="boost-row" id="boost-segs"></div>
-      <div class="tile-label" id="boost-label" style="color:var(--cyan)">NOMINAL</div>
-    </div>
-
-    <div class="glass telem-tile fuel-tile">
-      <div class="fuel-info">
-        <div class="tile-label">Fuel Reserve</div>
-        <div class="fuel-val-row">
-          <span class="fuel-big" id="fuel-val">--</span>
-          <span class="tile-unit">%</span>
-        </div>
-        <div class="tile-label" id="fuel-status" style="color:var(--cyan)">NOMINAL</div>
-      </div>
-      <div class="fuel-bar-wrap">
-        <div class="fuel-bar-track">
-          <div class="fuel-bar-fill" id="fuel-bar"></div>
-        </div>
-        <div class="fuel-tick-row">
-          <span>E</span><span>25</span><span>50</span><span>75</span><span>F</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Real-time Media Panel & Now Playing Metadata Display -->
-  <div class="glass media-panel">
-    <img id="now-playing-thumb" class="now-playing-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><rect width='44' height='44' fill='%230e131c'/><text x='50%25' y='55%25' font-size='16' fill='%2300F5FF' text-anchor='middle' font-family='monospace'>♪</text></svg>" alt="Album Art" />
-    <div class="visualizer" id="visualizer"></div>
-    <div class="media-info">
-      <div class="media-sync-tag">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span id="sync-label">Freq Monitor</span>
-      </div>
-      <div class="media-title" id="media-title">No Signal</div>
-      <div class="media-artist" id="media-artist">—</div>
-      <div class="media-state off" id="media-state">[ STANDBY ]</div>
-    </div>
-    <div class="media-controls" id="media-controls">
-      <div class="controls-locked-label" id="controls-locked-label">[ CONTROLS<br>LOCKED BY<br>DRIVER ]</div>
-      <button class="media-ctrl-btn" id="btn-prev" title="Previous">⏮</button>
-      <button class="media-ctrl-btn" id="btn-play-pause" title="Play/Pause">⏯</button>
-      <button class="media-ctrl-btn" id="btn-next" title="Next">⏭</button>
-    </div>
-  </div>
-
-  <div class="glass jukebox-panel">
-    <div class="jukebox-title">🎵 Spotify DJ Jukebox</div>
-    <div class="jukebox-lock-label" id="jukebox-lock-label">[ SUGGESTIONS DISABLED ]</div>
-    <input id="spotify-search-input" type="text" placeholder="Search Spotify tracks or artists..." autocomplete="off"/>
-    <div id="spotify-results"></div>
-  </div>
-
-</main>
-
 <div id="suggest-toast">Suggestion Dispatched to Driver Queue ⚡</div>
-
-<footer id="footer">
-  <div class="log-header">System Log</div>
-  <div id="log-stream"></div>
-</footer>
 
 <div class="no-params-msg" id="no-params-msg">
   ⚠ No device/token in URL — operating in demo mode
 </div>
 
 <script>
+// ═══════════════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════════════
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
@@ -1368,12 +1472,15 @@ let connected    = false;
 let authDenied   = false;
 let firstConnect = true;
 
+// ── guest identity / fingerprint / permissions ──
 let guestName       = localStorage.getItem('guest_name') || '';
 let fingerprintHash = localStorage.getItem('device_fingerprint') || '';
 let isOwner         = guestName.trim().toLowerCase() === 'owner:sumanyu';
-let deviceBanned    = localStorage.getItem('device_banned') === '1';
-let permissions      = { allowPlayback: true, allowSuggestions: true };
+let permissions     = { allowPlayback: true, allowSuggestions: true };
 
+// ═══════════════════════════════════════════════
+//  ELEMENTS
+// ═══════════════════════════════════════════════
 const $  = id => document.getElementById(id);
 const connDot     = $('conn-dot');
 const connText    = $('conn-text');
@@ -1390,6 +1497,9 @@ const btnGuestLogin   = $('btn-guest-login');
 const onboardFpDot    = $('onboard-fp-dot');
 const onboardFpStatus = $('onboard-fp-status');
 
+// ═══════════════════════════════════════════════
+//  SYSTEM LOG
+// ═══════════════════════════════════════════════
 const LOG_TAGS = {
   SYS:   'tag-sys',
   OWNER: 'tag-owner',
@@ -1399,7 +1509,7 @@ const LOG_TAGS = {
   WARN:  'tag-warn',
   LINK:  'tag-link',
 };
-const MAX_LOG = 30;
+const MAX_LOG = 35;
 
 function sysLog(category, message) {
   const tagClass = LOG_TAGS[category] || 'tag-sys';
@@ -1413,6 +1523,9 @@ function sysLog(category, message) {
   }
 }
 
+// ═══════════════════════════════════════════════
+//  HARDWARE + CANVAS FINGERPRINT GENERATOR
+// ═══════════════════════════════════════════════
 async function sha256Hex(str) {
   const buf = new TextEncoder().encode(str);
   const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -1469,6 +1582,9 @@ async function generateDeviceFingerprint() {
   return sha256Hex(parts.join('|'));
 }
 
+// ═══════════════════════════════════════════════
+//  ONBOARDING & WELCOME FLOW
+// ═══════════════════════════════════════════════
 function checkOnboardReady() {
   const nameOk = guestNameInput.value.trim().length > 0;
   const fpOk   = !!fingerprintHash;
@@ -1506,7 +1622,7 @@ function completeOnboarding(name) {
     onboardOverlay.classList.add('hidden');
     updateUserBadge();
     beginConnection();
-  }, 1400);
+  }, 1300);
 }
 
 function enableOwnerFeatures() {
@@ -1529,7 +1645,7 @@ function updateUserBadge() {
 }
 
 function resetProfile() {
-  localStorage.removeItem('guest_name');
+  localStorage.clear();
   location.reload();
 }
 
@@ -1559,11 +1675,12 @@ function beginConnection() {
   }
 }
 
+// ═══════════════════════════════════════════════
+//  BAN / SENTRY OVERLAY
+// ═══════════════════════════════════════════════
 function showDeviceBanned(reason) {
   if (isOwner) return;
-  deviceBanned = true;
   authDenied = true;
-  localStorage.setItem('device_banned', '1');
   if (ws) { try { ws.close(); } catch(e) {} }
   onboardOverlay.classList.add('hidden');
   deviceBannedEl.classList.add('visible');
@@ -1571,6 +1688,9 @@ function showDeviceBanned(reason) {
   setStatus('error', 'Device Banned');
 }
 
+// ═══════════════════════════════════════════════
+//  PERMISSIONS
+// ═══════════════════════════════════════════════
 function applyPermissions() {
   if (isOwner) {
     $('media-controls').classList.remove('controls-locked');
@@ -1612,6 +1732,9 @@ function handlePermissionsUpdate(data) {
   sysLog('SYS', `PERMISSIONS UPDATED — PLAYBACK:${permissions.allowPlayback} SUGGEST:${permissions.allowSuggestions}`);
 }
 
+// ═══════════════════════════════════════════════
+//  MEDIA CONTROL BUTTONS
+// ═══════════════════════════════════════════════
 function sendMusicCmd(action) {
   if (!isOwner && permissions.allowPlayback === false) return;
   sendJson({ type: 'cmd_music', action: action, device: deviceId });
@@ -1624,6 +1747,9 @@ function setupMediaControls() {
   $('btn-next').addEventListener('click', () => sendMusicCmd('next'));
 }
 
+// ═══════════════════════════════════════════════
+//  SPOTIFY DJ JUKEBOX ENGINE
+// ═══════════════════════════════════════════════
 const SPOTIFY_CATALOG = [
   { title: 'Starboy',            artist: 'The Weeknd, Daft Punk', uri: 'spotify:track:7MXVkk9YMctZqd1Srtv4MB', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
   { title: 'Blinding Lights',    artist: 'The Weeknd',            uri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b', cover: 'https://i.scdn.co/image/ab67616d0000b273ef122c118cb1d5b3f7f9c96e' },
@@ -1670,7 +1796,7 @@ function renderSpotifyResults(tracks) {
     thumb.className = 'spotify-thumb';
     thumb.loading = 'lazy';
     thumb.src = track.cover || 'data:image/svg+xml;utf8,' + encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#00F5FF" text-anchor="middle" font-family="monospace">♪</text></svg>`
+      `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38"><rect width="38" height="38" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#00F5FF" text-anchor="middle" font-family="monospace">♪</text></svg>`
     );
     thumb.alt = track.title;
 
@@ -1733,6 +1859,9 @@ function setupSpotifySearch() {
   });
 }
 
+// ═══════════════════════════════════════════════
+//  WEBSOCKET NETWORKING
+// ═══════════════════════════════════════════════
 function setStatus(state, text) {
   connDot.className = 'conn-dot';
   if (state === 'active') { connDot.classList.add('active'); }
@@ -1750,7 +1879,7 @@ function sendJson(json) {
 }
 
 function connect() {
-  if (authDenied || (deviceBanned && !isOwner)) return;
+  if (authDenied) return;
 
   try { 
     ws = new WebSocket(`${WS_URL}?role=guest&device=${encodeURIComponent(deviceId)}&token=${encodeURIComponent(token)}`); 
@@ -2018,14 +2147,8 @@ function init() {
     setTimeout(() => initOverlay.style.display='none', 650);
     sysLog('SYS', `PASSENGER NEXUS ONLINE — UNIT ${deviceId.toUpperCase()}`);
     sysLog('SYS', 'ENCRYPTED CHANNEL PROTOCOL ACTIVE');
-
-    if (deviceBanned && !isOwner) {
-      showDeviceBanned('ADMIN_PERMANENT_BAN');
-      return;
-    }
-
     setupOnboarding();
-  }, 1500);
+  }, 1400);
 }
 
 document.addEventListener('DOMContentLoaded', init);
