@@ -20,6 +20,7 @@
     --amber:     #FFB000;
     --green:     #00FF9C;
     --rose:      #FF3B5C;
+    --gold:      #FFD700;
     --text:      #D8FBFF;
     --muted:     #5C7480;
   }
@@ -58,6 +59,8 @@
 
   .btn-cyan{ color: var(--cyan); border-color: rgba(0,245,255,0.35); }
   .btn-cyan:hover{ background: rgba(0,245,255,0.08); box-shadow: 0 0 16px -6px rgba(0,245,255,0.6); }
+  .btn-green{ color: var(--green); border-color: rgba(0,255,156,0.35); }
+  .btn-green:hover{ background: rgba(0,255,156,0.08); box-shadow: 0 0 16px -6px rgba(0,255,156,0.6); }
   .btn-rose{ color: var(--rose); border-color: rgba(255,59,92,0.35); }
   .btn-rose:hover{ background: rgba(255,59,92,0.08); box-shadow: 0 0 16px -6px rgba(255,59,92,0.6); }
   .btn-ghost{ color: var(--muted); }
@@ -91,6 +94,13 @@
   input:checked + .slider:before { transform: translateX(14px); background-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 
   .stale-text { opacity: 0.45; filter: grayscale(1); }
+
+  /* Track Card Pop animation */
+  .req-card-in { animation: reqIn 0.3s ease-out forwards; }
+  @keyframes reqIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 </style>
 </head>
 
@@ -107,7 +117,7 @@
     <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security credentials to open administrative console data streams.</p>
 
     <input id="pin-input" type="password" placeholder="••••" maxlength="4"
-      class="w-full bg-black/40 border border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" autocomplete="off">
+      class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" autocomplete="off">
 
     <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3" onclick="window.triggerHandshakeVerification()">Verify Access Credentials</button>
     <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
@@ -145,31 +155,119 @@
       <p id="metric-online-count" class="font-display text-2xl font-bold text-[--cyan]">0</p>
     </div>
     <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Firewall Banned</p>
+      <p class="kv-label mb-1">Connected Guests</p>
+      <p id="metric-guests-count" class="font-display text-2xl font-bold text-[--green]">0</p>
+    </div>
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Pending Song Requests</p>
+      <p id="metric-pending-requests" class="font-display text-2xl font-bold text-[--amber]">0</p>
+    </div>
+    <div class="panel rounded p-4">
+      <p class="kv-label mb-1">Hardware Bans</p>
       <p id="metric-banned-count" class="font-display text-2xl font-bold text-[--rose]">0</p>
     </div>
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Avg Latency Line</p>
-      <p id="metric-avg-latency" class="font-display text-2xl font-bold">0 <span class="text-xs text-[--muted] font-normal">ms</span></p>
+  </section>
+
+  <!-- Guest Master Permissions & Song Approval Strip -->
+  <section class="grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] gap-5 mb-6">
+    
+    <!-- Master Guest Permissions Deck -->
+    <div class="panel rounded-md p-5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">PASSENGER PERMISSIONS GOVERNOR</h2>
+          <span class="kv-label">Global Directives</span>
+        </div>
+        <p class="text-xs text-[--muted] mb-4">Dynamically broadcast permission updates to all connected passenger consoles in real-time.</p>
+        
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
+            <div>
+              <p class="font-display text-xs font-bold text-white">ALLOW MEDIA SCRUBBING</p>
+              <p class="text-[10px] text-[--muted]">Allow guests to tap Prev / Play / Next on their device</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="perm-playback" checked onchange="window.broadcastPermissions()">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
+            <div>
+              <p class="font-display text-xs font-bold text-white">ALLOW SPOTIFY SUGGESTIONS</p>
+              <p class="text-[10px] text-[--muted]">Enable the in-app DJ Jukebox track search for guests</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="perm-suggestions" checked onchange="window.broadcastPermissions()">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-rose w-full mt-4 font-bold py-2" onclick="window.kickAllGuests()">🚨 Burn All Guest Sessions (Kick All)</button>
     </div>
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Vault Snapshot Keys</p>
-      <p id="metric-vault-keys" class="font-display text-2xl font-bold text-[--amber]">0</p>
+
+    <!-- Incoming Spotify DJ Song Request Queue -->
+    <div class="panel rounded-md p-5 flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--amber]">🎵 SPOTIFY DJ REQUEST QUEUE</h2>
+          <span id="request-badge" class="font-display text-[9px] px-1.5 py-0.5 bg-[--amber]/10 border border-[--amber]/30 text-[--amber] rounded">0 PENDING</span>
+        </div>
+        <button class="text-[10px] text-[--muted] hover:text-white font-mono" onclick="window.clearSongQueue()">[ CLEAR QUEUE ]</button>
+      </div>
+      
+      <div id="song-request-stream" class="flex-1 space-y-2 max-h-56 overflow-y-auto pr-1">
+        <div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>
+      </div>
     </div>
+
   </section>
 
   <!-- Main Component Grid Workspace Layout -->
   <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
     
-    <!-- Left Box: Fleet Hardware Index Inventory -->
-    <div class="panel rounded-md p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
-        <span class="kv-label">Select rows to view live mirroring outputs</span>
+    <!-- Left Box: Fleet Hardware Index & Active Guests -->
+    <div class="space-y-5">
+      
+      <!-- Fleet Hardware Inventory -->
+      <div class="panel rounded-md p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
+          <span class="kv-label">Cluster telemetry frames</span>
+        </div>
+        <div id="fleet-card-grid" class="space-y-3">
+          <div class="text-center py-6 text-[--muted] text-xs">Awaiting grid telemetry loop frames...</div>
+        </div>
       </div>
-      <div id="fleet-card-grid" class="space-y-3">
-        <div class="text-center py-10 text-[--muted] text-xs">Awaiting grid telemetry loop frames...</div>
+
+      <!-- Active Passenger Guest Sessions Table -->
+      <div class="panel rounded-md p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE PASSENGER NEXUS ROSTER</h2>
+          <span class="kv-label">Hardware Fingerprint Shield</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left font-mono text-xs">
+            <thead>
+              <tr class="border-b border-[--border] text-[--muted] text-[10px]">
+                <th class="pb-2">CALLSIGN</th>
+                <th class="pb-2">HARDWARE FP</th>
+                <th class="pb-2">ROLE</th>
+                <th class="pb-2">STATUS</th>
+                <th class="pb-2 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="guest-roster-tbody">
+              <tr>
+                <td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
     </div>
 
     <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
@@ -265,6 +363,7 @@
   let serverClusterArray = [];
   let userSelectedId = 'myaura001';
   let validatedPasscode = '';
+  let pendingSongRequests = [];
 
   const pinGate = document.getElementById('pin-gate');
   const pinInput = document.getElementById('pin-input');
@@ -274,10 +373,88 @@
 
   pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') window.triggerHandshakeVerification(); });
 
+  // 🔔 Web Audio Alert Chime for Incoming Song Suggestions
+  function playAlertChime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch(e) {}
+  }
+
   window.burnToken = function(deviceId, token) {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'burn_access', device: deviceId, token: token }));
     }
+  };
+
+  window.broadcastPermissions = function() {
+    const allowPlayback = document.getElementById('perm-playback').checked;
+    const allowSuggestions = document.getElementById('perm-suggestions').checked;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'permissions_update',
+        device: userSelectedId,
+        allowPlayback: allowPlayback,
+        allowSuggestions: allowSuggestions
+      }));
+    }
+  };
+
+  window.kickAllGuests = function() {
+    if (confirm('🚨 Disconnect all current guest passenger sessions?')) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'admin_kick_all_guests', device: userSelectedId }));
+      }
+    }
+  };
+
+  window.banGuestFingerprint = function(fingerprint, guestName) {
+    if (confirm(`🚨 Permanently ban device signature for [${guestName || 'GUEST'}]?\nFP: ${fingerprint}`)) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'admin_ban_fingerprint',
+          device: userSelectedId,
+          deviceFingerprint: fingerprint,
+          guestName: guestName
+        }));
+      }
+    }
+  };
+
+  window.acceptSongRequest = function(reqId) {
+    const req = pendingSongRequests.find(r => r.id === reqId);
+    if (!req) return;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'cmd_spotify_play',
+        device: userSelectedId,
+        track: req.track,
+        uri: req.track.uri
+      }));
+    }
+    window.dismissSongRequest(reqId);
+  };
+
+  window.dismissSongRequest = function(reqId) {
+    pendingSongRequests = pendingSongRequests.filter(r => r.id !== reqId);
+    renderSongRequestQueue();
+    updateHeaderCounters();
+  };
+
+  window.clearSongQueue = function() {
+    pendingSongRequests = [];
+    renderSongRequestQueue();
+    updateHeaderCounters();
   };
 
   window.triggerHandshakeVerification = function() {
@@ -316,6 +493,9 @@
           renderHardwareMatricesGrid();
           renderMirrorViewScreen();
           renderTokenVaultElements();
+          renderGuestRoster();
+        } else if (packet.type === 'cmd_guest_suggest_song') {
+          handleIncomingSongSuggestion(packet);
         } else if (packet.type === 'wiretap_intercept') {
           appendWiretapInterceptLog(packet);
         }
@@ -327,6 +507,89 @@
     });
   };
 
+  function handleIncomingSongSuggestion(packet) {
+    playAlertChime();
+    const req = {
+      id: 'req_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+      guestName: packet.guestName || 'Anonymous Guest',
+      isOwner: packet.isOwner === true,
+      deviceFingerprint: packet.deviceFingerprint || 'Unknown-FP',
+      track: packet.track || { title: 'Unknown Title', artist: 'Unknown Artist', uri: '', cover: '' },
+      timestamp: new Date().toLocaleTimeString([], { hour12: false })
+    };
+    pendingSongRequests.unshift(req);
+    renderSongRequestQueue();
+    updateHeaderCounters();
+  }
+
+  function renderSongRequestQueue() {
+    const stream = document.getElementById('song-request-stream');
+    stream.innerHTML = '';
+
+    if (pendingSongRequests.length === 0) {
+      stream.innerHTML = '<div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>';
+      return;
+    }
+
+    pendingSongRequests.forEach(req => {
+      const card = document.createElement('div');
+      card.className = 'req-card-in flex items-center justify-between p-2.5 rounded bg-black/30 border border-[--border-hi]';
+
+      const thumb = req.track.cover || 'data:image/svg+xml;utf8,' + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#FFB000" text-anchor="middle" font-family="monospace">♪</text></svg>`
+      );
+
+      const ownerTag = req.isOwner ? '<span class="text-[--gold] font-bold text-[9px]">[ROOT OWNER]</span>' : '';
+
+      card.innerHTML = `
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="${thumb}" class="w-9 h-9 rounded object-cover flex-shrink-0 border border-white/10" alt="Cover" />
+          <div class="min-w-0 font-mono">
+            <p class="text-xs font-bold text-white truncate">${req.track.title}</p>
+            <p class="text-[10px] text-[--muted] truncate">${req.track.artist}</p>
+            <p class="text-[9px] text-[--cyan] truncate">Req by: <span class="font-bold">${req.guestName}</span> ${ownerTag}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button class="btn btn-green font-bold text-[9px] px-2.5 py-1" onclick="window.acceptSongRequest('${req.id}')">▶ Accept & Play</button>
+          <button class="btn btn-rose font-bold text-[9px] px-2 py-1" onclick="window.dismissSongRequest('${req.id}')">✕</button>
+        </div>
+      `;
+      stream.appendChild(card);
+    });
+  }
+
+  function renderGuestRoster() {
+    const tbody = document.getElementById('guest-roster-tbody');
+    tbody.innerHTML = '';
+
+    const node = serverClusterArray.find(c => c.id === userSelectedId);
+    const guests = (node && node.connectedGuestsList) ? node.connectedGuestsList : [];
+
+    if (guests.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td></tr>';
+      return;
+    }
+
+    guests.forEach(g => {
+      const isOwner = g.isOwner || g.name === 'Owner:Sumanyu';
+      const fpShort = g.fingerprint ? (g.fingerprint.slice(0, 10) + '…') : 'N/A';
+      
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-[--border] hover:bg-white/[0.02]';
+      tr.innerHTML = `
+        <td class="py-2.5 text-white font-bold">${g.name || 'Anonymous'}</td>
+        <td class="py-2.5 text-[--slate-lt]">${fpShort}</td>
+        <td class="py-2.5">${isOwner ? '<span class="text-[--gold] font-bold">OWNER</span>' : '<span class="text-[--cyan]">PASSENGER</span>'}</td>
+        <td class="py-2.5"><span class="status-dot bg-[--green]"></span> ONLINE</td>
+        <td class="py-2.5 text-right">
+          ${isOwner ? '<span class="text-[--muted] text-[9px]">IMMUNE</span>' : `<button class="btn btn-rose text-[9px] py-0.5 px-2" onclick="window.banGuestFingerprint('${g.fingerprint}','${g.name}')">BAN DEVICE</button>`}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
   window.lockConsoleWorkspace = function() {
     validatedPasscode = '';
     if (socket) { try { socket.close(); } catch(e){} }
@@ -335,23 +598,25 @@
     pinInput.focus();
   };
 
+  function updateHeaderCounters() {
+    document.getElementById('metric-pending-requests').textContent = pendingSongRequests.length;
+    document.getElementById('request-badge').textContent = `${pendingSongRequests.length} PENDING`;
+  }
+
   function updateStaticMetricsUI(metrics) {
     try {
       const activeNodes = serverClusterArray.filter(c => !c.isBlacklisted && (c.hud.connected || c.companion.connected)).length;
       document.getElementById('metric-online-count').textContent = activeNodes;
       
+      let totalGuests = 0;
+      serverClusterArray.forEach(curr => {
+        if (curr.activeGuests) totalGuests += curr.activeGuests;
+      });
+      document.getElementById('metric-guests-count').textContent = totalGuests;
+
       const bannedNodes = serverClusterArray.filter(c => c.isBlacklisted).length;
       document.getElementById('metric-banned-count').textContent = bannedNodes;
-
-      let keyCount = 0;
-      serverClusterArray.forEach(curr => {
-        if (curr.activeSummaryTokens && curr.activeSummaryTokens.length) keyCount += curr.activeSummaryTokens.length;
-      });
-      document.getElementById('metric-vault-keys').textContent = keyCount;
-
-      if (metrics && metrics.avgLatency !== undefined) {
-        document.getElementById('metric-avg-latency').innerHTML = `${metrics.avgLatency} <span class="text-xs text-[--muted] font-normal">ms</span>`;
-      }
+      updateHeaderCounters();
     } catch (e) {}
   }
 
@@ -393,6 +658,7 @@
           renderHardwareMatricesGrid();
           renderMirrorViewScreen();
           renderTokenVaultElements();
+          renderGuestRoster();
         });
 
         container.appendChild(card);
@@ -424,7 +690,6 @@
       const fuelEl = document.getElementById('hud-stat-fuel');
       const voltEl = document.getElementById('hud-stat-voltage');
 
-      // STALE DATA CACHING LOGIC
       let staleTimeLabel = '';
       if (!isConnected && node.hud.lastSeen) {
         const minutesAgo = Math.floor((Date.now() - node.hud.lastSeen) / 60000);
