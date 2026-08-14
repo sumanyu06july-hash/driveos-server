@@ -19,6 +19,8 @@
     --cyan-dim:      #00c8d4;
     --cyan-glow:     rgba(0,245,255,0.18);
     --cyan-soft:     rgba(0,245,255,0.08);
+    --gold:          #ffd700;
+    --gold-glow:     rgba(255,215,0,0.3);
     --slate:         #64748b;
     --slate-lt:      #94a3b8;
     --red:           #ff2244;
@@ -117,14 +119,16 @@
 
   .brand span { color: var(--slate); font-weight: 400; }
 
-  .owner-welcome-badge {
+  .user-badge {
     font-size: 9px;
     letter-spacing: 0.15em;
-    color: var(--cyan);
+    color: var(--slate-lt);
     text-transform: uppercase;
   }
-  .owner-welcome-badge span {
-    color: var(--slate-lt);
+  .user-badge.owner {
+    color: var(--gold);
+    text-shadow: 0 0 10px var(--gold-glow);
+    font-weight: 700;
   }
 
   .conn-status {
@@ -182,6 +186,76 @@
     font-weight: 600;
     color: var(--cyan);
     letter-spacing: 0.05em;
+  }
+
+  /* ═══════════════════════════════════════
+      OWNER COMMAND DOCK (SECRET MENU)
+  ═══════════════════════════════════════ */
+  #owner-command-dock {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin: 10px 14px 0;
+    border: 1px solid var(--gold);
+    box-shadow: 0 0 25px var(--gold-glow), inset 0 0 15px rgba(255,215,0,0.05);
+    background: rgba(20,16,0,0.7);
+  }
+  #owner-command-dock.visible {
+    display: flex;
+    animation: gold-pulse 2s ease-in-out infinite alternate;
+  }
+  @keyframes gold-pulse {
+    0% { border-color: rgba(255,215,0,0.4); }
+    100% { border-color: rgba(255,215,0,1); }
+  }
+  .owner-dock-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .owner-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .owner-btn {
+    font-family: var(--font);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #000;
+    background: var(--gold);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 8px;
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--gold-glow);
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .owner-btn:hover { opacity: 0.9; }
+  .owner-btn:active { transform: scale(0.96); }
+  .owner-btn.panic {
+    background: var(--red);
+    color: #fff;
+    box-shadow: 0 0 10px var(--red-glow);
+    grid-column: 1 / -1;
+  }
+  .owner-vol-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .owner-vol-slider {
+    flex: 1;
+    accent-color: var(--gold);
   }
 
   /* ═══════════════════════════════════════
@@ -533,334 +607,55 @@
   .media-state.on  { color: var(--cyan); }
   .media-state.off { color: var(--slate); }
 
-  /* ── FOOTER / LOG ── */
-  #footer {
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
-    border-top: 1px solid rgba(0,245,255,0.1);
-    background: rgba(10,10,10,0.9);
-    backdrop-filter: blur(20px);
-    padding: 0;
-    height: 90px;
-    overflow: hidden;
-  }
-
-  .log-header {
-    font-size: 8px;
-    letter-spacing: 0.25em;
-    color: var(--slate);
-    text-transform: uppercase;
-    padding: 6px 14px 4px;
-    border-bottom: 1px solid rgba(0,245,255,0.06);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .log-header::before {
-    content: '▶';
-    font-size: 6px;
-    color: var(--cyan);
-    animation: blink 1s step-end infinite;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-  #log-stream {
-    height: 68px;
-    overflow: hidden;
-    padding: 4px 14px;
-    display: flex;
-    flex-direction: column-reverse;
-    gap: 2px;
-  }
-
-  .log-line {
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0;
-    transform: translateY(4px);
-    animation: log-in 0.3s forwards;
-    flex-shrink: 0;
-  }
-  @keyframes log-in {
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .log-line .tag-sys   { color: var(--cyan); }
-  .log-line .tag-sens { color: #a78bfa; }
-  .log-line .tag-med  { color: #34d399; }
-  .log-line .tag-err  { color: var(--red); }
-  .log-line .tag-warn { color: #f59e0b; }
-  .log-line .tag-link { color: #f472b6; }
-  .log-msg { color: var(--slate-lt); }
-
-  /* ── ACCESS DENIED SCREEN ── */
-  #access-denied {
-    position: fixed;
-    inset: 0;
-    z-index: 9000;
-    background: #080000;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 32px;
-    text-align: center;
-  }
-  #access-denied.visible { display: flex; }
-  #access-denied.flash   { animation: red-flash 0.6s ease-out; }
-
-  @keyframes red-flash {
-    0%   { background: #3b0000; }
-    40%  { background: #200000; }
-    100% { background: #080000; }
-  }
-
-  .denied-icon {
-    width: 60px; height: 60px;
-    border: 2px solid var(--red);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow);
-    animation: denied-pulse 2s ease-in-out infinite;
-  }
-  @keyframes denied-pulse {
-    0%,100% { box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow); }
-    50%      { box-shadow: 0 0 40px rgba(255,34,68,0.5), 0 0 100px rgba(255,34,68,0.2); }
-  }
-  .denied-icon svg { stroke: var(--red); }
-
-  .denied-title {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 0.3em;
-    color: var(--red);
-    text-shadow: 0 0 20px var(--red);
-    text-transform: uppercase;
-  }
-
-  .denied-msg {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: rgba(255,34,68,0.7);
-    line-height: 1.9;
-    max-width: 320px;
-    text-transform: uppercase;
-    border: 1px solid rgba(255,34,68,0.2);
-    border-radius: 8px;
-    padding: 16px;
-    background: rgba(255,34,68,0.04);
-  }
-
-  .denied-btn {
-    font-family: var(--font);
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--red);
-    border: none;
-    border-radius: 6px;
-    padding: 12px 28px;
-    cursor: pointer;
-    box-shadow: 0 0 20px var(--red-glow);
-    transition: opacity 0.2s;
-  }
-  .denied-btn:hover { opacity: 0.85; }
-
-  /* ── RECONNECT BANNER ── */
-  #reconnect-banner {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 500;
-    background: rgba(245,158,11,0.12);
-    border-bottom: 1px solid rgba(245,158,11,0.4);
-    padding: 6px 14px;
-    font-size: 9px;
-    letter-spacing: 0.15em;
-    color: #f59e0b;
-    text-transform: uppercase;
-    text-align: center;
-    animation: warn-slide 0.3s ease-out;
-  }
-  #reconnect-banner.visible { display: block; }
-  @keyframes warn-slide {
-    from { transform: translateY(-100%); }
-    to   { transform: translateY(0); }
-  }
-
-  /* ── INIT LOADER ── */
-  #init-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 8000;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    transition: opacity 0.6s;
-  }
-  #init-overlay.fade { opacity: 0; pointer-events: none; }
-
-  .init-logo {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.4em;
-    color: var(--cyan);
-    text-shadow: 0 0 20px var(--cyan);
-    text-transform: uppercase;
-  }
-  .init-logo span { color: var(--slate); font-weight: 300; }
-
-  .init-bar-wrap {
-    width: 200px;
-    height: 2px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-  .init-bar-fill {
-    height: 100%;
-    background: var(--cyan);
-    box-shadow: 0 0 6px var(--cyan);
-    animation: init-load 1.4s cubic-bezier(0.4,0,0.2,1) forwards;
-  }
-  @keyframes init-load {
-    0%   { width: 0%; }
-    60%  { width: 75%; }
-    100% { width: 100%; }
-  }
-
-  .init-status {
-    font-size: 9px;
-    letter-spacing: 0.2em;
-    color: var(--slate);
-    text-transform: uppercase;
-    animation: blink 1s step-end infinite;
-  }
-
-  .no-params-msg {
-    position: fixed;
-    bottom: 100px;
-    left: 14px; right: 14px;
-    font-size: 9px;
-    letter-spacing: 0.12em;
-    color: #f59e0b;
-    text-align: center;
-    z-index: 100;
-    text-transform: uppercase;
-    display: none;
-  }
-
   /* ═══════════════════════════════════════
-      ONBOARDING MODAL
+      MEDIA CONTROL BAR
   ═══════════════════════════════════════ */
-  #onboard-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9500;
-    background: rgba(5,5,7,0.92);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    transition: opacity 0.4s;
-  }
-  #onboard-overlay.hidden { display: none; }
-
-  .onboard-card {
-    width: 100%;
-    max-width: 340px;
-    padding: 28px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-    position: relative;
-  }
-
-  .onboard-title {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.3em;
-    color: var(--cyan);
-    text-shadow: 0 0 20px var(--cyan);
-    text-transform: uppercase;
-    text-align: center;
-  }
-  .onboard-title span { color: var(--slate); font-weight: 300; display: block; font-size: 8px; letter-spacing: 0.25em; margin-top: 6px; }
-
-  .onboard-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .onboard-label {
-    font-size: 8px;
-    letter-spacing: 0.25em;
-    color: var(--slate);
-    text-transform: uppercase;
-  }
-  .onboard-input {
-    font-family: var(--font);
-    font-size: 13px;
-    letter-spacing: 0.05em;
-    color: var(--cyan);
-    background: rgba(0,245,255,0.04);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 12px 14px;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .onboard-input::placeholder { color: var(--slate); }
-  .onboard-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow); }
-
-  .onboard-fp-row {
+  .media-controls {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 8px;
-    letter-spacing: 0.12em;
-    color: var(--slate);
-    text-transform: uppercase;
-  }
-  .onboard-fp-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--slate);
     flex-shrink: 0;
-    transition: background 0.3s, box-shadow 0.3s;
+    position: relative;
   }
-  .onboard-fp-dot.ready { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse-dot 2s ease-in-out infinite; }
-  .onboard-fp-val { color: var(--slate-lt); word-break: break-all; }
-
-  .onboard-btn {
-    font-family: var(--font);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--cyan);
-    border: none;
-    border-radius: 8px;
-    padding: 13px 20px;
+  .media-ctrl-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--glass-border);
+    background: rgba(0,245,255,0.05);
+    color: var(--cyan);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    box-shadow: 0 0 20px var(--cyan-glow);
-    transition: opacity 0.2s, transform 0.1s;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
   }
-  .onboard-btn:hover:not(:disabled) { opacity: 0.9; }
-  .onboard-btn:active:not(:disabled) { transform: scale(0.98); }
-  .onboard-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+  .media-ctrl-btn:hover:not(:disabled) { background: rgba(0,245,255,0.14); box-shadow: 0 0 10px var(--cyan-glow); }
+  .media-ctrl-btn:active:not(:disabled) { transform: scale(0.92); }
+  #btn-play-pause { width: 40px; height: 40px; font-size: 15px; }
+  .media-ctrl-btn:disabled { cursor: not-allowed; }
+
+  .controls-locked {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .controls-locked-label {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 6.5px;
+    letter-spacing: 0.1em;
+    color: var(--red);
+    text-transform: uppercase;
+    text-align: center;
+    background: rgba(8,0,0,0.6);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .controls-locked-label.visible { display: flex; }
 
   /* ═══════════════════════════════════════
       SPOTIFY DJ JUKEBOX
@@ -1018,61 +813,224 @@
     transform: translateX(-50%) translateY(0);
   }
 
-  /* ═══════════════════════════════════════
-      MEDIA CONTROL BAR
-  ═══════════════════════════════════════ */
-  .media-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  /* ── FOOTER / LOG ── */
+  #footer {
     flex-shrink: 0;
     position: relative;
+    z-index: 10;
+    border-top: 1px solid rgba(0,245,255,0.1);
+    background: rgba(10,10,10,0.9);
+    backdrop-filter: blur(20px);
+    padding: 0;
+    height: 100px;
+    overflow: hidden;
   }
-  .media-ctrl-btn {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: 1px solid var(--glass-border);
-    background: rgba(0,245,255,0.05);
-    color: var(--cyan);
-    font-size: 13px;
+
+  .log-header {
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    color: var(--slate);
+    text-transform: uppercase;
+    padding: 6px 14px 4px;
+    border-bottom: 1px solid rgba(0,245,255,0.06);
     display: flex;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    justify-content: space-between;
   }
-  .media-ctrl-btn:hover:not(:disabled) { background: rgba(0,245,255,0.14); box-shadow: 0 0 10px var(--cyan-glow); }
-  .media-ctrl-btn:active:not(:disabled) { transform: scale(0.92); }
-  #btn-play-pause { width: 40px; height: 40px; font-size: 15px; }
-  .media-ctrl-btn:disabled { cursor: not-allowed; }
-
-  .controls-locked {
-    opacity: 0.4;
-    pointer-events: none;
-  }
-
-  .controls-locked-label {
-    display: none;
-    position: absolute;
-    inset: 0;
+  .log-header-left {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 6.5px;
-    letter-spacing: 0.1em;
-    color: var(--red);
-    text-transform: uppercase;
-    text-align: center;
-    background: rgba(8,0,0,0.6);
-    border-radius: 8px;
-    pointer-events: none;
+    gap: 6px;
   }
-  .controls-locked-label.visible { display: flex; }
+  .log-header-left::before {
+    content: '▶';
+    font-size: 6px;
+    color: var(--cyan);
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-  /* ── DEVICE BANNED SCREEN ── */
-  #device-banned {
+  .reset-session-btn {
+    background: none;
+    border: none;
+    color: var(--slate);
+    font-family: var(--font);
+    font-size: 7.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .reset-session-btn:hover { color: var(--cyan); }
+
+  #log-stream {
+    height: 70px;
+    overflow: hidden;
+    padding: 4px 14px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+  }
+
+  .log-line {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transform: translateY(4px);
+    animation: log-in 0.3s forwards;
+    flex-shrink: 0;
+  }
+  @keyframes log-in {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .log-line .tag-sys   { color: var(--cyan); }
+  .log-line .tag-owner { color: var(--gold); }
+  .log-line .tag-sens  { color: #a78bfa; }
+  .log-line .tag-med   { color: #34d399; }
+  .log-line .tag-err   { color: var(--red); }
+  .log-line .tag-warn  { color: #f59e0b; }
+  .log-line .tag-link  { color: #f472b6; }
+  .log-msg { color: var(--slate-lt); }
+
+  /* ── ONBOARDING MODAL & WELCOME SCREEN ── */
+  #onboard-overlay {
     position: fixed;
     inset: 0;
     z-index: 9500;
+    background: rgba(5,5,7,0.94);
+    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: opacity 0.5s;
+  }
+  #onboard-overlay.hidden { display: none; }
+
+  .onboard-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,245,255,0.1);
+  }
+
+  .onboard-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .onboard-subtitle {
+    color: var(--slate);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-align: center;
+    line-height: 1.6;
+    text-transform: uppercase;
+  }
+
+  .onboard-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .onboard-label {
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .onboard-input {
+    font-family: var(--font);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: var(--cyan);
+    background: rgba(0,245,255,0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .onboard-input::placeholder { color: var(--slate); }
+  .onboard-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow); }
+
+  .onboard-fp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    color: var(--slate);
+    text-transform: uppercase;
+  }
+  .onboard-fp-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--slate);
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .onboard-fp-dot.ready { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse-dot 2s ease-in-out infinite; }
+
+  .onboard-btn {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--cyan);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 20px;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--cyan-glow);
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .onboard-btn:hover:not(:disabled) { opacity: 0.9; }
+  .onboard-btn:active:not(:disabled) { transform: scale(0.98); }
+  .onboard-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+  /* ── GREETING BADGE / TRANSITION OVERLAY ── */
+  #welcome-greeting {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+  }
+  #welcome-greeting.visible { display: flex; }
+  .greeting-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  .greeting-sub {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--slate-lt);
+    text-transform: uppercase;
+  }
+
+  /* ── ACCESS DENIED & BANNED SCREENS ── */
+  #access-denied, #device-banned {
+    position: fixed;
+    inset: 0;
+    z-index: 9900;
     background: #080000;
     display: none;
     flex-direction: column;
@@ -1082,7 +1040,128 @@
     padding: 32px;
     text-align: center;
   }
-  #device-banned.visible { display: flex; }
+  #access-denied.visible, #device-banned.visible { display: flex; }
+  .denied-icon {
+    width: 60px; height: 60px;
+    border: 2px solid var(--red);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow);
+    animation: denied-pulse 2s ease-in-out infinite;
+  }
+  @keyframes denied-pulse {
+    0%,100% { box-shadow: 0 0 20px var(--red-glow), 0 0 60px var(--red-glow); }
+    50%      { box-shadow: 0 0 40px rgba(255,34,68,0.5), 0 0 100px rgba(255,34,68,0.2); }
+  }
+  .denied-icon svg { stroke: var(--red); }
+  .denied-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--red);
+    text-shadow: 0 0 20px var(--red);
+    text-transform: uppercase;
+  }
+  .denied-msg {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: rgba(255,34,68,0.7);
+    line-height: 1.9;
+    max-width: 320px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,34,68,0.2);
+    border-radius: 8px;
+    padding: 16px;
+    background: rgba(255,34,68,0.04);
+  }
+  .denied-btn {
+    font-family: var(--font);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--red);
+    border: none;
+    border-radius: 6px;
+    padding: 12px 28px;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--red-glow);
+  }
+
+  /* ── RECONNECT BANNER ── */
+  #reconnect-banner {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 500;
+    background: rgba(245,158,11,0.12);
+    border-bottom: 1px solid rgba(245,158,11,0.4);
+    padding: 6px 14px;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: #f59e0b;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  #reconnect-banner.visible { display: block; }
+
+  /* ── INIT LOADER ── */
+  #init-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8000;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.6s;
+  }
+  #init-overlay.fade { opacity: 0; pointer-events: none; }
+  .init-logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
+    text-transform: uppercase;
+  }
+  .init-logo span { color: var(--slate); font-weight: 300; }
+  .init-bar-wrap {
+    width: 200px; height: 2px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .init-bar-fill {
+    height: 100%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    animation: init-load 1.4s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
+  @keyframes init-load { 0% { width: 0%; } 60% { width: 75%; } 100% { width: 100%; } }
+  .init-status {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--slate);
+    text-transform: uppercase;
+    animation: blink 1s step-end infinite;
+  }
+
+  .no-params-msg {
+    position: fixed;
+    bottom: 110px;
+    left: 14px; right: 14px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: #f59e0b;
+    text-align: center;
+    z-index: 100;
+    text-transform: uppercase;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -1090,7 +1169,7 @@
 <div id="init-overlay">
   <div class="init-logo">DriveOS <span>/ 2.0</span></div>
   <div class="init-bar-wrap"><div class="init-bar-fill"></div></div>
-  <div class="init-status" id="init-status">Initializing Passenger Nexus...</div>
+  <div class="init-status">Initializing Passenger Nexus...</div>
 </div>
 
 <div id="access-denied">
@@ -1115,24 +1194,31 @@
     </svg>
   </div>
   <div class="denied-title">Device Banned</div>
-  <div class="denied-msg" id="device-banned-msg">
+  <div class="denied-msg">
     [SECURITY PROTOCOL]: THIS HARDWARE DEVICE HAS BEEN<br>
     BANNED BY THE COCKPIT ADMIN.
   </div>
 </div>
 
+<!-- ONBOARDING & WELCOME OVERLAY -->
 <div id="onboard-overlay">
-  <div class="glass onboard-card">
-    <div class="onboard-title">Co-Pilot Nexus <span>Passenger Onboarding</span></div>
+  <div class="glass onboard-card" id="onboard-form-card">
+    <div class="onboard-title">Co-Pilot Nexus</div>
+    <div class="onboard-subtitle">Connect your device to synchronize media playback, passenger telemetry, and trip dynamics.</div>
     <div class="onboard-field">
-      <label class="onboard-label" for="guest-name-input">Guest Callsign</label>
-      <input class="onboard-input" id="guest-name-input" type="text" placeholder="Enter your name..." maxlength="32" autocomplete="off"/>
+      <label class="onboard-label" for="guest-name-input">Callsign / Identity</label>
+      <input class="onboard-input" id="guest-name-input" type="text" placeholder="Enter your name or 'Owner:Sumanyu'..." maxlength="32" autocomplete="off"/>
     </div>
     <div class="onboard-fp-row">
       <div class="onboard-fp-dot" id="onboard-fp-dot"></div>
       <span id="onboard-fp-status">Scanning hardware signature...</span>
     </div>
-    <button class="onboard-btn" id="btn-guest-login" disabled>Enter Co-Pilot Nexus</button>
+    <button class="onboard-btn" id="btn-guest-login" disabled>Initialize Co-Pilot Access</button>
+  </div>
+
+  <div id="welcome-greeting">
+    <div class="greeting-title" id="greeting-title">Welcome Aboard</div>
+    <div class="greeting-sub" id="greeting-sub">Synchronizing Cockpit Stream...</div>
   </div>
 </div>
 
@@ -1143,7 +1229,7 @@
 <header id="header">
   <div class="header-left">
     <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
-    <div class="owner-welcome-badge" id="owner-badge">PILOT: <span>SUMANYU</span> · WELCOME ABOARD</div>
+    <div class="user-badge" id="user-badge">PASSENGER CO-PILOT</div>
     <div class="conn-status">
       <div class="conn-dot" id="conn-dot"></div>
       <span id="conn-text">Initializing...</span>
@@ -1155,6 +1241,23 @@
     <div class="vid-odo-val" id="vid-odo">[ — KM ]</div>
   </div>
 </header>
+
+<!-- SECRET OWNER OVERRIDE MENU -->
+<div id="owner-command-dock" class="glass">
+  <div class="owner-dock-title">
+    <span>👑 Master Root Console</span>
+    <span style="font-size: 8px; color: var(--gold);">AUTHENTICATED: SUMANYU</span>
+  </div>
+  <div class="owner-grid">
+    <button class="owner-btn" onclick="sendJson({type: 'cmd_trigger_failover'})">⚡ Trigger Failover</button>
+    <button class="owner-btn" onclick="sendJson({type: 'toggle_parked_guard', active: true})">🛡️ Toggle Sentry</button>
+    <button class="owner-btn panic" onclick="sendJson({type: 'cmd_panic', active: true})">🚨 Master Emergency Cockpit Panic</button>
+  </div>
+  <div class="owner-vol-wrap">
+    <span style="font-size: 8px; color: var(--gold);">MASTER VOL:</span>
+    <input type="range" class="owner-vol-slider" min="0" max="100" value="75" onchange="sendJson({type: 'cmd_volume', action: 'set', value: this.value})"/>
+  </div>
+</div>
 
 <main id="main">
 
@@ -1249,7 +1352,10 @@
 <div id="suggest-toast">Suggestion Dispatched to Driver Queue ⚡</div>
 
 <footer id="footer">
-  <div class="log-header">System Log</div>
+  <div class="log-header">
+    <div class="log-header-left">System Log</div>
+    <button class="reset-session-btn" onclick="resetProfile()">[ ↻ Switch User / Reset ]</button>
+  </div>
   <div id="log-stream"></div>
 </footer>
 
@@ -1261,7 +1367,6 @@
 // ═══════════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════════
-const OWNER_CALLSIGN = 'Sumanyu';
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
@@ -1280,6 +1385,7 @@ let firstConnect = true;
 // ── guest identity / fingerprint / permissions ──
 let guestName       = localStorage.getItem('guest_name') || '';
 let fingerprintHash = localStorage.getItem('device_fingerprint') || '';
+let isOwner         = guestName.trim() === 'Owner:Sumanyu';
 let deviceBanned    = localStorage.getItem('device_banned') === '1';
 let permissions      = { allowPlayback: true, allowSuggestions: true };
 
@@ -1295,6 +1401,8 @@ const deviceBannedEl = $('device-banned');
 const reconBanner = $('reconnect-banner');
 const logStream   = $('log-stream');
 const onboardOverlay  = $('onboard-overlay');
+const onboardCard     = $('onboard-form-card');
+const welcomeGreeting = $('welcome-greeting');
 const guestNameInput  = $('guest-name-input');
 const btnGuestLogin   = $('btn-guest-login');
 const onboardFpDot    = $('onboard-fp-dot');
@@ -1304,12 +1412,13 @@ const onboardFpStatus = $('onboard-fp-status');
 //  SYSTEM LOG
 // ═══════════════════════════════════════════════
 const LOG_TAGS = {
-  SYS:  'tag-sys',
-  SENS: 'tag-sens',
-  MED:  'tag-med',
-  ERR:  'tag-err',
-  WARN: 'tag-warn',
-  LINK: 'tag-link',
+  SYS:   'tag-sys',
+  OWNER: 'tag-owner',
+  SENS:  'tag-sens',
+  MED:   'tag-med',
+  ERR:   'tag-err',
+  WARN:  'tag-warn',
+  LINK:  'tag-link',
 };
 const MAX_LOG = 30;
 
@@ -1385,7 +1494,7 @@ async function generateDeviceFingerprint() {
 }
 
 // ═══════════════════════════════════════════════
-//  ONBOARDING FLOW
+//  ONBOARDING & WELCOME FLOW
 // ═══════════════════════════════════════════════
 function checkOnboardReady() {
   const nameOk = guestNameInput.value.trim().length > 0;
@@ -1403,11 +1512,52 @@ async function initFingerprint() {
 
 function completeOnboarding(name) {
   guestName = name.trim();
+  isOwner = guestName === 'Owner:Sumanyu';
   localStorage.setItem('guest_name', guestName);
-  onboardOverlay.classList.add('hidden');
-  sysLog('SYS', `GUEST IDENTIFIED — ${guestName.toUpperCase()}`);
-  sysLog('SYS', `WELCOME ${guestName.toUpperCase()} TO SUMANYU'S VEHICLE`);
-  beginConnection();
+
+  // Show Welcoming Greeting Animation
+  onboardCard.style.display = 'none';
+  welcomeGreeting.classList.add('visible');
+
+  if (isOwner) {
+    $('greeting-title').textContent = '👑 Master Override Active';
+    $('greeting-sub').textContent = 'Root Permissions Granted to Sumanyu...';
+    $('greeting-title').style.color = 'var(--gold)';
+    enableOwnerFeatures();
+  } else {
+    $('greeting-title').textContent = `Welcome Aboard, ${guestName}`;
+    $('greeting-sub').textContent = 'Synchronizing Cockpit Telemetry & Media Stream...';
+  }
+
+  setTimeout(() => {
+    onboardOverlay.classList.add('hidden');
+    updateUserBadge();
+    beginConnection();
+  }, 1400);
+}
+
+function enableOwnerFeatures() {
+  $('owner-command-dock').classList.add('visible');
+  permissions.allowPlayback = true;
+  permissions.allowSuggestions = true;
+  applyPermissions();
+  sysLog('OWNER', '👑 MASTER ROOT PRIVILEGES ENGAGED BY OWNER:SUMANYU');
+}
+
+function updateUserBadge() {
+  const badge = $('user-badge');
+  if (isOwner) {
+    badge.textContent = '👑 ROOT: SUMANYU';
+    badge.className = 'user-badge owner';
+  } else {
+    badge.textContent = `CALLSIGN: ${guestName.toUpperCase()}`;
+    badge.className = 'user-badge';
+  }
+}
+
+function resetProfile() {
+  localStorage.removeItem('guest_name');
+  location.reload();
 }
 
 function setupOnboarding() {
@@ -1419,8 +1569,9 @@ function setupOnboarding() {
   initFingerprint();
 
   if (guestName && fingerprintHash) {
+    if (isOwner) enableOwnerFeatures();
+    updateUserBadge();
     onboardOverlay.classList.add('hidden');
-    sysLog('SYS', `WELCOME BACK — ${guestName.toUpperCase()}`);
     beginConnection();
   } else {
     onboardOverlay.classList.remove('hidden');
@@ -1439,6 +1590,7 @@ function beginConnection() {
 //  BAN / SENTRY OVERLAY
 // ═══════════════════════════════════════════════
 function showDeviceBanned(reason) {
+  if (isOwner) return; // Master owner can never be banned
   deviceBanned = true;
   authDenied = true;
   localStorage.setItem('device_banned', '1');
@@ -1453,6 +1605,16 @@ function showDeviceBanned(reason) {
 //  PERMISSIONS
 // ═══════════════════════════════════════════════
 function applyPermissions() {
+  if (isOwner) {
+    // Owner bypasses all driver lockouts
+    $('media-controls').classList.remove('controls-locked');
+    $('controls-locked-label').classList.remove('visible');
+    $('spotify-search-input').classList.remove('locked');
+    $('spotify-search-input').disabled = false;
+    $('jukebox-lock-label').classList.remove('visible');
+    return;
+  }
+
   const controls = $('media-controls');
   const lockLabel = $('controls-locked-label');
   if (permissions.allowPlayback === false) {
@@ -1477,7 +1639,8 @@ function applyPermissions() {
 }
 
 function handlePermissionsUpdate(data) {
-  if (data.allowPlayback !== undefined)   permissions.allowPlayback   = data.allowPlayback;
+  if (isOwner) return;
+  if (data.allowPlayback !== undefined)    permissions.allowPlayback   = data.allowPlayback;
   if (data.allowSuggestions !== undefined) permissions.allowSuggestions = data.allowSuggestions;
   applyPermissions();
   sysLog('SYS', `PERMISSIONS UPDATED — PLAYBACK:${permissions.allowPlayback} SUGGEST:${permissions.allowSuggestions}`);
@@ -1487,9 +1650,8 @@ function handlePermissionsUpdate(data) {
 //  MEDIA CONTROL BUTTONS
 // ═══════════════════════════════════════════════
 function sendMusicCmd(action) {
-  if (permissions.allowPlayback === false) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'cmd_music', action, device: deviceId }));
+  if (!isOwner && permissions.allowPlayback === false) return;
+  sendJson({ type: 'cmd_music', action: action, device: deviceId });
   sysLog('MED', `PLAYBACK CMD SENT — ${action.toUpperCase()}`);
 }
 
@@ -1568,15 +1730,12 @@ function renderSpotifyResults(query) {
 }
 
 function dispatchSuggestion(track, btnEl) {
-  if (permissions.allowSuggestions === false) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    sysLog('WARN', 'CANNOT SUGGEST — LINK OFFLINE');
-    return;
-  }
-  ws.send(JSON.stringify({
+  if (!isOwner && permissions.allowSuggestions === false) return;
+  sendJson({
     type: 'cmd_guest_suggest_song',
     device: deviceId,
     guestName: guestName,
+    isOwner: isOwner,
     deviceFingerprint: fingerprintHash,
     track: {
       title: track.title,
@@ -1584,7 +1743,7 @@ function dispatchSuggestion(track, btnEl) {
       uri: track.uri,
       cover: track.cover,
     },
-  }));
+  });
   sysLog('MED', `SUGGESTION SENT — ${track.title.toUpperCase()} / ${track.artist.toUpperCase()}`);
   showSuggestToast();
   if (btnEl) {
@@ -1612,7 +1771,7 @@ function setupSpotifySearch() {
 }
 
 // ═══════════════════════════════════════════════
-//  CONNECTION STATUS UI
+//  WEBSOCKET & NETWORKING
 // ═══════════════════════════════════════════════
 function setStatus(state, text) {
   connDot.className = 'conn-dot';
@@ -1622,23 +1781,16 @@ function setStatus(state, text) {
   connText.textContent = text;
 }
 
-// ═══════════════════════════════════════════════
-//  ACCESS DENIED
-// ═══════════════════════════════════════════════
-function showAccessDenied() {
-  authDenied = true;
-  accessDenied.classList.add('visible');
-  setTimeout(() => accessDenied.classList.add('flash'), 10);
-  setTimeout(() => accessDenied.classList.remove('flash'), 700);
-  sysLog('ERR', 'AUTHENTICATION FAILURE — TOKEN REJECTED');
-  setStatus('error', 'Access Denied');
+function sendJson(json) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    sysLog('WARN', 'LINK OFFLINE — FRAME NOT SENT');
+    return;
+  }
+  ws.send(JSON.stringify(json));
 }
 
-// ═══════════════════════════════════════════════
-//  WEBSOCKET
-// ═══════════════════════════════════════════════
 function connect() {
-  if (authDenied || deviceBanned) return;
+  if (authDenied || (deviceBanned && !isOwner)) return;
 
   try { 
     ws = new WebSocket(`${WS_URL}?role=guest&device=${encodeURIComponent(deviceId)}&token=${encodeURIComponent(token)}`); 
@@ -1656,29 +1808,21 @@ function connect() {
     setStatus('active', 'Secure Link Active');
     sysLog('SYS', 'CHANNEL ESTABLISHED — SENDING HANDSHAKE');
 
-    ws.send(JSON.stringify({
-      type:   'guest_auth',
+    sendJson({
+      type: 'guest_auth',
       device: deviceId,
-      token:  token,
+      token: token,
       guestName: guestName,
+      isOwner: isOwner,
       deviceFingerprint: fingerprintHash
-    }));
+    });
 
-    sysLog('SYS', `HANDSHAKE TRANSMITTED — DEVICE: ${deviceId.toUpperCase()}`);
-    if (firstConnect) {
-      firstConnect = false;
-      setTimeout(() => {
-        sysLog('SENS', 'TELEMETRY LINK ESTABLISHED');
-        sysLog('SENS', 'VELOCITY · G-FORCE · ACCEL CHANNELS ONLINE');
-        sysLog('MED',  'MEDIA FREQUENCY MONITOR SYNCED');
-      }, 600);
-    }
+    sysLog('SYS', `HANDSHAKE TRANSMITTED — CALLSIGN: ${guestName.toUpperCase()}`);
   });
 
   ws.addEventListener('message', e => {
     let data;
-    try { data = JSON.parse(e.data); }
-    catch { return; }
+    try { data = JSON.parse(e.data); } catch { return; }
 
     if (data.type === 'error') {
       sysLog('ERR', (data.message || 'SERVER REJECTED REQUEST').toUpperCase());
@@ -1893,10 +2037,9 @@ function init() {
     initOverlay.classList.add('fade');
     setTimeout(() => initOverlay.style.display='none', 650);
     sysLog('SYS', `PASSENGER NEXUS ONLINE — UNIT ${deviceId.toUpperCase()}`);
-    sysLog('SYS', `WELCOME ABOARD · SYSTEM OWNER: ${OWNER_CALLSIGN.toUpperCase()}`);
     sysLog('SYS', 'ENCRYPTED CHANNEL PROTOCOL ACTIVE');
 
-    if (deviceBanned) {
+    if (deviceBanned && !isOwner) {
       showDeviceBanned('ADMIN_PERMANENT_BAN');
       return;
     }
