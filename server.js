@@ -9,12 +9,77 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710'; 
+const ADMIN_PIN = '6710';
 
-// Central State Dictionaries
+// ── SPOTIFY WEB API CREDENTIALS & TOKEN CACHE ──
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'ab1ac94c94a3451cbddd86b234590838';
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '651ff56202254b71bac158bbb2f7b3e4';
+
+let spotifyToken = null;
+let spotifyTokenExpiresAt = 0;
+
+async function getSpotifyToken() {
+    const now = Date.now();
+    if (spotifyToken && now < spotifyTokenExpiresAt) {
+        return spotifyToken;
+    }
+
+    try {
+        const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${authHeader}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'grant_type=client_credentials'
+        });
+
+        const data = await res.json();
+        if (data.access_token) {
+            spotifyToken = data.access_token;
+            spotifyTokenExpiresAt = now + (data.expires_in - 60) * 1000;
+            console.log('⚡ [SPOTIFY]: Application token generated/refreshed successfully.');
+            return spotifyToken;
+        } else {
+            console.error('❌ [SPOTIFY TOKEN ERROR]:', data);
+        }
+    } catch (err) {
+        console.error('❌ [SPOTIFY AUTH ERROR]:', err.message);
+    }
+    return null;
+}
+
+async function querySpotifyTracks(query) {
+    if (!query || query.trim().length === 0) return [];
+    const token = await getSpotifyToken();
+    if (!token) return [];
+
+    try {
+        const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+        if (!data.tracks || !data.tracks.items) return [];
+
+        return data.tracks.items.map(t => ({
+            title: t.name,
+            artist: t.artists.map(a => a.name).join(', '),
+            uri: t.uri,
+            cover: t.album.images[0]?.url || ''
+        }));
+    } catch (err) {
+        console.error('❌ [SPOTIFY SEARCH ERROR]:', err.message);
+        return [];
+    }
+}
+
+// ── CENTRAL STATE DICTIONARIES ──
 const devices = new Map();
 const adminClients = new Set();
 const blacklist = new Set();
+const fingerprintBlacklist = new Set();
 let globalLogSequence = 1;
 
 function getDevice(id) {
@@ -23,6 +88,8 @@ function getDevice(id) {
             headunit: null,
             companion: null,
             guests: new Set(),
+            guestMetadata: new Map(), // ws -> { name, fingerprint, isOwner, connectedAt }
+            guestPermissions: { allowPlayback: true, allowSuggestions: true },
             summaryClients: new Map(),
             summaryTokens: new Map(),
             guestTokens: new Map(),
@@ -31,7 +98,6 @@ function getDevice(id) {
             companionState: null,
             hud_banned: false,
             companion_banned: false,
-            // Anti-Theft & Maintenance State
             parkedGuardActive: false,
             parkedCoords: null
         });
@@ -90,6 +156,13 @@ function broadcastTopology() {
                 }
             }
 
+            const activeGuestsList = [];
+            if (dev.guestMetadata) {
+                for (const [, gMeta] of dev.guestMetadata.entries()) {
+                    activeGuestsList.push(gMeta);
+                }
+            }
+
             data.push({
                 id: deviceId,
                 isBlacklisted: blacklist.has(deviceId),
@@ -97,6 +170,8 @@ function broadcastTopology() {
                 companion_banned: dev.companion_banned,
                 parkedGuardActive: dev.parkedGuardActive,
                 activeGuests: dev.guests ? dev.guests.size : 0,
+                connectedGuestsList: activeGuestsList,
+                guestPermissions: dev.guestPermissions,
                 activeSummaryTokens: tokenList,
                 hud: {
                     connected: huActive,
@@ -145,7 +220,7 @@ wss.on('connection', (ws, req) => {
 
     const dev = getDevice(deviceId);
 
-    // --- 🔐 ADMIN PIPELINE ---
+    // ── 🔐 ADMIN OVERLORD PIPELINE ──
     if (role === 'admin') {
         const inputAuth = urlParams.get('auth');
         if (inputAuth !== ADMIN_PIN) {
@@ -166,7 +241,6 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
                         const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
-                        
                         targetDev.guestTokens.delete(command.token);
                         
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
@@ -175,6 +249,70 @@ wss.on('connection', (ws, req) => {
                                 token: command.token,
                                 tokenType: tokenTypeLabel
                             }));
+                        }
+                    }
+                }
+
+                if (command.type === 'permissions_update') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev) {
+                        targetDev.guestPermissions = {
+                            allowPlayback: command.allowPlayback !== false,
+                            allowSuggestions: command.allowSuggestions !== false
+                        };
+                        targetDev.guests.forEach(g => {
+                            if (g.readyState === WebSocket.OPEN) {
+                                g.send(JSON.stringify({
+                                    type: 'permissions_update',
+                                    allowPlayback: targetDev.guestPermissions.allowPlayback,
+                                    allowSuggestions: targetDev.guestPermissions.allowSuggestions
+                                }));
+                            }
+                        });
+                    }
+                }
+
+                if (command.type === 'admin_ban_fingerprint') {
+                    if (command.deviceFingerprint) {
+                        fingerprintBlacklist.add(command.deviceFingerprint);
+                        const targetDev = devices.get(command.device);
+                        if (targetDev) {
+                            for (const [gWs, meta] of targetDev.guestMetadata.entries()) {
+                                if (meta.fingerprint === command.deviceFingerprint) {
+                                    try {
+                                        gWs.send(JSON.stringify({ type: 'device_blocked', reason: 'ADMIN_PERMANENT_BAN' }));
+                                        gWs.close();
+                                    } catch(e) {}
+                                    targetDev.guests.delete(gWs);
+                                    targetDev.guestMetadata.delete(gWs);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (command.type === 'admin_kick_all_guests') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev) {
+                        targetDev.guests.forEach(gWs => {
+                            try {
+                                gWs.send(JSON.stringify({ type: 'banned', reason: 'ADMIN_FORCE_KICK_ALL' }));
+                                gWs.close();
+                            } catch(e) {}
+                        });
+                        targetDev.guests.clear();
+                        targetDev.guestMetadata.clear();
+                    }
+                }
+
+                if (command.type === 'cmd_spotify_play') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev) {
+                        if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+                            targetDev.headunit.send(JSON.stringify(command));
+                        }
+                        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                            targetDev.companion.send(JSON.stringify(command));
                         }
                     }
                 }
@@ -215,7 +353,7 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (command.type === 'admin_panic_purge') {
-                    for (const [id, targetDev] of devices.entries()) {
+                    for (const [, targetDev] of devices.entries()) {
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                             targetDev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
                         }
@@ -229,7 +367,89 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // --- HEADUNIT TELEMETRY CORE ---
+    // ── 🎵 GUEST PASSENGER NEXUS ──
+    if (role === 'guest') {
+        dev.guests.add(ws);
+        console.log(`[PASSENGER NEXUS] New connection on ${deviceId}`);
+
+        ws.send(JSON.stringify({
+            type: 'permissions_update',
+            allowPlayback: dev.guestPermissions.allowPlayback,
+            allowSuggestions: dev.guestPermissions.allowSuggestions
+        }));
+
+        if (dev.hudState) {
+            ws.send(JSON.stringify(dev.hudState));
+        }
+
+        ws.on('message', async (message) => {
+            try {
+                const msg = JSON.parse(message);
+                interceptTelemetryTransaction(`GUEST(${deviceId.substring(0,4)})`, 'SERVER', msg);
+
+                if (msg.type === 'guest_auth') {
+                    const fp = msg.deviceFingerprint || '';
+                    if (fp && fingerprintBlacklist.has(fp) && !msg.isOwner) {
+                        ws.send(JSON.stringify({ type: 'device_blocked', reason: 'ADMIN_PERMANENT_BAN' }));
+                        ws.close();
+                        return;
+                    }
+
+                    dev.guestMetadata.set(ws, {
+                        name: msg.guestName || 'Anonymous',
+                        fingerprint: fp,
+                        isOwner: msg.isOwner === true,
+                        connectedAt: Date.now()
+                    });
+                    ws.send(JSON.stringify({ type: 'auth_ok' }));
+                    broadcastTopology();
+                    return;
+                }
+
+                if (msg.type === 'search_spotify') {
+                    const results = await querySpotifyTracks(msg.query);
+                    ws.send(JSON.stringify({
+                        type: 'search_spotify_results',
+                        query: msg.query,
+                        tracks: results
+                    }));
+                    return;
+                }
+
+                if (msg.type === 'cmd_guest_suggest_song') {
+                    adminClients.forEach(admin => {
+                        if (admin.readyState === WebSocket.OPEN) {
+                            admin.send(JSON.stringify(msg));
+                        }
+                    });
+
+                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                        dev.companion.send(JSON.stringify(msg));
+                    }
+                    return;
+                }
+
+                if (msg.type === 'cmd_music' || msg.type === 'cmd_panic' || msg.type === 'cmd_volume' || msg.type === 'cmd_trigger_failover' || msg.type === 'toggle_parked_guard') {
+                    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                        dev.headunit.send(JSON.stringify(msg));
+                    }
+                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                        dev.companion.send(JSON.stringify(msg));
+                    }
+                    return;
+                }
+            } catch (err) {}
+        });
+
+        ws.on('close', () => {
+            dev.guests.delete(ws);
+            dev.guestMetadata.delete(ws);
+            broadcastTopology();
+        });
+        return;
+    }
+
+    // ── 🏎️ HEADUNIT TELEMETRY CORE ──
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
@@ -255,7 +475,6 @@ wss.on('connection', (ws, req) => {
                     dev.hudState = msg;
                     dev.hudLastSeen = Date.now();
 
-                    // 🚨 LOW FUEL / BATTERY THRESHOLD CHECK
                     const fuel = parseFloat(msg.fuel_percent) || 100;
                     const battery = parseFloat(msg.battery_voltage) || 12.6;
 
@@ -268,7 +487,6 @@ wss.on('connection', (ws, req) => {
                         }));
                     }
 
-                    // 🚨 PARKED GUARD ANTI-THEFT CHECK
                     if (dev.parkedGuardActive && msg.speed > 5) {
                         if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                             dev.companion.send(JSON.stringify({
@@ -284,7 +502,7 @@ wss.on('connection', (ws, req) => {
             } catch (err) {}
         });
 
-        ws.on('close', (code, reason) => {
+        ws.on('close', () => {
             if (dev.headunit === ws) {
                 dev.headunit = null;
                 dev.hudLastSeen = Date.now();
@@ -294,7 +512,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // --- COMPANION CONTROLLER ---
+    // ── 📱 COMPANION CONTROLLER ──
     if (role === 'companion') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion key missing.');
@@ -341,6 +559,17 @@ wss.on('connection', (ws, req) => {
         ws.on('close', () => {
             if (dev.companion === ws) dev.companion = null;
             broadcastTopology();
+        });
+        return;
+    }
+
+    // ── 📊 SUMMARY CLIENT PIPELINE ──
+    if (role === 'summary_client') {
+        dev.summaryClients.set(ws, token);
+        ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+
+        ws.on('close', () => {
+            dev.summaryClients.delete(ws);
         });
         return;
     }
