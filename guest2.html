@@ -117,16 +117,6 @@
 
   .brand span { color: var(--slate); font-weight: 400; }
 
-  .owner-welcome-badge {
-    font-size: 9px;
-    letter-spacing: 0.15em;
-    color: var(--cyan);
-    text-transform: uppercase;
-  }
-  .owner-welcome-badge span {
-    color: var(--slate-lt);
-  }
-
   .conn-status {
     display: flex;
     align-items: center;
@@ -135,7 +125,6 @@
     letter-spacing: 0.15em;
     color: var(--slate);
     text-transform: uppercase;
-    margin-top: 2px;
   }
 
   .conn-dot {
@@ -758,331 +747,6 @@
     text-transform: uppercase;
     display: none;
   }
-
-  /* ═══════════════════════════════════════
-      ONBOARDING MODAL
-  ═══════════════════════════════════════ */
-  #onboard-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9500;
-    background: rgba(5,5,7,0.92);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    transition: opacity 0.4s;
-  }
-  #onboard-overlay.hidden { display: none; }
-
-  .onboard-card {
-    width: 100%;
-    max-width: 340px;
-    padding: 28px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-    position: relative;
-  }
-
-  .onboard-title {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.3em;
-    color: var(--cyan);
-    text-shadow: 0 0 20px var(--cyan);
-    text-transform: uppercase;
-    text-align: center;
-  }
-  .onboard-title span { color: var(--slate); font-weight: 300; display: block; font-size: 8px; letter-spacing: 0.25em; margin-top: 6px; }
-
-  .onboard-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .onboard-label {
-    font-size: 8px;
-    letter-spacing: 0.25em;
-    color: var(--slate);
-    text-transform: uppercase;
-  }
-  .onboard-input {
-    font-family: var(--font);
-    font-size: 13px;
-    letter-spacing: 0.05em;
-    color: var(--cyan);
-    background: rgba(0,245,255,0.04);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 12px 14px;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .onboard-input::placeholder { color: var(--slate); }
-  .onboard-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow); }
-
-  .onboard-fp-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 8px;
-    letter-spacing: 0.12em;
-    color: var(--slate);
-    text-transform: uppercase;
-  }
-  .onboard-fp-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--slate);
-    flex-shrink: 0;
-    transition: background 0.3s, box-shadow 0.3s;
-  }
-  .onboard-fp-dot.ready { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse-dot 2s ease-in-out infinite; }
-  .onboard-fp-val { color: var(--slate-lt); word-break: break-all; }
-
-  .onboard-btn {
-    font-family: var(--font);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--cyan);
-    border: none;
-    border-radius: 8px;
-    padding: 13px 20px;
-    cursor: pointer;
-    box-shadow: 0 0 20px var(--cyan-glow);
-    transition: opacity 0.2s, transform 0.1s;
-  }
-  .onboard-btn:hover:not(:disabled) { opacity: 0.9; }
-  .onboard-btn:active:not(:disabled) { transform: scale(0.98); }
-  .onboard-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
-
-  /* ═══════════════════════════════════════
-      SPOTIFY DJ JUKEBOX
-  ═══════════════════════════════════════ */
-  .jukebox-panel {
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .jukebox-title {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: var(--cyan);
-    text-transform: uppercase;
-  }
-  .jukebox-lock-label {
-    display: none;
-    font-size: 8px;
-    letter-spacing: 0.18em;
-    color: var(--red);
-    text-transform: uppercase;
-    text-align: center;
-    padding: 6px;
-    border: 1px solid rgba(255,34,68,0.3);
-    border-radius: 6px;
-    background: rgba(255,34,68,0.06);
-  }
-  .jukebox-lock-label.visible { display: block; }
-
-  #spotify-search-input {
-    font-family: var(--font);
-    font-size: 12px;
-    color: var(--cyan);
-    background: rgba(0,245,255,0.04);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  #spotify-search-input::placeholder { color: var(--slate); }
-  #spotify-search-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-glow); }
-  #spotify-search-input:disabled,
-  #spotify-search-input.locked {
-    opacity: 0.4;
-    pointer-events: none;
-  }
-
-  #spotify-results {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 280px;
-    overflow-y: auto;
-  }
-
-  .spotify-track {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(0,245,255,0.08);
-    transition: background 0.2s, border-color 0.2s;
-  }
-  .spotify-track:hover { background: rgba(0,245,255,0.05); border-color: rgba(0,245,255,0.2); }
-
-  .spotify-thumb {
-    width: 40px; height: 40px;
-    border-radius: 6px;
-    flex-shrink: 0;
-    object-fit: cover;
-    background: rgba(0,245,255,0.08);
-  }
-
-  .spotify-meta {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .spotify-track-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--cyan);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .spotify-track-artist {
-    font-size: 9px;
-    color: var(--slate-lt);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .spotify-suggest-btn {
-    font-family: var(--font);
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--cyan);
-    border: none;
-    border-radius: 6px;
-    padding: 8px 10px;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 0 10px var(--cyan-glow);
-    transition: opacity 0.2s, transform 0.1s;
-  }
-  .spotify-suggest-btn:hover { opacity: 0.85; }
-  .spotify-suggest-btn:active { transform: scale(0.95); }
-  .spotify-suggest-btn.sent { background: var(--slate); color: var(--bg); box-shadow: none; pointer-events: none; }
-
-  .jukebox-empty {
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    color: var(--slate);
-    text-align: center;
-    padding: 14px 4px;
-    text-transform: uppercase;
-  }
-
-  /* ── SUGGESTION TOAST ── */
-  #suggest-toast {
-    position: fixed;
-    left: 50%;
-    bottom: 108px;
-    transform: translateX(-50%) translateY(20px);
-    z-index: 6000;
-    background: rgba(0,20,22,0.92);
-    border: 1px solid var(--cyan);
-    box-shadow: 0 0 20px var(--cyan-glow), 0 0 40px var(--cyan-glow);
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    color: var(--cyan);
-    text-transform: uppercase;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s, transform 0.3s;
-    white-space: nowrap;
-  }
-  #suggest-toast.visible {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  /* ═══════════════════════════════════════
-      MEDIA CONTROL BAR
-  ═══════════════════════════════════════ */
-  .media-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    position: relative;
-  }
-  .media-ctrl-btn {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: 1px solid var(--glass-border);
-    background: rgba(0,245,255,0.05);
-    color: var(--cyan);
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-  }
-  .media-ctrl-btn:hover:not(:disabled) { background: rgba(0,245,255,0.14); box-shadow: 0 0 10px var(--cyan-glow); }
-  .media-ctrl-btn:active:not(:disabled) { transform: scale(0.92); }
-  #btn-play-pause { width: 40px; height: 40px; font-size: 15px; }
-  .media-ctrl-btn:disabled { cursor: not-allowed; }
-
-  .controls-locked {
-    opacity: 0.4;
-    pointer-events: none;
-  }
-
-  .controls-locked-label {
-    display: none;
-    position: absolute;
-    inset: 0;
-    align-items: center;
-    justify-content: center;
-    font-size: 6.5px;
-    letter-spacing: 0.1em;
-    color: var(--red);
-    text-transform: uppercase;
-    text-align: center;
-    background: rgba(8,0,0,0.6);
-    border-radius: 8px;
-    pointer-events: none;
-  }
-  .controls-locked-label.visible { display: flex; }
-
-  /* ── DEVICE BANNED SCREEN ── */
-  #device-banned {
-    position: fixed;
-    inset: 0;
-    z-index: 9500;
-    background: #080000;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 32px;
-    text-align: center;
-  }
-  #device-banned.visible { display: flex; }
 </style>
 </head>
 <body>
@@ -1090,7 +754,7 @@
 <div id="init-overlay">
   <div class="init-logo">DriveOS <span>/ 2.0</span></div>
   <div class="init-bar-wrap"><div class="init-bar-fill"></div></div>
-  <div class="init-status" id="init-status">Initializing Passenger Nexus...</div>
+  <div class="init-status">Initializing Passenger Nexus...</div>
 </div>
 
 <div id="access-denied">
@@ -1108,34 +772,6 @@
   <button class="denied-btn" onclick="location.reload()">▶ Request New Access</button>
 </div>
 
-<div id="device-banned">
-  <div class="denied-icon">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/>
-    </svg>
-  </div>
-  <div class="denied-title">Device Banned</div>
-  <div class="denied-msg" id="device-banned-msg">
-    [SECURITY PROTOCOL]: THIS HARDWARE DEVICE HAS BEEN<br>
-    BANNED BY THE COCKPIT ADMIN.
-  </div>
-</div>
-
-<div id="onboard-overlay">
-  <div class="glass onboard-card">
-    <div class="onboard-title">Co-Pilot Nexus <span>Passenger Onboarding</span></div>
-    <div class="onboard-field">
-      <label class="onboard-label" for="guest-name-input">Guest Callsign</label>
-      <input class="onboard-input" id="guest-name-input" type="text" placeholder="Enter your name..." maxlength="32" autocomplete="off"/>
-    </div>
-    <div class="onboard-fp-row">
-      <div class="onboard-fp-dot" id="onboard-fp-dot"></div>
-      <span id="onboard-fp-status">Scanning hardware signature...</span>
-    </div>
-    <button class="onboard-btn" id="btn-guest-login" disabled>Enter Co-Pilot Nexus</button>
-  </div>
-</div>
-
 <div id="reconnect-banner">
   ⚠ [LINK LOST]: Attempting to re-establish sync...
 </div>
@@ -1143,7 +779,6 @@
 <header id="header">
   <div class="header-left">
     <div class="brand">Passenger Nexus <span>/ DriveOS 2.0</span></div>
-    <div class="owner-welcome-badge" id="owner-badge">PILOT: <span>SUMANYU</span> · WELCOME ABOARD</div>
     <div class="conn-status">
       <div class="conn-dot" id="conn-dot"></div>
       <span id="conn-text">Initializing...</span>
@@ -1229,24 +864,9 @@
       <div class="media-artist" id="media-artist">—</div>
       <div class="media-state off" id="media-state">[ STANDBY ]</div>
     </div>
-    <div class="media-controls" id="media-controls">
-      <div class="controls-locked-label" id="controls-locked-label">[ CONTROLS<br>LOCKED BY<br>DRIVER ]</div>
-      <button class="media-ctrl-btn" id="btn-prev" title="Previous">⏮</button>
-      <button class="media-ctrl-btn" id="btn-play-pause" title="Play/Pause">⏯</button>
-      <button class="media-ctrl-btn" id="btn-next" title="Next">⏭</button>
-    </div>
-  </div>
-
-  <div class="glass jukebox-panel">
-    <div class="jukebox-title">🎵 Spotify DJ Jukebox</div>
-    <div class="jukebox-lock-label" id="jukebox-lock-label">[ SUGGESTIONS DISABLED ]</div>
-    <input id="spotify-search-input" type="text" placeholder="Search Spotify tracks or artists..." autocomplete="off"/>
-    <div id="spotify-results"></div>
   </div>
 
 </main>
-
-<div id="suggest-toast">Suggestion Dispatched to Driver Queue ⚡</div>
 
 <footer id="footer">
   <div class="log-header">System Log</div>
@@ -1261,7 +881,6 @@
 // ═══════════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════════
-const OWNER_CALLSIGN = 'Sumanyu';
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
 const WS_URL      = WS_PROTOCOL + window.location.host;
 const RECONNECT_INTERVAL = 5000;
@@ -1277,12 +896,6 @@ let connected    = false;
 let authDenied   = false;
 let firstConnect = true;
 
-// ── guest identity / fingerprint / permissions ──
-let guestName       = localStorage.getItem('guest_name') || '';
-let fingerprintHash = localStorage.getItem('device_fingerprint') || '';
-let deviceBanned    = localStorage.getItem('device_banned') === '1';
-let permissions      = { allowPlayback: true, allowSuggestions: true };
-
 // ═══════════════════════════════════════════════
 //  ELEMENTS
 // ═══════════════════════════════════════════════
@@ -1291,14 +904,8 @@ const connDot     = $('conn-dot');
 const connText    = $('conn-text');
 const initOverlay = $('init-overlay');
 const accessDenied= $('access-denied');
-const deviceBannedEl = $('device-banned');
 const reconBanner = $('reconnect-banner');
 const logStream   = $('log-stream');
-const onboardOverlay  = $('onboard-overlay');
-const guestNameInput  = $('guest-name-input');
-const btnGuestLogin   = $('btn-guest-login');
-const onboardFpDot    = $('onboard-fp-dot');
-const onboardFpStatus = $('onboard-fp-status');
 
 // ═══════════════════════════════════════════════
 //  SYSTEM LOG
@@ -1323,292 +930,6 @@ function sysLog(category, message) {
   while (logStream.children.length > MAX_LOG) {
     logStream.removeChild(logStream.lastChild);
   }
-}
-
-// ═══════════════════════════════════════════════
-//  HARDWARE + CANVAS FINGERPRINT GENERATOR
-// ═══════════════════════════════════════════════
-async function sha256Hex(str) {
-  const buf = new TextEncoder().encode(str);
-  const digest = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function getCanvasSignature() {
-  try {
-    const c = document.createElement('canvas');
-    c.width = 220; c.height = 40;
-    const ctx = c.getContext('2d');
-    ctx.textBaseline = 'top';
-    ctx.font = '14px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, 220, 40);
-    ctx.fillStyle = '#00F5FF';
-    ctx.fillText('DriveOS::Nexus·FP·2.0', 2, 2);
-    ctx.strokeStyle = 'rgba(0,245,255,0.5)';
-    ctx.beginPath();
-    ctx.arc(180, 20, 12, 0, Math.PI * 2);
-    ctx.stroke();
-    return c.toDataURL();
-  } catch (e) {
-    return 'canvas-unavailable';
-  }
-}
-
-function getWebGLSignature() {
-  try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-    if (!gl) return 'webgl-unavailable';
-    const dbgExt = gl.getExtension('WEBGL_debug_renderer_info');
-    const vendor   = dbgExt ? gl.getParameter(dbgExt.UNMASKED_VENDOR_WEBGL)   : gl.getParameter(gl.VENDOR);
-    const renderer = dbgExt ? gl.getParameter(dbgExt.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
-    return `${vendor}::${renderer}`;
-  } catch (e) {
-    return 'webgl-error';
-  }
-}
-
-async function generateDeviceFingerprint() {
-  const parts = [
-    getCanvasSignature(),
-    getWebGLSignature(),
-    `${screen.width}x${screen.height}`,
-    `depth:${screen.colorDepth}`,
-    `mem:${navigator.deviceMemory || 'na'}`,
-    `cores:${navigator.hardwareConcurrency || 'na'}`,
-    `ua:${navigator.userAgent}`,
-    `tz:${Intl.DateTimeFormat().resolvedOptions().timeZone || 'na'}`,
-    `lang:${navigator.language || 'na'}`,
-  ];
-  return sha256Hex(parts.join('|'));
-}
-
-// ═══════════════════════════════════════════════
-//  ONBOARDING FLOW
-// ═══════════════════════════════════════════════
-function checkOnboardReady() {
-  const nameOk = guestNameInput.value.trim().length > 0;
-  const fpOk   = !!fingerprintHash;
-  btnGuestLogin.disabled = !(nameOk && fpOk);
-}
-
-async function initFingerprint() {
-  fingerprintHash = await generateDeviceFingerprint();
-  localStorage.setItem('device_fingerprint', fingerprintHash);
-  onboardFpDot.classList.add('ready');
-  onboardFpStatus.textContent = `FP · ${fingerprintHash.slice(0, 16)}…`;
-  checkOnboardReady();
-}
-
-function completeOnboarding(name) {
-  guestName = name.trim();
-  localStorage.setItem('guest_name', guestName);
-  onboardOverlay.classList.add('hidden');
-  sysLog('SYS', `GUEST IDENTIFIED — ${guestName.toUpperCase()}`);
-  sysLog('SYS', `WELCOME ${guestName.toUpperCase()} TO SUMANYU'S VEHICLE`);
-  beginConnection();
-}
-
-function setupOnboarding() {
-  guestNameInput.addEventListener('input', checkOnboardReady);
-  guestNameInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !btnGuestLogin.disabled) completeOnboarding(guestNameInput.value);
-  });
-  btnGuestLogin.addEventListener('click', () => completeOnboarding(guestNameInput.value));
-  initFingerprint();
-
-  if (guestName && fingerprintHash) {
-    onboardOverlay.classList.add('hidden');
-    sysLog('SYS', `WELCOME BACK — ${guestName.toUpperCase()}`);
-    beginConnection();
-  } else {
-    onboardOverlay.classList.remove('hidden');
-  }
-}
-
-function beginConnection() {
-  if (isDemo) {
-    startDemo();
-  } else {
-    connect();
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  BAN / SENTRY OVERLAY
-// ═══════════════════════════════════════════════
-function showDeviceBanned(reason) {
-  deviceBanned = true;
-  authDenied = true;
-  localStorage.setItem('device_banned', '1');
-  if (ws) { try { ws.close(); } catch(e) {} }
-  onboardOverlay.classList.add('hidden');
-  deviceBannedEl.classList.add('visible');
-  sysLog('ERR', `DEVICE BLOCKED — ${reason || 'ADMIN_PERMANENT_BAN'}`);
-  setStatus('error', 'Device Banned');
-}
-
-// ═══════════════════════════════════════════════
-//  PERMISSIONS
-// ═══════════════════════════════════════════════
-function applyPermissions() {
-  const controls = $('media-controls');
-  const lockLabel = $('controls-locked-label');
-  if (permissions.allowPlayback === false) {
-    controls.classList.add('controls-locked');
-    lockLabel.classList.add('visible');
-  } else {
-    controls.classList.remove('controls-locked');
-    lockLabel.classList.remove('visible');
-  }
-
-  const searchInput = $('spotify-search-input');
-  const jukeLock = $('jukebox-lock-label');
-  if (permissions.allowSuggestions === false) {
-    searchInput.classList.add('locked');
-    searchInput.disabled = true;
-    jukeLock.classList.add('visible');
-  } else {
-    searchInput.classList.remove('locked');
-    searchInput.disabled = false;
-    jukeLock.classList.remove('visible');
-  }
-}
-
-function handlePermissionsUpdate(data) {
-  if (data.allowPlayback !== undefined)   permissions.allowPlayback   = data.allowPlayback;
-  if (data.allowSuggestions !== undefined) permissions.allowSuggestions = data.allowSuggestions;
-  applyPermissions();
-  sysLog('SYS', `PERMISSIONS UPDATED — PLAYBACK:${permissions.allowPlayback} SUGGEST:${permissions.allowSuggestions}`);
-}
-
-// ═══════════════════════════════════════════════
-//  MEDIA CONTROL BUTTONS
-// ═══════════════════════════════════════════════
-function sendMusicCmd(action) {
-  if (permissions.allowPlayback === false) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'cmd_music', action, device: deviceId }));
-  sysLog('MED', `PLAYBACK CMD SENT — ${action.toUpperCase()}`);
-}
-
-function setupMediaControls() {
-  $('btn-prev').addEventListener('click', () => sendMusicCmd('prev'));
-  $('btn-play-pause').addEventListener('click', () => sendMusicCmd('toggle'));
-  $('btn-next').addEventListener('click', () => sendMusicCmd('next'));
-}
-
-// ═══════════════════════════════════════════════
-//  SPOTIFY DJ JUKEBOX
-// ═══════════════════════════════════════════════
-const SPOTIFY_DEMO_CATALOG = [
-  { title: 'Starboy',            artist: 'The Weeknd',        uri: 'spotify:track:7MXVkk9YMctZqd1Srtv4MB', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
-  { title: 'Blinding Lights',    artist: 'The Weeknd',        uri: 'spotify:track:0VjIjW4GlUZAMYd2vXMi3b', cover: 'https://i.scdn.co/image/ab67616d0000b273ef122c118cb1d5b3f7f9c96e' },
-  { title: 'Levitating',         artist: 'Dua Lipa',          uri: 'spotify:track:39LLxExYz6ewLAcYrzQQyP', cover: 'https://i.scdn.co/image/ab67616d0000b2739da85ff9ecf14a705d24e6c1' },
-  { title: 'Save Your Tears',    artist: 'The Weeknd',        uri: 'spotify:track:5QO79kh1waicV47BqGRL3g', cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452' },
-  { title: 'As It Was',          artist: 'Harry Styles',      uri: 'spotify:track:4Dvkj6JhhA12EX05fT7y2e', cover: 'https://i.scdn.co/image/ab67616d0000b2732e8ed79e177ff6011076f5f0' },
-  { title: 'Flowers',            artist: 'Miley Cyrus',       uri: 'spotify:track:4LRPiXqCikLlN15c3yImP7', cover: 'https://i.scdn.co/image/ab67616d0000b273f429549123dbe8552764ba1e' },
-  { title: 'Anti-Hero',          artist: 'Taylor Swift',      uri: 'spotify:track:0V3wPSX9ygBnCm8psDIegu', cover: 'https://i.scdn.co/image/ab67616d0000b273bb54dde68cd23e2a268ae0f5' },
-  { title: 'Vampire',            artist: 'Olivia Rodrigo',    uri: 'spotify:track:1kuGVB7EU95pJObxwvfwKS', cover: 'https://i.scdn.co/image/ab67616d0000b273e85259a1cae29a8d91f2093d' },
-  { title: 'Peaches',            artist: 'Justin Bieber',     uri: 'spotify:track:4iJyoBOLtHqaGxP12qzhQI', cover: 'https://i.scdn.co/image/ab67616d0000b273e6f407c7f3a0ec98845e4431' },
-  { title: 'Cruel Summer',       artist: 'Taylor Swift',      uri: 'spotify:track:1BxfuPKGuaTgP7aM0Bbdwr', cover: 'https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647' },
-  { title: 'Redbone',            artist: 'Childish Gambino',  uri: 'spotify:track:2LxnfXfEDpEE09rmDetgKY', cover: 'https://i.scdn.co/image/ab67616d0000b273a2c68f5db1c4d7fb35f8d78c' },
-  { title: 'Night Drive',        artist: 'Synthetic Division', uri: 'spotify:track:demoNightDrive000001',  cover: '' },
-];
-
-let spotifyDebounceTimer = null;
-
-function renderSpotifyResults(query) {
-  const container = $('spotify-results');
-  container.innerHTML = '';
-  const q = query.trim().toLowerCase();
-  if (!q) return;
-
-  const matches = SPOTIFY_DEMO_CATALOG.filter(t =>
-    t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
-  ).slice(0, 8);
-
-  if (matches.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'jukebox-empty';
-    empty.textContent = 'No tracks found';
-    container.appendChild(empty);
-    return;
-  }
-
-  matches.forEach(track => {
-    const row = document.createElement('div');
-    row.className = 'spotify-track';
-
-    const thumb = document.createElement('img');
-    thumb.className = 'spotify-thumb';
-    thumb.loading = 'lazy';
-    thumb.src = track.cover || 'data:image/svg+xml;utf8,' + encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#00F5FF" text-anchor="middle" font-family="monospace">♪</text></svg>`
-    );
-    thumb.alt = track.title;
-
-    const meta = document.createElement('div');
-    meta.className = 'spotify-meta';
-    meta.innerHTML = `<div class="spotify-track-title"></div><div class="spotify-track-artist"></div>`;
-    meta.querySelector('.spotify-track-title').textContent = track.title;
-    meta.querySelector('.spotify-track-artist').textContent = track.artist;
-
-    const btn = document.createElement('button');
-    btn.className = 'spotify-suggest-btn';
-    btn.textContent = 'SUGGEST';
-    btn.addEventListener('click', () => dispatchSuggestion(track, btn));
-
-    row.appendChild(thumb);
-    row.appendChild(meta);
-    row.appendChild(btn);
-    container.appendChild(row);
-  });
-}
-
-function dispatchSuggestion(track, btnEl) {
-  if (permissions.allowSuggestions === false) return;
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    sysLog('WARN', 'CANNOT SUGGEST — LINK OFFLINE');
-    return;
-  }
-  ws.send(JSON.stringify({
-    type: 'cmd_guest_suggest_song',
-    device: deviceId,
-    guestName: guestName,
-    deviceFingerprint: fingerprintHash,
-    track: {
-      title: track.title,
-      artist: track.artist,
-      uri: track.uri,
-      cover: track.cover,
-    },
-  }));
-  sysLog('MED', `SUGGESTION SENT — ${track.title.toUpperCase()} / ${track.artist.toUpperCase()}`);
-  showSuggestToast();
-  if (btnEl) {
-    btnEl.textContent = 'SENT ✓';
-    btnEl.classList.add('sent');
-    setTimeout(() => { btnEl.textContent = 'SUGGEST'; btnEl.classList.remove('sent'); }, 2200);
-  }
-}
-
-let toastTimer = null;
-function showSuggestToast() {
-  const toast = $('suggest-toast');
-  toast.classList.add('visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600);
-}
-
-function setupSpotifySearch() {
-  const input = $('spotify-search-input');
-  input.addEventListener('input', () => {
-    clearTimeout(spotifyDebounceTimer);
-    const val = input.value;
-    spotifyDebounceTimer = setTimeout(() => renderSpotifyResults(val), 300);
-  });
 }
 
 // ═══════════════════════════════════════════════
@@ -1638,7 +959,7 @@ function showAccessDenied() {
 //  WEBSOCKET
 // ═══════════════════════════════════════════════
 function connect() {
-  if (authDenied || deviceBanned) return;
+  if (authDenied) return;
 
   try { 
     ws = new WebSocket(`${WS_URL}?role=guest&device=${encodeURIComponent(deviceId)}&token=${encodeURIComponent(token)}`); 
@@ -1659,9 +980,7 @@ function connect() {
     ws.send(JSON.stringify({
       type:   'guest_auth',
       device: deviceId,
-      token:  token,
-      guestName: guestName,
-      deviceFingerprint: fingerprintHash
+      token:  token
     }));
 
     sysLog('SYS', `HANDSHAKE TRANSMITTED — DEVICE: ${deviceId.toUpperCase()}`);
@@ -1689,16 +1008,6 @@ function connect() {
 
     if (data.type === 'auth_ok' || data.type === 'handshake_ok') {
       sysLog('SYS', 'HANDSHAKE VERIFIED — NEXUS ACCESS GRANTED');
-      return;
-    }
-
-    if (data.type === 'permissions_update') {
-      handlePermissionsUpdate(data);
-      return;
-    }
-
-    if (data.type === 'banned' || data.type === 'device_blocked') {
-      showDeviceBanned(data.reason);
       return;
     }
 
@@ -1883,9 +1192,6 @@ function startDemo() {
 function init() {
   buildVisualizer();
   initBoostSegs();
-  setupMediaControls();
-  setupSpotifySearch();
-  applyPermissions();
 
   $('vid-device').textContent = deviceId.toUpperCase();
 
@@ -1893,15 +1199,13 @@ function init() {
     initOverlay.classList.add('fade');
     setTimeout(() => initOverlay.style.display='none', 650);
     sysLog('SYS', `PASSENGER NEXUS ONLINE — UNIT ${deviceId.toUpperCase()}`);
-    sysLog('SYS', `WELCOME ABOARD · SYSTEM OWNER: ${OWNER_CALLSIGN.toUpperCase()}`);
     sysLog('SYS', 'ENCRYPTED CHANNEL PROTOCOL ACTIVE');
 
-    if (deviceBanned) {
-      showDeviceBanned('ADMIN_PERMANENT_BAN');
-      return;
+    if (isDemo) {
+      startDemo();
+    } else {
+      connect();
     }
-
-    setupOnboarding();
   }, 1500);
 }
 
