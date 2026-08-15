@@ -80,7 +80,7 @@ const fingerprintBlacklist = new Set();
 let globalLogSequence = 1;
 
 console.log('====================================================');
-console.log('🛡️  [DRIVEOS HYBRID CORE]: Initializing Clean State');
+console.log('🛡️  [DRIVEOS HYBRID CORE]: Initializing Secured State');
 console.log(`📦  Blacklisted Clusters:       ${blacklist.size}`);
 console.log(`🔒  Quarantined Fingerprints:   ${fingerprintBlacklist.size}`);
 console.log('====================================================');
@@ -91,11 +91,11 @@ function getDevice(id) {
             headunit: null,
             companion: null,
             guests: new Set(),
-            guestMetadata: new Map(), // ws -> { name, fingerprint, isOwner, connectedAt }
+            guestMetadata: new Map(),
             guestPermissions: { allowPlayback: true, allowSuggestions: true },
             summaryClients: new Map(),
             summaryTokens: new Map(),
-            guestTokens: new Map(),
+            guestTokens: new Map(), // token -> { type, burned }
             hudState: null,
             hudLastSeen: null,
             companionState: null,
@@ -111,12 +111,54 @@ function getDevice(id) {
 
 app.use(express.static(path.join(__dirname)));
 
+// ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & SINGLE-USE BURNING ──
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
-app.get('/guest', (req, res) => res.sendFile(path.join(__dirname, 'guest.html')));
-app.get('/summary', (req, res) => res.sendFile(path.join(__dirname, 'summary.html')));
+
+app.get('/guest', (req, res) => {
+    const deviceId = req.query.device || 'myaura001';
+    const token = req.query.token;
+    const dev = devices.get(deviceId);
+
+    if (!token || !dev || !dev.guestTokens.has(token)) {
+        return res.status(403).sendFile(path.join(__dirname, 'access_denied.html')) || res.send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — INVALID OR EXPIRED TOKEN</h1>');
+    }
+
+    const tokenMeta = dev.guestTokens.get(token);
+    if (tokenMeta.burned) {
+        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — TOKEN ALREADY BURNED</h1>');
+    }
+
+    // Single-use token burn on first open
+    tokenMeta.burned = true;
+    dev.guestTokens.set(token, tokenMeta);
+    broadcastTopology();
+
+    res.sendFile(path.join(__dirname, 'guest.html'));
+});
+
+app.get('/summary', (req, res) => {
+    const deviceId = req.query.device || 'myaura001';
+    const token = req.query.token;
+    const dev = devices.get(deviceId);
+
+    if (!token || !dev || !dev.guestTokens.has(token)) {
+        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — INVALID SUMMARY TOKEN</h1>');
+    }
+
+    const tokenMeta = dev.guestTokens.get(token);
+    if (tokenMeta.burned) {
+        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — SUMMARY TOKEN ALREADY BURNED</h1>');
+    }
+
+    tokenMeta.burned = true;
+    dev.guestTokens.set(token, tokenMeta);
+    broadcastTopology();
+
+    res.sendFile(path.join(__dirname, 'summary.html'));
+});
+
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 
-// 🔓 1-Click Emergency Unban Endpoint
 app.get('/api/unban-all', (req, res) => {
     blacklist.clear();
     fingerprintBlacklist.clear();
@@ -157,7 +199,8 @@ function broadcastTopology() {
                 for (const [tokenKey, meta] of dev.guestTokens.entries()) {
                     tokenList.push({
                         token: tokenKey,
-                        type: (typeof meta === 'object' && meta.type) ? meta.type : 'guest'
+                        type: meta.type || 'guest',
+                        burned: meta.burned || false
                     });
                 }
             }
@@ -252,7 +295,12 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
                         const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
-                        targetDev.guestTokens.delete(command.token);
+                        
+                        // Mark as burned immediately and notify connected client
+                        if (tokenMeta) {
+                            tokenMeta.burned = true;
+                            targetDev.guestTokens.set(command.token, tokenMeta);
+                        }
                         
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                             targetDev.companion.send(JSON.stringify({
@@ -305,13 +353,11 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'admin_unban_fingerprint') {
                     if (command.deviceFingerprint) {
                         fingerprintBlacklist.delete(command.deviceFingerprint);
-                        console.log(`[FIREWALL]: Revoked ban on device signature: ${command.deviceFingerprint}`);
                     }
                 }
 
                 if (command.type === 'admin_unban_all_fingerprints') {
                     fingerprintBlacklist.clear();
-                    console.log('🔓 [FIREWALL]: All device fingerprint bans purged.');
                 }
 
                 if (command.type === 'admin_kick_all_guests') {
@@ -388,8 +434,17 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎵 GUEST PASSENGER NEXUS ──
+    // ── 🎵 GUEST PASSENGER NEXUS (TOKEN VALIDATION REQUIRED) ──
     if (role === 'guest') {
+        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned guest token.');
+        }
+
+        // Burn token on first websocket handshake as well for maximum security
+        const meta = dev.guestTokens.get(token);
+        meta.burned = true;
+        dev.guestTokens.set(token, meta);
+
         dev.guests.add(ws);
 
         ws.send(JSON.stringify({
@@ -558,7 +613,7 @@ wss.on('connection', (ws, req) => {
                 if (msg.type === 'request_guest_token') {
                     const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
                     const tokenCategory = msg.tokenType || 'guest';
-                    dev.guestTokens.set(guestToken, { type: tokenCategory });
+                    dev.guestTokens.set(guestToken, { type: tokenCategory, burned: false });
                     ws.send(JSON.stringify({ type: 'token_registered', token: guestToken, tokenType: tokenCategory }));
                     broadcastTopology();
                     return;
@@ -583,8 +638,16 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 📊 SUMMARY CLIENT PIPELINE ──
+    // ── 📊 SUMMARY CLIENT PIPELINE (TOKEN VALIDATION REQUIRED) ──
     if (role === 'summary_client') {
+        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned summary token.');
+        }
+
+        const meta = dev.guestTokens.get(token);
+        meta.burned = true;
+        dev.guestTokens.set(token, meta);
+
         dev.summaryClients.set(ws, token);
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
 
