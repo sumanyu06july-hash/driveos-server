@@ -156,7 +156,7 @@ const ACCESS_DENIED_HTML = `
 </html>
 `;
 
-// ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & SINGLE-USE BURNING ──
+// ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING ──
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.get('/guest', (req, res) => {
@@ -164,23 +164,12 @@ app.get('/guest', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    if (!token || !dev || !dev.guestTokens.has(token)) {
+    // If token is missing, unknown, or already burned, render Access Denied
+    if (!token || !dev || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    const tokenMeta = dev.guestTokens.get(token);
-    if (tokenMeta.burned) {
-        return res.status(403).send(ACCESS_DENIED_HTML);
-    }
-
-    // Serve the file first, then burn the token upon successful transmission
-    res.sendFile(path.join(__dirname, 'guest.html'), (err) => {
-        if (!err) {
-            tokenMeta.burned = true;
-            dev.guestTokens.set(token, tokenMeta);
-            broadcastTopology();
-        }
-    });
+    res.sendFile(path.join(__dirname, 'guest.html'));
 });
 
 app.get('/summary', (req, res) => {
@@ -188,22 +177,11 @@ app.get('/summary', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    if (!token || !dev || !dev.guestTokens.has(token)) {
+    if (!token || !dev || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    const tokenMeta = dev.guestTokens.get(token);
-    if (tokenMeta.burned) {
-        return res.status(403).send(ACCESS_DENIED_HTML);
-    }
-
-    res.sendFile(path.join(__dirname, 'summary.html'), (err) => {
-        if (!err) {
-            tokenMeta.burned = true;
-            dev.guestTokens.set(token, tokenMeta);
-            broadcastTopology();
-        }
-    });
+    res.sendFile(path.join(__dirname, 'summary.html'));
 });
 
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
@@ -482,11 +460,21 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎵 GUEST PASSENGER NEXUS (STRICT TOKEN VALIDATION REQUIRED) ──
+    // ── 🎵 GUEST PASSENGER NEXUS (TOKEN VALIDATION & SINGLE-USE BURNING ON WS HANDSHAKE) ──
     if (role === 'guest') {
-        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned guest token.');
+        if (!token || !dev.guestTokens.has(token)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid guest token.');
         }
+
+        const tokenMeta = dev.guestTokens.get(token);
+        if (tokenMeta.burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Token already burned.');
+        }
+
+        // Burn token precisely when the WebSocket connection is established and authenticated
+        tokenMeta.burned = true;
+        dev.guestTokens.set(token, tokenMeta);
+        broadcastTopology();
 
         dev.guests.add(ws);
 
@@ -681,11 +669,20 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 📊 SUMMARY CLIENT PIPELINE (TOKEN VALIDATION REQUIRED) ──
+    // ── 📊 SUMMARY CLIENT PIPELINE (TOKEN VALIDATION & BURNING ON HANDSHAKE) ──
     if (role === 'summary_client') {
-        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned summary token.');
+        if (!token || !dev.guestTokens.has(token)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid summary token.');
         }
+
+        const tokenMeta = dev.guestTokens.get(token);
+        if (tokenMeta.burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Summary token already burned.');
+        }
+
+        tokenMeta.burned = true;
+        dev.guestTokens.set(token, tokenMeta);
+        broadcastTopology();
 
         dev.summaryClients.set(ws, token);
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
