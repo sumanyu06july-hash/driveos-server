@@ -1256,9 +1256,6 @@
     [SECURITY PROTOCOL]: THIS HARDWARE DEVICE HAS BEEN<br>
     BANNED BY THE COCKPIT ADMIN.
   </div>
-  <button class="denied-btn" onclick="resetProfile()">
-    ▶ Clear Local Cache & Reconnect
-  </button>
 </div>
 
 <!-- ONBOARDING & WELCOME OVERLAY -->
@@ -1518,7 +1515,7 @@ function sysLog(category, message) {
 }
 
 // ═══════════════════════════════════════════════
-//  HARDWARE + CANVAS FINGERPRINT GENERATOR
+//  PERMANENT & DETERMINISTIC HARDWARE FINGERPRINT
 // ═══════════════════════════════════════════════
 async function sha256Hex(str) {
   const buf = new TextEncoder().encode(str);
@@ -1529,21 +1526,21 @@ async function sha256Hex(str) {
 function getCanvasSignature() {
   try {
     const c = document.createElement('canvas');
-    c.width = 220; c.height = 40;
+    c.width = 240; c.height = 50;
     const ctx = c.getContext('2d');
     ctx.textBaseline = 'top';
     ctx.font = '14px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, 220, 40);
+    ctx.fillStyle = '#06070a';
+    ctx.fillRect(0, 0, 240, 50);
     ctx.fillStyle = '#00F5FF';
-    ctx.fillText('DriveOS::Nexus·FP·2.0', 2, 2);
-    ctx.strokeStyle = 'rgba(0,245,255,0.5)';
+    ctx.fillText('DriveOS::Hardware::FP::Root', 2, 4);
+    ctx.strokeStyle = 'rgba(0,245,255,0.7)';
     ctx.beginPath();
-    ctx.arc(180, 20, 12, 0, Math.PI * 2);
+    ctx.arc(190, 25, 14, 0, Math.PI * 2);
     ctx.stroke();
     return c.toDataURL();
   } catch (e) {
-    return 'canvas-unavailable';
+    return 'canvas-na';
   }
 }
 
@@ -1551,35 +1548,30 @@ function getWebGLSignature() {
   try {
     const c = document.createElement('canvas');
     const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-    if (!gl) return 'webgl-unavailable';
+    if (!gl) return 'webgl-na';
     const dbgExt = gl.getExtension('WEBGL_debug_renderer_info');
     const vendor   = dbgExt ? gl.getParameter(dbgExt.UNMASKED_VENDOR_WEBGL)   : gl.getParameter(gl.VENDOR);
     const renderer = dbgExt ? gl.getParameter(dbgExt.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
     return `${vendor}::${renderer}`;
   } catch (e) {
-    return 'webgl-error';
+    return 'webgl-err';
   }
 }
 
 async function generateDeviceFingerprint() {
-  let salt = localStorage.getItem('fp_salt');
-  if (!salt) {
-    salt = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    localStorage.setItem('fp_salt', salt);
-  }
-  const parts = [
-    salt,
+  // Pure immutable hardware traits — zero dynamic salts/randomizers
+  const hardwareTraits = [
     getCanvasSignature(),
     getWebGLSignature(),
-    `${screen.width}x${screen.height}`,
-    `depth:${screen.colorDepth}`,
-    `mem:${navigator.deviceMemory || 'na'}`,
+    `${screen.width}x${screen.height}x${screen.colorDepth}`,
+    `ratio:${window.devicePixelRatio || 1}`,
     `cores:${navigator.hardwareConcurrency || 'na'}`,
-    `ua:${navigator.userAgent}`,
+    `mem:${navigator.deviceMemory || 'na'}`,
     `tz:${Intl.DateTimeFormat().resolvedOptions().timeZone || 'na'}`,
     `lang:${navigator.language || 'na'}`,
+    `ua:${navigator.userAgent}`
   ];
-  return sha256Hex(parts.join('|'));
+  return sha256Hex(hardwareTraits.join('|||'));
 }
 
 // ═══════════════════════════════════════════════
@@ -1645,8 +1637,9 @@ function updateUserBadge() {
 }
 
 function resetProfile() {
-  localStorage.clear();
-  localStorage.setItem('fp_salt', 'fresh_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36));
+  // Only clear the identity, fingerprint remains universally immutable
+  localStorage.removeItem('guest_name');
+  sessionStorage.clear();
   location.reload();
 }
 
