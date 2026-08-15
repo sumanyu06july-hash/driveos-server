@@ -111,6 +111,51 @@ function getDevice(id) {
 
 app.use(express.static(path.join(__dirname)));
 
+// ── ACCESS DENIED HTML TEMPLATE ──
+const ACCESS_DENIED_HTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DriveOS · Access Denied</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #080000;
+    color: #ff2244;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    text-align: center;
+  }
+  .box {
+    border: 1px solid rgba(255,34,68,0.3);
+    background: rgba(255,34,68,0.04);
+    border-radius: 12px;
+    padding: 32px 24px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 0 30px rgba(255,34,68,0.2);
+  }
+  h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.2em; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,34,68,0.5); }
+  p { font-size: 10px; letter-spacing: 0.1em; color: rgba(255,34,68,0.8); line-height: 1.6; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>[SECURITY]: ACCESS DENIED</h1>
+    <p>Invalid, expired, or already burned access token. Vehicle nexus connection refused.</p>
+  </div>
+</body>
+</html>
+`;
+
 // ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & SINGLE-USE BURNING ──
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
@@ -120,12 +165,12 @@ app.get('/guest', (req, res) => {
     const dev = devices.get(deviceId);
 
     if (!token || !dev || !dev.guestTokens.has(token)) {
-        return res.status(403).sendFile(path.join(__dirname, 'access_denied.html')) || res.send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — INVALID OR EXPIRED TOKEN</h1>');
+        return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     const tokenMeta = dev.guestTokens.get(token);
     if (tokenMeta.burned) {
-        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — TOKEN ALREADY BURNED</h1>');
+        return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     // Single-use token burn on first open
@@ -142,12 +187,12 @@ app.get('/summary', (req, res) => {
     const dev = devices.get(deviceId);
 
     if (!token || !dev || !dev.guestTokens.has(token)) {
-        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — INVALID SUMMARY TOKEN</h1>');
+        return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     const tokenMeta = dev.guestTokens.get(token);
     if (tokenMeta.burned) {
-        return res.status(403).send('<h1 style="background:#080000;color:#ff2244;font-family:monospace;text-align:center;padding-top:20vh;">[SECURITY]: ACCESS DENIED — SUMMARY TOKEN ALREADY BURNED</h1>');
+        return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     tokenMeta.burned = true;
@@ -296,7 +341,6 @@ wss.on('connection', (ws, req) => {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
                         const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
                         
-                        // Mark as burned immediately and notify connected client
                         if (tokenMeta) {
                             tokenMeta.burned = true;
                             targetDev.guestTokens.set(command.token, tokenMeta);
@@ -434,16 +478,11 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎵 GUEST PASSENGER NEXUS (TOKEN VALIDATION REQUIRED) ──
+    // ── 🎵 GUEST PASSENGER NEXUS (STRICT TOKEN VALIDATION REQUIRED) ──
     if (role === 'guest') {
         if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
             return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned guest token.');
         }
-
-        // Burn token on first websocket handshake as well for maximum security
-        const meta = dev.guestTokens.get(token);
-        meta.burned = true;
-        dev.guestTokens.set(token, meta);
 
         dev.guests.add(ws);
 
@@ -643,10 +682,6 @@ wss.on('connection', (ws, req) => {
         if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
             return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned summary token.');
         }
-
-        const meta = dev.guestTokens.get(token);
-        meta.burned = true;
-        dev.guestTokens.set(token, meta);
 
         dev.summaryClients.set(ws, token);
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
