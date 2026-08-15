@@ -164,20 +164,15 @@ app.get('/guest', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    console.log(`[HTTP GET] /guest request received. Device: ${deviceId}, Token: ${token}`);
-
     if (!token || !dev || !dev.guestTokens.has(token)) {
-        console.warn(`[SECURITY WARNING] /guest rejected: Token '${token}' not found in vault for device ${deviceId}.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     const tokenMeta = dev.guestTokens.get(token);
     if (tokenMeta.burned) {
-        console.warn(`[SECURITY WARNING] /guest rejected: Token '${token}' is already burned.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    console.log(`[SECURITY SUCCESS] /guest validated successfully for token: ${token}. Serving guest.html...`);
     res.sendFile(path.join(__dirname, 'guest.html'));
 });
 
@@ -186,20 +181,15 @@ app.get('/summary', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    console.log(`[HTTP GET] /summary request received. Device: ${deviceId}, Token: ${token}`);
-
     if (!token || !dev || !dev.guestTokens.has(token)) {
-        console.warn(`[SECURITY WARNING] /summary rejected: Token '${token}' not found.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
     const tokenMeta = dev.guestTokens.get(token);
     if (tokenMeta.burned) {
-        console.warn(`[SECURITY WARNING] /summary rejected: Token '${token}' is already burned.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    console.log(`[SECURITY SUCCESS] /summary validated successfully for token: ${token}. Serving summary.html...`);
     res.sendFile(path.join(__dirname, 'summary.html'));
 });
 
@@ -213,7 +203,7 @@ app.get('/api/unban-all', (req, res) => {
         dev.companion_banned = false;
     }
     broadcastTopology();
-    res.send('<h1 style="font-family:sans-serif;color:#00c853;">✅ SUCCESS: All device bans and fingerprint quarantines cleared from memory!</h1>');
+    res.send('<h1 style="font-family:sans-serif;color:#00c853;">✅ SUCCESS: All device bans, node lockdowns, and fingerprint quarantines cleared from memory!</h1>');
 });
 
 function reject(ws, type, message) {
@@ -345,7 +335,6 @@ wss.on('connection', (ws, req) => {
                         if (tokenMeta) {
                             tokenMeta.burned = true;
                             targetDev.guestTokens.set(command.token, tokenMeta);
-                            console.log(`[ADMIN ACTION] Token ${command.token} manually burned via Overlord Control Center.`);
                         }
                         
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
@@ -403,7 +392,12 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (command.type === 'admin_unban_all_fingerprints') {
+                    blacklist.clear();
                     fingerprintBlacklist.clear();
+                    for (const [, d] of devices.entries()) {
+                        d.hud_banned = false;
+                        d.companion_banned = false;
+                    }
                 }
 
                 if (command.type === 'admin_kick_all_guests') {
@@ -457,7 +451,7 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                if (command.node === 'revoke_node_ban') {
+                if (command.type === 'revoke_node_ban') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                         if (command.node === 'hud') targetDev.hud_banned = false;
@@ -480,24 +474,15 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎵 GUEST PASSENGER NEXUS (STRICT TOKEN VALIDATION & SINGLE-USE BURNING ON WS HANDSHAKE) ──
+    // ── 🎵 GUEST PASSENGER NEXUS ──
     if (role === 'guest') {
-        console.log(`[WS CONNECT] Guest attempting connection with token: ${token}`);
-        if (!token || !dev.guestTokens.has(token)) {
-            console.warn(`[WS REJECT] Guest token '${token}' not found in vault.`);
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid guest token.');
+        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned guest token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
-        if (tokenMeta.burned) {
-            console.warn(`[WS REJECT] Guest token '${token}' was already burned.`);
-            return reject(ws, 'SECURITY_VIOLATION', 'Token already burned.');
-        }
-
-        // Burn token precisely when the WebSocket connection is established and authenticated
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
-        console.log(`[TOKEN BURN] Guest token '${token}' successfully burned upon WebSocket connection.`);
         broadcastTopology();
 
         dev.guests.add(ws);
@@ -669,7 +654,6 @@ wss.on('connection', (ws, req) => {
                     const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
                     const tokenCategory = msg.tokenType || 'guest';
                     dev.guestTokens.set(guestToken, { type: tokenCategory, burned: false });
-                    console.log(`[TOKEN GENERATED] Created new guest token: '${guestToken}' (Type: ${tokenCategory}) for device: ${deviceId}`);
                     ws.send(JSON.stringify({ type: 'token_registered', token: guestToken, tokenType: tokenCategory }));
                     broadcastTopology();
                     return;
@@ -694,23 +678,15 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 📊 SUMMARY CLIENT PIPELINE (TOKEN VALIDATION & BURNING ON HANDSHAKE) ──
+    // ── 📊 SUMMARY CLIENT PIPELINE ──
     if (role === 'summary_client') {
-        console.log(`[WS CONNECT] Summary client attempting connection with token: ${token}`);
-        if (!token || !dev.guestTokens.has(token)) {
-            console.warn(`[WS REJECT] Summary token '${token}' not found.`);
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid summary token.');
+        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned summary token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
-        if (tokenMeta.burned) {
-            console.warn(`[WS REJECT] Summary token '${token}' already burned.`);
-            return reject(ws, 'SECURITY_VIOLATION', 'Summary token already burned.');
-        }
-
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
-        console.log(`[TOKEN BURN] Summary token '${token}' burned upon WebSocket handshake.`);
         broadcastTopology();
 
         dev.summaryClients.set(ws, token);
