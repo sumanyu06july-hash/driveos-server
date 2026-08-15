@@ -156,7 +156,7 @@ const ACCESS_DENIED_HTML = `
 </html>
 `;
 
-// ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING ──
+// ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & LOGGING ──
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.get('/guest', (req, res) => {
@@ -164,11 +164,20 @@ app.get('/guest', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    // If token is missing, unknown, or already burned, render Access Denied
-    if (!token || !dev || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+    console.log(`[HTTP GET] /guest request received. Device: ${deviceId}, Token: ${token}`);
+
+    if (!token || !dev || !dev.guestTokens.has(token)) {
+        console.warn(`[SECURITY WARNING] /guest rejected: Token '${token}' not found in vault for device ${deviceId}.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
+    const tokenMeta = dev.guestTokens.get(token);
+    if (tokenMeta.burned) {
+        console.warn(`[SECURITY WARNING] /guest rejected: Token '${token}' is already burned.`);
+        return res.status(403).send(ACCESS_DENIED_HTML);
+    }
+
+    console.log(`[SECURITY SUCCESS] /guest validated successfully for token: ${token}. Serving guest.html...`);
     res.sendFile(path.join(__dirname, 'guest.html'));
 });
 
@@ -177,10 +186,20 @@ app.get('/summary', (req, res) => {
     const token = req.query.token;
     const dev = devices.get(deviceId);
 
-    if (!token || !dev || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
+    console.log(`[HTTP GET] /summary request received. Device: ${deviceId}, Token: ${token}`);
+
+    if (!token || !dev || !dev.guestTokens.has(token)) {
+        console.warn(`[SECURITY WARNING] /summary rejected: Token '${token}' not found.`);
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
+    const tokenMeta = dev.guestTokens.get(token);
+    if (tokenMeta.burned) {
+        console.warn(`[SECURITY WARNING] /summary rejected: Token '${token}' is already burned.`);
+        return res.status(403).send(ACCESS_DENIED_HTML);
+    }
+
+    console.log(`[SECURITY SUCCESS] /summary validated successfully for token: ${token}. Serving summary.html...`);
     res.sendFile(path.join(__dirname, 'summary.html'));
 });
 
@@ -326,6 +345,7 @@ wss.on('connection', (ws, req) => {
                         if (tokenMeta) {
                             tokenMeta.burned = true;
                             targetDev.guestTokens.set(command.token, tokenMeta);
+                            console.log(`[ADMIN ACTION] Token ${command.token} manually burned via Overlord Control Center.`);
                         }
                         
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
@@ -437,7 +457,7 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                if (command.type === 'revoke_node_ban') {
+                if (command.node === 'revoke_node_ban') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                         if (command.node === 'hud') targetDev.hud_banned = false;
@@ -460,20 +480,24 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎵 GUEST PASSENGER NEXUS (TOKEN VALIDATION & SINGLE-USE BURNING ON WS HANDSHAKE) ──
+    // ── 🎵 GUEST PASSENGER NEXUS (STRICT TOKEN VALIDATION & SINGLE-USE BURNING ON WS HANDSHAKE) ──
     if (role === 'guest') {
+        console.log(`[WS CONNECT] Guest attempting connection with token: ${token}`);
         if (!token || !dev.guestTokens.has(token)) {
+            console.warn(`[WS REJECT] Guest token '${token}' not found in vault.`);
             return reject(ws, 'SECURITY_VIOLATION', 'Invalid guest token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
         if (tokenMeta.burned) {
+            console.warn(`[WS REJECT] Guest token '${token}' was already burned.`);
             return reject(ws, 'SECURITY_VIOLATION', 'Token already burned.');
         }
 
         // Burn token precisely when the WebSocket connection is established and authenticated
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
+        console.log(`[TOKEN BURN] Guest token '${token}' successfully burned upon WebSocket connection.`);
         broadcastTopology();
 
         dev.guests.add(ws);
@@ -645,6 +669,7 @@ wss.on('connection', (ws, req) => {
                     const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
                     const tokenCategory = msg.tokenType || 'guest';
                     dev.guestTokens.set(guestToken, { type: tokenCategory, burned: false });
+                    console.log(`[TOKEN GENERATED] Created new guest token: '${guestToken}' (Type: ${tokenCategory}) for device: ${deviceId}`);
                     ws.send(JSON.stringify({ type: 'token_registered', token: guestToken, tokenType: tokenCategory }));
                     broadcastTopology();
                     return;
@@ -671,17 +696,21 @@ wss.on('connection', (ws, req) => {
 
     // ── 📊 SUMMARY CLIENT PIPELINE (TOKEN VALIDATION & BURNING ON HANDSHAKE) ──
     if (role === 'summary_client') {
+        console.log(`[WS CONNECT] Summary client attempting connection with token: ${token}`);
         if (!token || !dev.guestTokens.has(token)) {
+            console.warn(`[WS REJECT] Summary token '${token}' not found.`);
             return reject(ws, 'SECURITY_VIOLATION', 'Invalid summary token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
         if (tokenMeta.burned) {
+            console.warn(`[WS REJECT] Summary token '${token}' already burned.`);
             return reject(ws, 'SECURITY_VIOLATION', 'Summary token already burned.');
         }
 
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
+        console.log(`[TOKEN BURN] Summary token '${token}' burned upon WebSocket handshake.`);
         broadcastTopology();
 
         dev.summaryClients.set(ws, token);
