@@ -1,882 +1,1116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DriveOS · Overlord Control Center</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriveOS · Overlord Control Center</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- External Styles & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
-<style>
-  :root{
-    --bg:        #050508;
-    --surface:   #0B0E14;
-    --surface-2: #0E131C;
-    --border:    #142028;
-    --border-hi: #1C3038;
-    --cyan:      #00F5FF;
-    --amber:     #FFB000;
-    --green:     #00FF9C;
-    --rose:      #FF3B5C;
-    --gold:      #FFD700;
-    --text:      #D8FBFF;
-    --muted:     #5C7480;
-  }
+  <style>
+    :root {
+      --bg:        #050508;
+      --surface:   #0B0E14;
+      --surface-2: #0E131C;
+      --border:    #142028;
+      --border-hi: #1C3038;
+      --cyan:      #00F5FF;
+      --amber:     #FFB000;
+      --green:     #00FF9C;
+      --rose:      #FF3B5C;
+      --gold:      #FFD700;
+      --text:      #D8FBFF;
+      --muted:     #5C7480;
+    }
 
-  * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  body{
-    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,245,255,0.06), transparent), var(--bg);
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    letter-spacing: 0.01em;
-  }
+    body {
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 245, 255, 0.06), transparent), var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.01em;
+      min-height: 100vh;
+    }
 
-  .font-display{ font-family: 'JetBrains Mono', monospace; }
+    .font-display {
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-  .scanlines::before{
-    content:''; position: fixed; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
-    z-index: 50;
-  }
+    .scanlines::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.012) 0px,
+        rgba(255, 255, 255, 0.012) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      z-index: 50;
+    }
 
-  .glow-cyan { box-shadow: 0 0 0 1px rgba(0,245,255,0.15), 0 0 24px -8px rgba(0,245,255,0.35); }
-  .glow-rose { box-shadow: 0 0 0 1px rgba(255,59,92,0.15), 0 0 24px -8px rgba(255,59,92,0.35); }
-  .text-glow-cyan { text-shadow: 0 0 16px rgba(0,245,255,0.45); }
+    .glow-cyan {
+      box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.15), 0 0 24px -8px rgba(0, 245, 255, 0.35);
+    }
 
-  .panel{ background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); }
-  .kv-label{ color: var(--muted); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; }
-  .status-dot{ width: 7px; height: 7px; border-radius: 999px; display: inline-block; box-shadow: 0 0 8px currentColor; }
+    .glow-rose {
+      box-shadow: 0 0 0 1px rgba(255, 59, 92, 0.15), 0 0 24px -8px rgba(255, 59, 92, 0.35);
+    }
 
-  .btn{
-    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 0.5rem 0.75rem; border-radius: 3px; border: 1px solid var(--border-hi); transition: all 0.15s ease; cursor: pointer;
-  }
-  .btn:hover{ transform: translateY(-1px); }
-  .btn:active{ transform: translateY(0); }
+    .text-glow-cyan {
+      text-shadow: 0 0 16px rgba(0, 245, 255, 0.45);
+    }
 
-  .btn-cyan{ color: var(--cyan); border-color: rgba(0,245,255,0.35); }
-  .btn-cyan:hover{ background: rgba(0,245,255,0.08); box-shadow: 0 0 16px -6px rgba(0,245,255,0.6); }
-  .btn-green{ color: var(--green); border-color: rgba(0,255,156,0.35); }
-  .btn-green:hover{ background: rgba(0,255,156,0.08); box-shadow: 0 0 16px -6px rgba(0,255,156,0.6); }
-  .btn-rose{ color: var(--rose); border-color: rgba(255,59,92,0.35); }
-  .btn-rose:hover{ background: rgba(255,59,92,0.08); box-shadow: 0 0 16px -6px rgba(255,59,92,0.6); }
-  .btn-ghost{ color: var(--muted); }
-  .btn-ghost:hover{ color: var(--text); border-color: var(--border-hi); }
+    .text-glow-rose {
+      text-shadow: 0 0 16px rgba(255, 59, 92, 0.45);
+    }
 
-  .device-card{ background: var(--surface); border: 1px solid var(--border); transition: all 0.2s ease; }
-  .device-card.is-selected{ border-color: rgba(0,245,255,0.7); box-shadow: 0 0 0 1px rgba(0,245,255,0.3), 0 0 30px -10px rgba(0,245,255,0.5); }
-  .device-card.banned{ border-color: rgba(255,59,92,0.35); background: rgba(255,59,92,0.02); }
+    .panel {
+      background: linear-gradient(180deg, var(--surface), var(--surface-2));
+      border: 1px solid var(--border);
+    }
 
-  .tag{
-    font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 0.15rem 0.5rem; border-radius: 2px; border: 1px solid currentColor; display: inline-flex; align-items: center; gap: 0.35rem;
-  }
+    .kv-label {
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
 
-  #log-feed{ scrollbar-width: thin; scrollbar-color: #1C3038 transparent; }
-  #log-feed::-webkit-scrollbar{ width: 6px; }
-  #log-feed::-webkit-scrollbar-thumb{ background: #1C3038; border-radius: 4px; }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      display: inline-block;
+      box-shadow: 0 0 8px currentColor;
+    }
 
-  .pulse-ring{ animation: pulseRing 2.4s ease-out infinite; }
-  @keyframes pulseRing{
-    0%   { box-shadow: 0 0 0 0 rgba(0,245,255,0.35); }
-    70%  { box-shadow: 0 0 0 10px rgba(0,245,255,0); }
-    100% { box-shadow: 0 0 0 0 rgba(0,245,255,0); }
-  }
+    .btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.5rem 0.75rem;
+      border-radius: 3px;
+      border: 1px solid var(--border-hi);
+      transition: all 0.15s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
 
-  .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; inset: 0; background-color: #142028; border: 1px solid var(--border-hi); transition: .2s; border-radius: 4px; }
-  .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: var(--muted); transition: .2s; border-radius: 2px; }
-  input:checked + .slider { border-color: var(--cyan); background-color: rgba(0,245,255,0.1); }
-  input:checked + .slider:before { transform: translateX(14px); background-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .btn:hover {
+      transform: translateY(-1px);
+    }
 
-  .stale-text { opacity: 0.45; filter: grayscale(1); }
+    .btn:active {
+      transform: translateY(0);
+    }
 
-  .req-card-in { animation: reqIn 0.3s ease-out forwards; }
-  @keyframes reqIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-</style>
+    .btn-cyan {
+      color: var(--cyan);
+      border-color: rgba(0, 245, 255, 0.35);
+    }
+
+    .btn-cyan:hover {
+      background: rgba(0, 245, 255, 0.08);
+      box-shadow: 0 0 16px -6px rgba(0, 245, 255, 0.6);
+    }
+
+    .btn-green {
+      color: var(--green);
+      border-color: rgba(0, 255, 156, 0.35);
+    }
+
+    .btn-green:hover {
+      background: rgba(0, 255, 156, 0.08);
+      box-shadow: 0 0 16px -6px rgba(0, 255, 156, 0.6);
+    }
+
+    .btn-rose {
+      color: var(--rose);
+      border-color: rgba(255, 59, 92, 0.35);
+    }
+
+    .btn-rose:hover {
+      background: rgba(255, 59, 92, 0.08);
+      box-shadow: 0 0 16px -6px rgba(255, 59, 92, 0.6);
+    }
+
+    .btn-ghost {
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: var(--border-hi);
+    }
+
+    .device-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .device-card.is-selected {
+      border-color: rgba(0, 245, 255, 0.7);
+      box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.3), 0 0 30px -10px rgba(0, 245, 255, 0.5);
+    }
+
+    .device-card.banned {
+      border-color: rgba(255, 59, 92, 0.35);
+      background: rgba(255, 59, 92, 0.02);
+    }
+
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border-radius: 2px;
+      border: 1px solid currentColor;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    #log-feed {
+      scrollbar-width: thin;
+      scrollbar-color: #1C3038 transparent;
+    }
+
+    #log-feed::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #log-feed::-webkit-scrollbar-thumb {
+      background: #1C3038;
+      border-radius: 4px;
+    }
+
+    .pulse-ring {
+      animation: pulseRing 2.4s ease-out infinite;
+    }
+
+    @keyframes pulseRing {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 245, 255, 0.35);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 245, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 245, 255, 0);
+      }
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #142028;
+      border: 1px solid var(--border-hi);
+      transition: 0.2s;
+      border-radius: 4px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--muted);
+      transition: 0.2s;
+      border-radius: 2px;
+    }
+
+    input:checked + .slider {
+      border-color: var(--cyan);
+      background-color: rgba(0, 245, 255, 0.1);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(14px);
+      background-color: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .stale-text {
+      opacity: 0.45;
+      filter: grayscale(1);
+    }
+
+    .req-card-in {
+      animation: reqIn 0.3s ease-out forwards;
+    }
+
+    @keyframes reqIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
 </head>
 
 <body class="scanlines min-h-screen">
 
-<!-- ===================== 🔐 AUTH OVERLAY ===================== -->
-<div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
-  <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
-    <div class="flex items-center gap-2 mb-1">
-      <span class="status-dot pulse-ring" style="background:#00F5FF; color:#00F5FF;"></span>
-      <span class="kv-label">Infrastructure Access Verification</span>
+  <!-- ===================== 🔐 AUTH OVERLAY ===================== -->
+  <div id="pin-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050508]/96 backdrop-blur-sm">
+    <div class="panel glow-cyan rounded-md w-[min(90vw,380px)] p-7">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="status-dot pulse-ring" style="background:#00F5FF; color:#00F5FF;"></span>
+        <span class="kv-label">Infrastructure Access Verification</span>
+      </div>
+      <h1 class="font-display text-lg font-bold text-glow-cyan tracking-wide mb-1">DRIVEOS COCKPIT</h1>
+      <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security credentials to open administrative console data streams.</p>
+
+      <input 
+        id="pin-input" 
+        type="password" 
+        placeholder="••••" 
+        maxlength="4"
+        class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" 
+        autocomplete="off"
+      >
+
+      <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3 font-bold" onclick="window.triggerHandshakeVerification()">
+        Verify Access Credentials
+      </button>
+      <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
     </div>
-    <h1 class="font-display text-lg font-bold text-glow-cyan tracking-wide mb-1">DRIVEOS COCKPIT</h1>
-    <p class="text-xs text-[--muted] mb-6 leading-relaxed">Enter security credentials to open administrative console data streams.</p>
-
-    <input id="pin-input" type="password" placeholder="••••" maxlength="4"
-      class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-2xl tracking-[0.5em] font-display text-[--cyan] py-3 mb-3 outline-none focus:border-[#00F5FF] focus:glow-cyan" autocomplete="off">
-
-    <button id="pin-submit" class="btn btn-cyan w-full py-3 mb-3" onclick="window.triggerHandshakeVerification()">Verify Access Credentials</button>
-    <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
   </div>
-</div>
 
-<!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
-<div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
+  <!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
+  <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
 
-  <!-- Main Header -->
-  <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
-        <span class="font-display text-[--cyan] text-xs font-bold">DECK</span>
-      </div>
-      <div>
-        <h1 class="font-display text-base font-bold tracking-wide">DriveOS <span class="text-[--muted] font-normal">· Central Command Deck</span></h1>
-        <p class="text-[0.65rem] text-[--muted]">Ecosystem monitoring array loop</p>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <div class="tag" style="color:#00FF9C; border-color:rgba(0,255,156,0.3)">
-        <span class="status-dot" style="background:#00FF9C;"></span> CONNECTED AS OVERLORD
-      </div>
-      <div id="clock-ticker" class="font-display text-xs text-[--muted] tabular-nums"></div>
-      <button class="btn btn-ghost" onclick="window.lockConsoleWorkspace()">Lock Console</button>
-    </div>
-  </header>
-
-  <!-- Metric Strip Cards -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Rigs Online</p>
-      <p id="metric-online-count" class="font-display text-2xl font-bold text-[--cyan]">0</p>
-    </div>
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Connected Guests</p>
-      <p id="metric-guests-count" class="font-display text-2xl font-bold text-[--green]">0</p>
-    </div>
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Pending Song Requests</p>
-      <p id="metric-pending-requests" class="font-display text-2xl font-bold text-[--amber]">0</p>
-    </div>
-    <div class="panel rounded p-4">
-      <p class="kv-label mb-1">Hardware Bans</p>
-      <p id="metric-banned-count" class="font-display text-2xl font-bold text-[--rose]">0</p>
-    </div>
-  </section>
-
-  <!-- Guest Master Permissions & Song Approval Strip -->
-  <section class="grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] gap-5 mb-6">
-    
-    <!-- Master Guest Permissions Deck -->
-    <div class="panel rounded-md p-5 flex flex-col justify-between">
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">PASSENGER PERMISSIONS GOVERNOR</h2>
-          <span class="kv-label">Global Directives</span>
-        </div>
-        <p class="text-xs text-[--muted] mb-4">Dynamically broadcast permission updates to all connected passenger consoles in real-time.</p>
-        
-        <div class="space-y-3">
-          <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
-            <div>
-              <p class="font-display text-xs font-bold text-white">ALLOW MEDIA SCRUBBING</p>
-              <p class="text-[10px] text-[--muted]">Allow guests to tap Prev / Play / Next on their device</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="perm-playback" checked onchange="window.broadcastPermissions()">
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
-            <div>
-              <p class="font-display text-xs font-bold text-white">ALLOW SPOTIFY SUGGESTIONS</p>
-              <p class="text-[10px] text-[--muted]">Enable the in-app DJ Jukebox track search for guests</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="perm-suggestions" checked onchange="window.broadcastPermissions()">
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <button class="btn btn-rose w-full mt-4 font-bold py-2" onclick="window.kickAllGuests()">🚨 Burn All Guest Sessions (Kick All)</button>
-    </div>
-
-    <!-- Incoming Spotify DJ Song Request Queue -->
-    <div class="panel rounded-md p-5 flex flex-col">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--amber]">🎵 SPOTIFY DJ REQUEST QUEUE</h2>
-          <span id="request-badge" class="font-display text-[9px] px-1.5 py-0.5 bg-[--amber]/10 border border-[--amber]/30 text-[--amber] rounded">0 PENDING</span>
-        </div>
-        <button class="text-[10px] text-[--muted] hover:text-white font-mono" onclick="window.clearSongQueue()">[ CLEAR QUEUE ]</button>
-      </div>
-      
-      <div id="song-request-stream" class="flex-1 space-y-2 max-h-56 overflow-y-auto pr-1">
-        <div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- Main Component Grid Workspace Layout -->
-  <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
-    
-    <!-- Left Box: Fleet Hardware Index & Active Guests -->
-    <div class="space-y-5">
-      
-      <!-- Fleet Hardware Inventory -->
-      <div class="panel rounded-md p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
-          <span class="kv-label">Cluster telemetry frames</span>
-        </div>
-        <div id="fleet-card-grid" class="space-y-3">
-          <div class="text-center py-6 text-[--muted] text-xs">Awaiting grid telemetry loop frames...</div>
-        </div>
-      </div>
-
-      <!-- Active Passenger Guest Sessions Table -->
-      <div class="panel rounded-md p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE PASSENGER NEXUS ROSTER</h2>
-          <span class="kv-label">Hardware Fingerprint Shield</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left font-mono text-xs">
-            <thead>
-              <tr class="border-b border-[--border] text-[--muted] text-[10px]">
-                <th class="pb-2">CALLSIGN</th>
-                <th class="pb-2">HARDWARE FP</th>
-                <th class="pb-2">ROLE</th>
-                <th class="pb-2">STATUS</th>
-                <th class="pb-2 text-right">ACTION</th>
-              </tr>
-            </thead>
-            <tbody id="guest-roster-tbody">
-              <tr>
-                <td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Banned Fingerprints Quarantine Vault -->
-      <div class="panel rounded-md p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--rose]">PERMANENTLY BANNED HARDWARE SIGNATURES</h2>
-          <button class="btn btn-green text-[9px] py-1 px-3 font-bold" onclick="window.unbanAllFingerprints()">🔓 UNBAN ALL DEVICES</button>
-        </div>
-        <div id="banned-fingerprints-list" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs pr-1">
-          <div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
-    <div class="flex flex-col gap-5">
-      <div class="panel rounded-md p-5 flex flex-col flex-1">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">DEVICE MONITOR PREVIEW</h2>
-          <span class="kv-label">Mirror Node Terminal</span>
-        </div>
-        <div id="preview-empty-frame" class="flex-1 flex items-center justify-center text-center text-xs text-[--muted] py-10 px-4">
-          Select an operational node row frame from the inventory matrix grid to inspect hardware profiles.
-        </div>
-        <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between space-y-4">
-          <div>
-            <!-- Headunit Box -->
-            <div class="border border-[--border] p-3 rounded mb-3 bg-black/20">
-              <div class="flex justify-between items-center mb-2">
-                <span class="font-display text-xs font-bold text-white">HEADUNIT LAUNCHER APPLICATION</span>
-                <span id="hud-badge" class="text-[9px] px-2 py-0.5 border rounded"></span>
-              </div>
-              <div class="text-[11px] text-[--muted] space-y-1 font-mono">
-                <div>Speed Vector: <span id="hud-stat-speed" class="text-[--cyan]">-- km/h</span></div>
-                <div>Odometer: <span id="hud-stat-odo" class="text-white">-- KM</span></div>
-                <div>Fuel Capacity: <span id="hud-stat-fuel" class="text-white">-- %</span></div>
-                <div>Battery Voltage: <span id="hud-stat-voltage" class="text-white">-- V</span></div>
-              </div>
-              <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
-            </div>
-
-            <!-- Mobile Companion Box -->
-            <div class="border border-[--border] p-3 rounded bg-black/20">
-              <div class="flex justify-between items-center mb-2">
-                <span class="font-display text-xs font-bold text-white">MOBILE COMPANION NEXUS</span>
-                <span id="comp-badge" class="text-[9px] px-2 py-0.5 border rounded"></span>
-              </div>
-              <div class="text-[11px] text-[--muted] space-y-1 font-mono">
-                <div>Hardware Profile: <span class="text-white">OnePlus Phone Node</span></div>
-                <div>Signal Stream: <span id="comp-stat-signal" class="text-[--green]">--</span></div>
-              </div>
-              <button id="comp-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
-            </div>
-          </div>
-          <button id="mirror-action-ban-btn" class="btn w-full font-bold py-2.5"></button>
-        </div>
-      </div>
-
-      <div class="panel rounded-md p-5">
-        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">VOLATILE AUTHORIZATION VAULT</h2>
-        <div id="vault-token-hook-rows" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs mt-2 pr-1">
-          <div class="text-center py-4 text-[--muted]">Memory registers clear.</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Wiretap Console -->
-  <section class="panel rounded-md p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
+    <!-- Main Header -->
+    <header class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-5 border-b border-[--border]">
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 border border-[--border-hi] px-2.5 py-1 rounded bg-black/20">
-          <span class="text-[10px] font-display font-medium text-slate-400">SHOW SEC STATE STREAMS</span>
-          <label class="switch">
-            <input type="checkbox" id="state-stream-toggle">
-            <span class="slider"></span>
-          </label>
+        <div class="w-9 h-9 rounded border border-[--cyan]/40 flex items-center justify-center glow-cyan">
+          <span class="font-display text-[--cyan] text-xs font-bold">DECK</span>
         </div>
-        <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+        <div>
+          <h1 class="font-display text-base font-bold tracking-wide">
+            DriveOS <span class="text-[--muted] font-normal">· Central Command Deck</span>
+          </h1>
+          <p class="text-[0.65rem] text-[--muted]">Ecosystem monitoring array loop</p>
+        </div>
       </div>
-    </div>
-    <div id="log-feed" class="font-mono text-xs space-y-2 h-56 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
-      <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
-    </div>
 
-    <!-- Emergency Confirmation Bar -->
-    <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
-      <div class="text-xs text-[--muted]">
-        <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL INFRASTRUCTURE EMERGENCY RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
+      <div class="flex items-center gap-3">
+        <div class="tag" style="color:#00FF9C; border-color:rgba(0,255,156,0.3)">
+          <span class="status-dot" style="background:#00FF9C;"></span> CONNECTED AS OVERLORD
+        </div>
+        <div id="clock-ticker" class="font-display text-xs text-[--muted] tabular-nums"></div>
+        <button class="btn btn-ghost" onclick="window.lockConsoleWorkspace()">Lock Console</button>
       </div>
-      <div class="flex gap-2">
-        <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executePanicPurgeCommand()">Initialize Command Purge Handshake</button>
+    </header>
+
+    <!-- Metric Strip Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="panel rounded p-4">
+        <p class="kv-label mb-1">Rigs Online</p>
+        <p id="metric-online-count" class="font-display text-2xl font-bold text-[--cyan]">0</p>
       </div>
-    </div>
-  </section>
+      <div class="panel rounded p-4">
+        <p class="kv-label mb-1">Connected Guests</p>
+        <p id="metric-guests-count" class="font-display text-2xl font-bold text-[--green]">0</p>
+      </div>
+      <div class="panel rounded p-4">
+        <p class="kv-label mb-1">Pending Song Requests</p>
+        <p id="metric-pending-requests" class="font-display text-2xl font-bold text-[--amber]">0</p>
+      </div>
+      <div class="panel rounded p-4">
+        <p class="kv-label mb-1">Hardware Bans</p>
+        <p id="metric-banned-count" class="font-display text-2xl font-bold text-[--rose]">0</p>
+      </div>
+    </section>
 
-</div>
+    <!-- Guest Master Permissions & Song Approval Strip -->
+    <section class="grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] gap-5 mb-6">
+      
+      <!-- Master Guest Permissions Deck -->
+      <div class="panel rounded-md p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">PASSENGER PERMISSIONS GOVERNOR</h2>
+            <span class="kv-label">Global Directives</span>
+          </div>
+          <p class="text-xs text-[--muted] mb-4 leading-relaxed">
+            Dynamically broadcast permission updates to all connected passenger consoles in real-time.
+          </p>
+          
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
+              <div>
+                <p class="font-display text-xs font-bold text-white">ALLOW MEDIA SCRUBBING</p>
+                <p class="text-[10px] text-[--muted]">Allow guests to tap Prev / Play / Next on their device</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="perm-playback" checked onchange="window.broadcastPermissions()">
+                <span class="slider"></span>
+              </label>
+            </div>
 
-<script>
-(function(){
-  "use strict";
+            <div class="flex items-center justify-between border border-[--border] p-3 rounded bg-black/20">
+              <div>
+                <p class="font-display text-xs font-bold text-white">ALLOW SPOTIFY SUGGESTIONS</p>
+                <p class="text-[10px] text-[--muted]">Enable the in-app DJ Jukebox track search for guests</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="perm-suggestions" checked onchange="window.broadcastPermissions()">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
 
-  let socket = null;
-  let serverClusterArray = [];
-  let bannedFingerprintsList = [];
-  let userSelectedId = 'myaura001';
-  let validatedPasscode = '';
-  let pendingSongRequests = [];
+        <button class="btn btn-rose w-full mt-4 font-bold py-2" onclick="window.kickAllGuests()">
+          🚨 Burn All Guest Sessions (Kick All)
+        </button>
+      </div>
 
-  const pinGate = document.getElementById('pin-gate');
-  const pinInput = document.getElementById('pin-input');
-  const pinError = document.getElementById('pin-error');
-  const appShell = document.getElementById('app');
-  const streamToggle = document.getElementById('state-stream-toggle');
+      <!-- Incoming Spotify DJ Song Request Queue -->
+      <div class="panel rounded-md p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--amber]">🎵 SPOTIFY DJ REQUEST QUEUE</h2>
+            <span id="request-badge" class="font-display text-[9px] px-1.5 py-0.5 bg-[--amber]/10 border border-[--amber]/30 text-[--amber] rounded">
+              0 PENDING
+            </span>
+          </div>
+          <button class="text-[10px] text-[--muted] hover:text-white font-mono transition" onclick="window.clearSongQueue()">
+            [ CLEAR QUEUE ]
+          </button>
+        </div>
+        
+        <div id="song-request-stream" class="flex-1 space-y-2 max-h-56 overflow-y-auto pr-1">
+          <div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>
+        </div>
+      </div>
 
-  pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') window.triggerHandshakeVerification(); });
+    </section>
 
-  function playAlertChime() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch(e) {}
-  }
+    <!-- Main Component Grid Workspace Layout -->
+    <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 mb-6">
+      
+      <!-- Left Box: Fleet Hardware Index & Active Guests -->
+      <div class="space-y-5">
+        
+        <!-- Fleet Hardware Inventory -->
+        <div class="panel rounded-md p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">FLEET HARDWARE INDEX INVENTORY</h2>
+            <span class="kv-label">Cluster telemetry frames</span>
+          </div>
+          <div id="fleet-card-grid" class="space-y-3">
+            <div class="text-center py-6 text-[--muted] text-xs">Awaiting grid telemetry loop frames...</div>
+          </div>
+        </div>
 
-  window.burnToken = function(deviceId, token) {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'burn_access', device: deviceId, token: token }));
-    }
-  };
+        <!-- Active Passenger Guest Sessions Table -->
+        <div class="panel rounded-md p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">ACTIVE PASSENGER NEXUS ROSTER</h2>
+            <span class="kv-label">Hardware Fingerprint Shield</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left font-mono text-xs">
+              <thead>
+                <tr class="border-b border-[--border] text-[--muted] text-[10px]">
+                  <th class="pb-2">CALLSIGN</th>
+                  <th class="pb-2">HARDWARE FP</th>
+                  <th class="pb-2">ROLE</th>
+                  <th class="pb-2">STATUS</th>
+                  <th class="pb-2 text-right">ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="guest-roster-tbody">
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-  window.broadcastPermissions = function() {
-    const allowPlayback = document.getElementById('perm-playback').checked;
-    const allowSuggestions = document.getElementById('perm-suggestions').checked;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'permissions_update',
-        device: userSelectedId,
-        allowPlayback: allowPlayback,
-        allowSuggestions: allowSuggestions
-      }));
-    }
-  };
+        <!-- Banned Fingerprints Quarantine Vault -->
+        <div class="panel rounded-md p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--rose]">PERMANENTLY BANNED HARDWARE SIGNATURES</h2>
+            <button class="btn btn-green text-[9px] py-1 px-3 font-bold" onclick="window.unbanAllFingerprints()">
+              🔓 UNBAN ALL DEVICES
+            </button>
+          </div>
+          <div id="banned-fingerprints-list" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs pr-1">
+            <div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>
+          </div>
+        </div>
 
-  window.kickAllGuests = function() {
-    if (confirm('🚨 Disconnect all current guest passenger sessions?')) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'admin_kick_all_guests', device: userSelectedId }));
+      </div>
+
+      <!-- Right Box: Node Live Previews Canvas + Tokens Vault Array -->
+      <div class="flex flex-col gap-5">
+        <div class="panel rounded-md p-5 flex flex-col flex-1">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">DEVICE MONITOR PREVIEW</h2>
+            <span class="kv-label">Mirror Node Terminal</span>
+          </div>
+          <div id="preview-empty-frame" class="flex-1 flex items-center justify-center text-center text-xs text-[--muted] py-10 px-4">
+            Select an operational node row frame from the inventory matrix grid to inspect hardware profiles.
+          </div>
+          <div id="preview-active-frame" class="hidden flex-1 flex flex-col justify-between space-y-4">
+            <div>
+              <!-- Headunit Launcher Box -->
+              <div class="border border-[--border] p-3 rounded mb-3 bg-black/20">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-display text-xs font-bold text-white">HEADUNIT LAUNCHER APPLICATION</span>
+                  <span id="hud-badge" class="text-[9px] px-2 py-0.5 border rounded"></span>
+                </div>
+                <div class="text-[11px] text-[--muted] space-y-1 font-mono">
+                  <div>Speed Vector: <span id="hud-stat-speed" class="text-[--cyan]">-- km/h</span></div>
+                  <div>Odometer: <span id="hud-stat-odo" class="text-white">-- KM</span></div>
+                  <div>Fuel Capacity: <span id="hud-stat-fuel" class="text-white">-- %</span></div>
+                  <div>Battery Voltage: <span id="hud-stat-voltage" class="text-white">-- V</span></div>
+                </div>
+                <button id="hud-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
+              </div>
+
+              <!-- Mobile Companion Nexus Box -->
+              <div class="border border-[--border] p-3 rounded bg-black/20">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-display text-xs font-bold text-white">MOBILE COMPANION NEXUS</span>
+                  <span id="comp-badge" class="text-[9px] px-2 py-0.5 border rounded"></span>
+                </div>
+                <div class="text-[11px] text-[--muted] space-y-1 font-mono">
+                  <div>Hardware Profile: <span class="text-white">OnePlus Phone Node</span></div>
+                  <div>Signal Stream: <span id="comp-stat-signal" class="text-[--green]">--</span></div>
+                </div>
+                <button id="comp-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
+              </div>
+            </div>
+            <button id="mirror-action-ban-btn" class="btn w-full font-bold py-2.5"></button>
+          </div>
+        </div>
+
+        <div class="panel rounded-md p-5">
+          <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">VOLATILE AUTHORIZATION VAULT</h2>
+          <div id="vault-token-hook-rows" class="space-y-2 max-h-40 overflow-y-auto font-mono text-xs mt-2 pr-1">
+            <div class="text-center py-4 text-[--muted]">Memory registers clear.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Wiretap Console -->
+    <section class="panel rounded-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">REAL-TIME TELEMETRY WIRE-TAP TRANSACTION CONSOLE</h2>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 border border-[--border-hi] px-2.5 py-1 rounded bg-black/20">
+            <span class="text-[10px] font-display font-medium text-slate-400">SHOW STATE BROADCASTS</span>
+            <label class="switch">
+              <input type="checkbox" id="state-stream-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <span class="tag" style="color:#FFB000; border-color:rgba(255,176,0,0.25);">Live Packet Interceptor</span>
+        </div>
+      </div>
+      <div id="log-feed" class="font-mono text-xs space-y-2 h-64 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
+        <div class="text-[--muted] text-center py-16">Awaiting pipeline registration updates...</div>
+      </div>
+
+      <!-- Emergency Reset Confirmation Bar -->
+      <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
+        <div class="text-xs text-[--muted]">
+          <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executePanicPurgeCommand()">
+            Initialize Command Purge Handshake
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+
+    let socket = null;
+    let serverClusterArray = [];
+    let bannedFingerprintsList = [];
+    let userSelectedId = 'myaura001';
+    let validatedPasscode = '';
+    let pendingSongRequests = [];
+
+    const pinGate = document.getElementById('pin-gate');
+    const pinInput = document.getElementById('pin-input');
+    const pinError = document.getElementById('pin-error');
+    const appShell = document.getElementById('app');
+    const streamToggle = document.getElementById('state-stream-toggle');
+
+    pinInput.addEventListener('keydown', e => { 
+      if (e.key === 'Enter') {
+        window.triggerHandshakeVerification();
       }
-    }
-  };
-
-  window.banGuestFingerprint = function(fingerprint, guestName) {
-    if (confirm(`🚨 Permanently ban device signature for [${guestName || 'GUEST'}]?\nFP: ${fingerprint}`)) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-          type: 'admin_ban_fingerprint',
-          device: userSelectedId,
-          deviceFingerprint: fingerprint,
-          guestName: guestName
-        }));
-      }
-    }
-  };
-
-  window.unbanGuestFingerprint = function(fingerprint) {
-    if (confirm(`✅ Revoke ban for hardware fingerprint?\nFP: ${fingerprint}`)) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-          type: 'admin_unban_fingerprint',
-          device: userSelectedId,
-          deviceFingerprint: fingerprint
-        }));
-      }
-    }
-  };
-
-  window.unbanAllFingerprints = function() {
-    if (confirm('🔓 Clear ALL quarantined device fingerprints from server memory?')) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'admin_unban_all_fingerprints' }));
-      }
-    }
-  };
-
-  window.acceptSongRequest = function(reqId) {
-    const req = pendingSongRequests.find(r => r.id === reqId);
-    if (!req) return;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'cmd_spotify_play',
-        device: userSelectedId,
-        track: req.track,
-        uri: req.track.uri
-      }));
-    }
-    window.dismissSongRequest(reqId);
-  };
-
-  window.dismissSongRequest = function(reqId) {
-    pendingSongRequests = pendingSongRequests.filter(r => r.id !== reqId);
-    renderSongRequestQueue();
-    updateHeaderCounters();
-  };
-
-  window.clearSongQueue = function() {
-    pendingSongRequests = [];
-    renderSongRequestQueue();
-    updateHeaderCounters();
-  };
-
-  window.triggerHandshakeVerification = function() {
-    const value = pinInput.value.trim();
-    if (!value) return;
-
-    pinError.textContent = '';
-    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const connectionUrl = `${protocol}${window.location.host}?role=admin&auth=${encodeURIComponent(value)}`;
-
-    socket = new WebSocket(connectionUrl);
-
-    socket.addEventListener('open', () => {
-      validatedPasscode = value;
-      pinGate.classList.add('hidden');
-      appShell.classList.remove('hidden');
-      pinInput.value = '';
-      initializeSystemClock();
     });
 
-    socket.addEventListener('message', (event) => {
+    function playAlertChime() {
       try {
-        let packet = JSON.parse(event.data);
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch(e) {}
+    }
 
-        if (packet.type === 'auth_error') {
-          pinError.textContent = 'ACCESS LOCKED: INVALID PASSCODE';
-          validatedPasscode = '';
+    window.burnToken = function(deviceId, token) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ 
+          type: 'burn_access', 
+          device: deviceId, 
+          token: token 
+        }));
+      }
+    };
+
+    window.broadcastPermissions = function() {
+      const allowPlayback = document.getElementById('perm-playback').checked;
+      const allowSuggestions = document.getElementById('perm-suggestions').checked;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'permissions_update',
+          device: userSelectedId,
+          allowPlayback: allowPlayback,
+          allowSuggestions: allowSuggestions
+        }));
+      }
+    };
+
+    window.kickAllGuests = function() {
+      if (confirm('🚨 Disconnect all current guest passenger sessions?')) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ 
+            type: 'admin_kick_all_guests', 
+            device: userSelectedId 
+          }));
+        }
+      }
+    };
+
+    window.banGuestFingerprint = function(fingerprint, guestName) {
+      if (confirm(`🚨 Permanently ban device signature for [${guestName || 'GUEST'}]?\nFP: ${fingerprint}`)) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'admin_ban_fingerprint',
+            device: userSelectedId,
+            deviceFingerprint: fingerprint,
+            guestName: guestName
+          }));
+        }
+      }
+    };
+
+    window.unbanGuestFingerprint = function(fingerprint) {
+      if (confirm(`✅ Revoke ban for hardware fingerprint?\nFP: ${fingerprint}`)) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'admin_unban_fingerprint',
+            device: userSelectedId,
+            deviceFingerprint: fingerprint
+          }));
+        }
+      }
+    };
+
+    window.unbanAllFingerprints = function() {
+      if (confirm('🔓 Clear ALL quarantined device fingerprints from server memory?')) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ 
+            type: 'admin_unban_all_fingerprints' 
+          }));
+        }
+      }
+    };
+
+    window.acceptSongRequest = function(reqId) {
+      const req = pendingSongRequests.find(r => r.id === reqId);
+      if (!req) return;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'cmd_spotify_play',
+          device: userSelectedId,
+          track: req.track,
+          uri: req.track.uri
+        }));
+      }
+      window.dismissSongRequest(reqId);
+    };
+
+    window.dismissSongRequest = function(reqId) {
+      pendingSongRequests = pendingSongRequests.filter(r => r.id !== reqId);
+      renderSongRequestQueue();
+      updateHeaderCounters();
+    };
+
+    window.clearSongQueue = function() {
+      pendingSongRequests = [];
+      renderSongRequestQueue();
+      updateHeaderCounters();
+    };
+
+    window.triggerHandshakeVerification = function() {
+      const value = pinInput.value.trim();
+      if (!value) return;
+
+      pinError.textContent = '';
+      const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      const connectionUrl = `${protocol}${window.location.host}?role=admin&auth=${encodeURIComponent(value)}`;
+
+      socket = new WebSocket(connectionUrl);
+
+      socket.addEventListener('open', () => {
+        validatedPasscode = value;
+        pinGate.classList.add('hidden');
+        appShell.classList.remove('hidden');
+        pinInput.value = '';
+        initializeSystemClock();
+      });
+
+      socket.addEventListener('message', (event) => {
+        try {
+          let packet = JSON.parse(event.data);
+
+          if (packet.type === 'auth_error') {
+            pinError.textContent = 'ACCESS LOCKED: INVALID PASSCODE';
+            validatedPasscode = '';
+            return;
+          }
+
+          if (packet.type === 'topology_update') {
+            serverClusterArray = packet.data || [];
+            bannedFingerprintsList = packet.bannedFingerprints || [];
+            if (!userSelectedId && serverClusterArray.length > 0) {
+              userSelectedId = serverClusterArray[0].id;
+            }
+            
+            updateStaticMetricsUI(packet.metrics);
+            renderHardwareMatricesGrid();
+            renderMirrorViewScreen();
+            renderTokenVaultElements();
+            renderGuestRoster();
+            renderBannedFingerprintsVault();
+          } else if (packet.type === 'cmd_guest_suggest_song') {
+            handleIncomingSongSuggestion(packet);
+          } else if (packet.type === 'wiretap_intercept') {
+            appendWiretapInterceptLog(packet);
+          }
+        } catch (err) {}
+      });
+
+      socket.addEventListener('close', () => {
+        if (validatedPasscode) {
+          setTimeout(window.triggerHandshakeVerification, 5000);
+        }
+      });
+    };
+
+    function handleIncomingSongSuggestion(packet) {
+      playAlertChime();
+      const req = {
+        id: 'req_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        guestName: packet.guestName || 'Anonymous Guest',
+        isOwner: packet.isOwner === true,
+        deviceFingerprint: packet.deviceFingerprint || 'Unknown-FP',
+        track: packet.track || { title: 'Unknown Title', artist: 'Unknown Artist', uri: '', cover: '' },
+        timestamp: new Date().toLocaleTimeString([], { hour12: false })
+      };
+      pendingSongRequests.unshift(req);
+      renderSongRequestQueue();
+      updateHeaderCounters();
+    }
+
+    function renderSongRequestQueue() {
+      const stream = document.getElementById('song-request-stream');
+      stream.innerHTML = '';
+
+      if (pendingSongRequests.length === 0) {
+        stream.innerHTML = '<div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>';
+        return;
+      }
+
+      pendingSongRequests.forEach(req => {
+        const card = document.createElement('div');
+        card.className = 'req-card-in flex items-center justify-between p-2.5 rounded bg-black/30 border border-[--border-hi]';
+
+        const thumb = req.track.cover || 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#FFB000" text-anchor="middle" font-family="monospace">♪</text></svg>`
+        );
+
+        const ownerTag = req.isOwner ? '<span class="text-[--gold] font-bold text-[9px]">[ROOT OWNER]</span>' : '';
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <img src="${thumb}" class="w-9 h-9 rounded object-cover flex-shrink-0 border border-white/10" alt="Cover" />
+            <div class="min-w-0 font-mono">
+              <p class="text-xs font-bold text-white truncate">${req.track.title}</p>
+              <p class="text-[10px] text-[--muted] truncate">${req.track.artist}</p>
+              <p class="text-[9px] text-[--cyan] truncate">Req by: <span class="font-bold">${req.guestName}</span> ${ownerTag}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button class="btn btn-green font-bold text-[9px] px-2.5 py-1" onclick="window.acceptSongRequest('${req.id}')">▶ Accept & Play</button>
+            <button class="btn btn-rose font-bold text-[9px] px-2 py-1" onclick="window.dismissSongRequest('${req.id}')">✕</button>
+          </div>
+        `;
+        stream.appendChild(card);
+      });
+    }
+
+    function renderGuestRoster() {
+      const tbody = document.getElementById('guest-roster-tbody');
+      tbody.innerHTML = '';
+
+      const node = serverClusterArray.find(c => c.id === userSelectedId);
+      const guests = (node && node.connectedGuestsList) ? node.connectedGuestsList : [];
+
+      if (guests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td></tr>';
+        return;
+      }
+
+      guests.forEach(g => {
+        const isOwner = g.isOwner || (g.name && g.name.toLowerCase() === 'owner:sumanyu');
+        const fpShort = g.fingerprint ? (g.fingerprint.slice(0, 10) + '…') : 'N/A';
+        
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-[--border] hover:bg-white/[0.02]';
+        tr.innerHTML = `
+          <td class="py-2.5 text-white font-bold">${g.name || 'Anonymous'}</td>
+          <td class="py-2.5 text-[--slate-lt]">${fpShort}</td>
+          <td class="py-2.5">${isOwner ? '<span class="text-[--gold] font-bold">OWNER</span>' : '<span class="text-[--cyan]">PASSENGER</span>'}</td>
+          <td class="py-2.5"><span class="status-dot bg-[--green]"></span> ONLINE</td>
+          <td class="py-2.5 text-right">
+            ${isOwner ? '<span class="text-[--muted] text-[9px]">IMMUNE</span>' : `<button class="btn btn-rose text-[9px] py-0.5 px-2" onclick="window.banGuestFingerprint('${g.fingerprint}','${g.name}')">BAN DEVICE</button>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderBannedFingerprintsVault() {
+      const container = document.getElementById('banned-fingerprints-list');
+      container.innerHTML = '';
+
+      if (!bannedFingerprintsList || bannedFingerprintsList.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>';
+        return;
+      }
+
+      bannedFingerprintsList.forEach(fp => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between border-b border-[--border] py-2';
+        div.innerHTML = `
+          <div class="flex items-center gap-2 font-mono">
+            <span class="text-[9px] px-1.5 py-0.5 border border-[--rose]/40 text-[--rose] rounded font-bold font-display">[QUARANTINED]</span>
+            <code class="text-white text-xs font-bold">${fp.slice(0, 18)}…</code>
+          </div>
+          <button class="btn btn-cyan text-[9px] py-0.5 px-2 font-bold" onclick="window.unbanGuestFingerprint('${fp}')">✓ UNBAN</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    window.lockConsoleWorkspace = function() {
+      validatedPasscode = '';
+      if (socket) { 
+        try { socket.close(); } catch(e){} 
+      }
+      appShell.classList.add('hidden');
+      pinGate.classList.remove('hidden');
+      pinInput.focus();
+    };
+
+    function updateHeaderCounters() {
+      document.getElementById('metric-pending-requests').textContent = pendingSongRequests.length;
+      document.getElementById('request-badge').textContent = `${pendingSongRequests.length} PENDING`;
+    }
+
+    function updateStaticMetricsUI(metrics) {
+      try {
+        const activeNodes = serverClusterArray.filter(c => !c.isBlacklisted && (c.hud.connected || c.companion.connected)).length;
+        document.getElementById('metric-online-count').textContent = activeNodes;
+        
+        let totalGuests = 0;
+        serverClusterArray.forEach(curr => {
+          if (curr.activeGuests) totalGuests += curr.activeGuests;
+        });
+        document.getElementById('metric-guests-count').textContent = totalGuests;
+
+        const bannedNodes = (serverClusterArray.filter(c => c.isBlacklisted).length) + (bannedFingerprintsList ? bannedFingerprintsList.length : 0);
+        document.getElementById('metric-banned-count').textContent = bannedNodes;
+        updateHeaderCounters();
+      } catch (e) {}
+    }
+
+    function renderHardwareMatricesGrid() {
+      try {
+        const container = document.getElementById('fleet-card-grid');
+        container.innerHTML = '';
+
+        if (!serverClusterArray || serverClusterArray.length === 0) {
+          container.innerHTML = '<div class="text-center py-10 text-[--muted] text-xs">No active computing devices routed.</div>';
           return;
         }
 
-        if (packet.type === 'topology_update') {
-          serverClusterArray = packet.data || [];
-          bannedFingerprintsList = packet.bannedFingerprints || [];
-          if (!userSelectedId && serverClusterArray.length > 0) userSelectedId = serverClusterArray[0].id;
+        serverClusterArray.forEach(dev => {
+          const card = document.createElement('div');
+          const isSelected = dev.id === userSelectedId;
           
-          updateStaticMetricsUI(packet.metrics);
-          renderHardwareMatricesGrid();
-          renderMirrorViewScreen();
-          renderTokenVaultElements();
-          renderGuestRoster();
-          renderBannedFingerprintsVault();
-        } else if (packet.type === 'cmd_guest_suggest_song') {
-          handleIncomingSongSuggestion(packet);
-        } else if (packet.type === 'wiretap_intercept') {
-          appendWiretapInterceptLog(packet);
+          let borderClass = 'device-card rounded p-4 cursor-pointer flex justify-between items-center';
+          if (isSelected) borderClass += ' is-selected';
+          if (dev.isBlacklisted) borderClass += ' banned';
+
+          const hudDot = dev.hud.connected ? '<span class="status-dot bg-[--green]"></span> HUD ON' : '<span class="status-dot bg-slate-600"></span> HUD OFF';
+          const compDot = dev.companion.connected ? '<span class="status-dot bg-[--green]"></span> PHONE ON' : '<span class="status-dot bg-slate-600"></span> PHONE OFF';
+
+          card.className = borderClass;
+          card.innerHTML = `
+            <div>
+              <p class="font-display text-xs font-bold text-white uppercase">Cluster Rig: ${dev.id}</p>
+              <p class="text-[10px] text-[--muted] mt-1 flex gap-3">${hudDot} | ${compDot}</p>
+            </div>
+            <div class="text-right text-[10px] text-[--muted] font-mono">
+              <div>Guests: <span class="text-[--cyan]">${dev.activeGuests}</span></div>
+              <div>${dev.isBlacklisted ? '<span class="text-[--rose]">BANNED</span>':'<span class="text-[--green]">CLEAR</span>'}</div>
+            </div>
+          `;
+
+          card.addEventListener('click', () => {
+            userSelectedId = dev.id;
+            renderHardwareMatricesGrid();
+            renderMirrorViewScreen();
+            renderTokenVaultElements();
+            renderGuestRoster();
+            renderBannedFingerprintsVault();
+          });
+
+          container.appendChild(card);
+        });
+      } catch (e) {}
+    }
+
+    function renderMirrorViewScreen() {
+      try {
+        const emptyFrame = document.getElementById('preview-empty-frame');
+        const activeFrame = document.getElementById('preview-active-frame');
+        const actionBtn = document.getElementById('mirror-action-ban-btn');
+        const hudBtn = document.getElementById('hud-kill-btn');
+        const compBtn = document.getElementById('comp-kill-btn');
+
+        const node = serverClusterArray.find(c => c.id === userSelectedId);
+        if (!node) {
+          emptyFrame.classList.remove('hidden');
+          activeFrame.classList.add('hidden');
+          return;
         }
-      } catch (err) {}
-    });
 
-    socket.addEventListener('close', () => {
-      if (validatedPasscode) setTimeout(window.triggerHandshakeVerification, 5000);
-    });
-  };
+        emptyFrame.classList.add('hidden');
+        activeFrame.classList.remove('hidden');
 
-  function handleIncomingSongSuggestion(packet) {
-    playAlertChime();
-    const req = {
-      id: 'req_' + Date.now() + '_' + Math.floor(Math.random()*1000),
-      guestName: packet.guestName || 'Anonymous Guest',
-      isOwner: packet.isOwner === true,
-      deviceFingerprint: packet.deviceFingerprint || 'Unknown-FP',
-      track: packet.track || { title: 'Unknown Title', artist: 'Unknown Artist', uri: '', cover: '' },
-      timestamp: new Date().toLocaleTimeString([], { hour12: false })
-    };
-    pendingSongRequests.unshift(req);
-    renderSongRequestQueue();
-    updateHeaderCounters();
-  }
+        const isConnected = node.hud.connected;
+        const speedEl = document.getElementById('hud-stat-speed');
+        const odoEl = document.getElementById('hud-stat-odo');
+        const fuelEl = document.getElementById('hud-stat-fuel');
+        const voltEl = document.getElementById('hud-stat-voltage');
 
-  function renderSongRequestQueue() {
-    const stream = document.getElementById('song-request-stream');
-    stream.innerHTML = '';
+        let staleTimeLabel = '';
+        if (!isConnected && node.hud.lastSeen) {
+          const minutesAgo = Math.floor((Date.now() - node.hud.lastSeen) / 60000);
+          staleTimeLabel = ` [STALE - ${minutesAgo < 1 ? 'Just now' : minutesAgo + 'm ago'}]`;
+        }
 
-    if (pendingSongRequests.length === 0) {
-      stream.innerHTML = '<div class="text-center py-12 text-xs text-[--muted]">No pending track suggestions from passengers.</div>';
-      return;
-    }
+        document.getElementById('hud-badge').textContent = isConnected ? 'ACTIVE' : `OFFLINE${staleTimeLabel}`;
+        document.getElementById('hud-badge').className = `text-[9px] px-2 py-0.5 border rounded ${isConnected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
 
-    pendingSongRequests.forEach(req => {
-      const card = document.createElement('div');
-      card.className = 'req-card-in flex items-center justify-between p-2.5 rounded bg-black/30 border border-[--border-hi]';
+        speedEl.textContent = `${Math.round(node.hud.state.speed || 0)} km/h`;
+        odoEl.textContent = `${node.hud.state.odometer || 0} KM`;
+        fuelEl.textContent = `${node.hud.state.fuel_percent || 0} %`;
+        voltEl.textContent = `${node.hud.state.battery_voltage || 12.6} V`;
 
-      const thumb = req.track.cover || 'data:image/svg+xml;utf8,' + encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#0d1f21"/><text x="50%" y="55%" font-size="16" fill="#FFB000" text-anchor="middle" font-family="monospace">♪</text></svg>`
-      );
-
-      const ownerTag = req.isOwner ? '<span class="text-[--gold] font-bold text-[9px]">[ROOT OWNER]</span>' : '';
-
-      card.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0">
-          <img src="${thumb}" class="w-9 h-9 rounded object-cover flex-shrink-0 border border-white/10" alt="Cover" />
-          <div class="min-w-0 font-mono">
-            <p class="text-xs font-bold text-white truncate">${req.track.title}</p>
-            <p class="text-[10px] text-[--muted] truncate">${req.track.artist}</p>
-            <p class="text-[9px] text-[--cyan] truncate">Req by: <span class="font-bold">${req.guestName}</span> ${ownerTag}</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button class="btn btn-green font-bold text-[9px] px-2.5 py-1" onclick="window.acceptSongRequest('${req.id}')">▶ Accept & Play</button>
-          <button class="btn btn-rose font-bold text-[9px] px-2 py-1" onclick="window.dismissSongRequest('${req.id}')">✕</button>
-        </div>
-      `;
-      stream.appendChild(card);
-    });
-  }
-
-  function renderGuestRoster() {
-    const tbody = document.getElementById('guest-roster-tbody');
-    tbody.innerHTML = '';
-
-    const node = serverClusterArray.find(c => c.id === userSelectedId);
-    const guests = (node && node.connectedGuestsList) ? node.connectedGuestsList : [];
-
-    if (guests.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-[--muted]">No guests connected to selected vehicle rig.</td></tr>';
-      return;
-    }
-
-    guests.forEach(g => {
-      const isOwner = g.isOwner || (g.name && g.name.toLowerCase() === 'owner:sumanyu');
-      const fpShort = g.fingerprint ? (g.fingerprint.slice(0, 10) + '…') : 'N/A';
-      
-      const tr = document.createElement('tr');
-      tr.className = 'border-b border-[--border] hover:bg-white/[0.02]';
-      tr.innerHTML = `
-        <td class="py-2.5 text-white font-bold">${g.name || 'Anonymous'}</td>
-        <td class="py-2.5 text-[--slate-lt]">${fpShort}</td>
-        <td class="py-2.5">${isOwner ? '<span class="text-[--gold] font-bold">OWNER</span>' : '<span class="text-[--cyan]">PASSENGER</span>'}</td>
-        <td class="py-2.5"><span class="status-dot bg-[--green]"></span> ONLINE</td>
-        <td class="py-2.5 text-right">
-          ${isOwner ? '<span class="text-[--muted] text-[9px]">IMMUNE</span>' : `<button class="btn btn-rose text-[9px] py-0.5 px-2" onclick="window.banGuestFingerprint('${g.fingerprint}','${g.name}')">BAN DEVICE</button>`}
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function renderBannedFingerprintsVault() {
-    const container = document.getElementById('banned-fingerprints-list');
-    container.innerHTML = '';
-
-    if (!bannedFingerprintsList || bannedFingerprintsList.length === 0) {
-      container.innerHTML = '<div class="text-center py-4 text-[--muted]">No device fingerprints currently quarantined.</div>';
-      return;
-    }
-
-    bannedFingerprintsList.forEach(fp => {
-      const div = document.createElement('div');
-      div.className = 'flex items-center justify-between border-b border-[--border] py-2';
-      div.innerHTML = `
-        <div class="flex items-center gap-2 font-mono">
-          <span class="text-[9px] px-1.5 py-0.5 border border-[--rose]/40 text-[--rose] rounded font-bold font-display">[QUARANTINED]</span>
-          <code class="text-white text-xs font-bold">${fp.slice(0, 18)}…</code>
-        </div>
-        <button class="btn btn-cyan text-[9px] py-0.5 px-2 font-bold" onclick="window.unbanGuestFingerprint('${fp}')">✓ UNBAN</button>
-      `;
-      container.appendChild(div);
-    });
-  }
-
-  window.lockConsoleWorkspace = function() {
-    validatedPasscode = '';
-    if (socket) { try { socket.close(); } catch(e){} }
-    appShell.classList.add('hidden');
-    pinGate.classList.remove('hidden');
-    pinInput.focus();
-  };
-
-  function updateHeaderCounters() {
-    document.getElementById('metric-pending-requests').textContent = pendingSongRequests.length;
-    document.getElementById('request-badge').textContent = `${pendingSongRequests.length} PENDING`;
-  }
-
-  function updateStaticMetricsUI(metrics) {
-    try {
-      const activeNodes = serverClusterArray.filter(c => !c.isBlacklisted && (c.hud.connected || c.companion.connected)).length;
-      document.getElementById('metric-online-count').textContent = activeNodes;
-      
-      let totalGuests = 0;
-      serverClusterArray.forEach(curr => {
-        if (curr.activeGuests) totalGuests += curr.activeGuests;
-      });
-      document.getElementById('metric-guests-count').textContent = totalGuests;
-
-      const bannedNodes = (serverClusterArray.filter(c => c.isBlacklisted).length) + (bannedFingerprintsList ? bannedFingerprintsList.length : 0);
-      document.getElementById('metric-banned-count').textContent = bannedNodes;
-      updateHeaderCounters();
-    } catch (e) {}
-  }
-
-  function renderHardwareMatricesGrid() {
-    try {
-      const container = document.getElementById('fleet-card-grid');
-      container.innerHTML = '';
-
-      if (!serverClusterArray || serverClusterArray.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-[--muted] text-xs">No active computing devices routed.</div>';
-        return;
-      }
-
-      serverClusterArray.forEach(dev => {
-        const card = document.createElement('div');
-        const isSelected = dev.id === userSelectedId;
-        
-        let borderClass = 'device-card rounded p-4 cursor-pointer flex justify-between items-center';
-        if (isSelected) borderClass += ' is-selected';
-        if (dev.isBlacklisted) borderClass += ' banned';
-
-        const hudDot = dev.hud.connected ? '<span class="status-dot bg-[--green]"></span> HUD ON' : '<span class="status-dot bg-slate-600"></span> HUD OFF';
-        const compDot = dev.companion.connected ? '<span class="status-dot bg-[--green]"></span> PHONE ON' : '<span class="status-dot bg-slate-600"></span> PHONE OFF';
-
-        card.className = borderClass;
-        card.innerHTML = `
-          <div>
-            <p class="font-display text-xs font-bold text-white uppercase">Cluster Rig: ${dev.id}</p>
-            <p class="text-[10px] text-[--muted] mt-1 flex gap-3">${hudDot} | ${compDot}</p>
-          </div>
-          <div class="text-right text-[10px] text-[--muted] font-mono">
-            <div>Guests: <span class="text-[--cyan]">${dev.activeGuests}</span></div>
-            <div>${dev.isBlacklisted ? '<span class="text-[--rose]">BANNED</span>':'<span class="text-[--green]">CLEAR</span>'}</div>
-          </div>
-        `;
-
-        card.addEventListener('click', () => {
-          userSelectedId = dev.id;
-          renderHardwareMatricesGrid();
-          renderMirrorViewScreen();
-          renderTokenVaultElements();
-          renderGuestRoster();
-          renderBannedFingerprintsVault();
+        [speedEl, odoEl, fuelEl, voltEl].forEach(el => {
+          if (isConnected) el.classList.remove('stale-text');
+          else el.classList.add('stale-text');
         });
 
-        container.appendChild(card);
-      });
-    } catch (e) {}
-  }
+        if (node.hud_banned) {
+            hudBtn.textContent = "REVOKE HUD NODE LOCKDOWN";
+            hudBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
+            hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'hud' }));
+        } else {
+            hudBtn.textContent = "DISCONNECT & BAN HUD INSTANCE";
+            hudBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
+            hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'hud' }));
+        }
 
-  function renderMirrorViewScreen() {
-    try {
-      const emptyFrame = document.getElementById('preview-empty-frame');
-      const activeFrame = document.getElementById('preview-active-frame');
-      const actionBtn = document.getElementById('mirror-action-ban-btn');
-      const hudBtn = document.getElementById('hud-kill-btn');
-      const compBtn = document.getElementById('comp-kill-btn');
+        document.getElementById('comp-badge').textContent = node.companion.connected ? 'ACTIVE' : 'OFFLINE';
+        document.getElementById('comp-badge').className = `text-[9px] px-2 py-0.5 border rounded ${node.companion.connected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
+        document.getElementById('comp-stat-signal').textContent = node.companion.connected ? (node.companion.state.signal || 'Excellent') : '--';
 
-      const node = serverClusterArray.find(c => c.id === userSelectedId);
-      if (!node) {
-        emptyFrame.classList.remove('hidden');
-        activeFrame.classList.add('hidden');
-        return;
-      }
+        if (node.companion_banned) {
+            compBtn.textContent = "REVOKE PHONE NODE LOCKDOWN";
+            compBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
+            compBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'companion' }));
+        } else {
+            compBtn.textContent = "DISCONNECT & BAN PHONE LINK";
+            compBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
+            compBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'companion' }));
+        }
 
-      emptyFrame.classList.add('hidden');
-      activeFrame.classList.remove('hidden');
-
-      const isConnected = node.hud.connected;
-      const speedEl = document.getElementById('hud-stat-speed');
-      const odoEl = document.getElementById('hud-stat-odo');
-      const fuelEl = document.getElementById('hud-stat-fuel');
-      const voltEl = document.getElementById('hud-stat-voltage');
-
-      let staleTimeLabel = '';
-      if (!isConnected && node.hud.lastSeen) {
-        const minutesAgo = Math.floor((Date.now() - node.hud.lastSeen) / 60000);
-        staleTimeLabel = ` [STALE - ${minutesAgo < 1 ? 'Just now' : minutesAgo + 'm ago'}]`;
-      }
-
-      document.getElementById('hud-badge').textContent = isConnected ? 'ACTIVE' : `OFFLINE${staleTimeLabel}`;
-      document.getElementById('hud-badge').className = `text-[9px] px-2 py-0.5 border rounded ${isConnected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
-
-      speedEl.textContent = `${Math.round(node.hud.state.speed || 0)} km/h`;
-      odoEl.textContent = `${node.hud.state.odometer || 0} KM`;
-      fuelEl.textContent = `${node.hud.state.fuel_percent || 0} %`;
-      voltEl.textContent = `${node.hud.state.battery_voltage || 12.6} V`;
-
-      [speedEl, odoEl, fuelEl, voltEl].forEach(el => {
-        if (isConnected) el.classList.remove('stale-text');
-        else el.classList.add('stale-text');
-      });
-
-      if (node.hud_banned) {
-          hudBtn.textContent = "REVOKE HUD NODE LOCKDOWN";
-          hudBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
-          hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'hud' }));
-      } else {
-          hudBtn.textContent = "DISCONNECT & BAN HUD INSTANCE";
-          hudBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
-          hudBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'hud' }));
-      }
-
-      document.getElementById('comp-badge').textContent = node.companion.connected ? 'ACTIVE' : 'OFFLINE';
-      document.getElementById('comp-badge').className = `text-[9px] px-2 py-0.5 border rounded ${node.companion.connected ? 'border-[--green] text-[--green]' : 'border-slate-700 text-slate-500'}`;
-      document.getElementById('comp-stat-signal').textContent = node.companion.connected ? (node.companion.state.signal || 'Excellent') : '--';
-
-      if (node.companion_banned) {
-          compBtn.textContent = "REVOKE PHONE NODE LOCKDOWN";
-          compBtn.className = "w-full mt-2.5 bg-[--cyan]/10 border border-[--cyan]/30 text-[--cyan] font-display text-[9px] py-1 font-bold";
-          compBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'companion' }));
-      } else {
-          compBtn.textContent = "DISCONNECT & BAN PHONE LINK";
-          compBtn.className = "w-full mt-2.5 bg-[--rose]/10 border border-[--rose]/30 text-[--rose] font-display text-[9px] py-1 font-bold";
-          compBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'companion' }));
-      }
-
-      if (node.isBlacklisted) {
-        actionBtn.textContent = 'Revoke Cluster Firewall Block';
-        actionBtn.className = 'btn w-full btn-cyan font-bold py-2.5';
-        actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_allow_device', device: userSelectedId }));
-      } else {
-        actionBtn.textContent = 'Firewall Block Entire Cluster';
-        actionBtn.className = 'btn w-full btn-rose font-bold py-2.5';
-        actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_block_device', device: userSelectedId }));
-      }
-    } catch (e) {}
-  }
-
-  function renderTokenVaultElements() {
-    try {
-      const hook = document.getElementById('vault-token-hook-rows');
-      hook.innerHTML = '';
-      const node = serverClusterArray.find(c => c.id === userSelectedId);
-      
-      if (!node || !node.activeSummaryTokens || node.activeSummaryTokens.length === 0) {
-        hook.innerHTML = '<div class="text-center py-4 text-[--muted] uppercase tracking-wider text-[10px]">No active authorization tokens loaded in local registries.</div>';
-        return;
-      }
-
-      node.activeSummaryTokens.forEach(itemData => {
-        const tokenStr = (typeof itemData === 'object' && itemData.token) ? itemData.token : itemData;
-        const tokenType = (typeof itemData === 'object' && itemData.type) ? itemData.type : 'guest';
-        
-        const isSummary = tokenType === 'summary';
-        const badgeLabel = isSummary ? '[SUMMARY LINK]' : '[GUEST PASS]';
-        const badgeColor = isSummary ? 'text-[--cyan] border-[--cyan]/40' : 'text-[--amber] border-[--amber]/40';
-
-        const item = document.createElement('div');
-        item.className = 'flex items-center justify-between border-b border-[--border] py-2';
-        item.innerHTML = `
-          <div class="flex items-center gap-2 font-mono">
-            <span class="text-[9px] px-1.5 py-0.5 border rounded font-display font-bold ${badgeColor}">${badgeLabel}</span>
-            <code class="text-[--amber] text-sm font-bold tracking-wider">${tokenStr}</code>
-          </div>
-          <button class="text-[--rose] hover:underline font-bold text-[10px]" onclick="window.burnToken('${userSelectedId}', '${tokenStr}')">[BURN ACCESS]</button>
-        `;
-        hook.appendChild(item);
-      });
-    } catch (e) {}
-  }
-
-  function appendWiretapInterceptLog(p) {
-    if (p.payload && p.payload.type === 'state' && !streamToggle.checked) return;
-    if (p.payload && p.payload.type === 'ping') return;
-
-    const feed = document.getElementById('log-feed');
-    if (feed.querySelector('.text-center')) feed.innerHTML = '';
-
-    const div = document.createElement('div');
-    div.className = 'flex items-start gap-3 border-b border-[--border] pb-1.5 text-[11px]';
-    const ts = new Date().toLocaleTimeString([], { hour12:false });
-    
-    div.innerHTML = `
-      <span class="text-[--muted] tabular-nums">${ts}</span>
-      <span class="text-[--muted]">#${p.sequence || '0000'}</span>
-      <span class="text-[--cyan] font-bold font-display border border-[--border-hi] px-1 rounded text-[10px]">${p.origin}</span>
-      <div class="flex-1 font-mono">
-        <span class="block text-[10px] text-[--muted] bg-black/30 p-1.5 rounded mt-1 overflow-x-auto select-all">${JSON.stringify(p.payload)}</span>
-      </div>
-    `;
-    feed.prepend(div);
-    while (feed.children.length > 40) feed.removeChild(feed.lastChild);
-  }
-
-  window.executePanicPurgeCommand = function() {
-    const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
-    if (enteredPin === '6710') {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'admin_panic_purge' }));
-        alert('Emergency Panic Purge Challenge Dispatched!');
-      }
-    } else if (enteredPin !== null) {
-      alert('❌ AUTHORIZATION DENIED: Incorrect Security PIN.');
+        if (node.isBlacklisted) {
+          actionBtn.textContent = 'Revoke Cluster Firewall Block';
+          actionBtn.className = 'btn w-full btn-cyan font-bold py-2.5';
+          actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_allow_device', device: userSelectedId }));
+        } else {
+          actionBtn.textContent = 'Firewall Block Entire Cluster';
+          actionBtn.className = 'btn w-full btn-rose font-bold py-2.5';
+          actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_block_device', device: userSelectedId }));
+        }
+      } catch (e) {}
     }
-  };
 
-  function initializeSystemClock() {
-    const el = document.getElementById('clock-ticker');
-    function update() { el.textContent = new Date().toLocaleTimeString([], { hour12:false }); }
-    update(); setInterval(update, 1000);
-  }
+    function renderTokenVaultElements() {
+      try {
+        const hook = document.getElementById('vault-token-hook-rows');
+        hook.innerHTML = '';
+        const node = serverClusterArray.find(c => c.id === userSelectedId);
+        
+        if (!node || !node.activeSummaryTokens || node.activeSummaryTokens.length === 0) {
+          hook.innerHTML = '<div class="text-center py-4 text-[--muted] uppercase tracking-wider text-[10px]">No active authorization tokens loaded in local registries.</div>';
+          return;
+        }
 
-  window.addEventListener('DOMContentLoaded', () => { pinInput.focus(); });
-})();
-</script>
+        node.activeSummaryTokens.forEach(itemData => {
+          const tokenStr = (typeof itemData === 'object' && itemData.token) ? itemData.token : itemData;
+          const tokenType = (typeof itemData === 'object' && itemData.type) ? itemData.type : 'guest';
+          
+          const isSummary = tokenType === 'summary';
+          const badgeLabel = isSummary ? '[SUMMARY LINK]' : '[GUEST PASS]';
+          const badgeColor = isSummary ? 'text-[--cyan] border-[--cyan]/40' : 'text-[--amber] border-[--amber]/40';
+
+          const item = document.createElement('div');
+          item.className = 'flex items-center justify-between border-b border-[--border] py-2';
+          item.innerHTML = `
+            <div class="flex items-center gap-2 font-mono">
+              <span class="text-[9px] px-1.5 py-0.5 border rounded font-display font-bold ${badgeColor}">${badgeLabel}</span>
+              <code class="text-[--amber] text-sm font-bold tracking-wider">${tokenStr}</code>
+            </div>
+            <button class="text-[--rose] hover:underline font-bold text-[10px]" onclick="window.burnToken('${userSelectedId}', '${tokenStr}')">[BURN ACCESS]</button>
+          `;
+          hook.appendChild(item);
+        });
+      } catch (e) {}
+    }
+
+    function appendWiretapInterceptLog(p) {
+      if (p.payload && p.payload.type === 'ping') return;
+      const isState = p.payload && (p.payload.type === 'state' || p.payload.type === 'companion_state');
+      if (isState && streamToggle && !streamToggle.checked) return;
+
+      const feed = document.getElementById('log-feed');
+      if (feed.querySelector('.text-center')) {
+        feed.innerHTML = '';
+      }
+
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-3 border-b border-[--border] pb-1.5 text-[11px]';
+      const ts = new Date().toLocaleTimeString([], { hour12: false });
+      
+      div.innerHTML = `
+        <span class="text-[--muted] tabular-nums">${ts}</span>
+        <span class="text-[--muted]">#${p.sequence || '0000'}</span>
+        <span class="text-[--cyan] font-bold font-display border border-[--border-hi] px-1 rounded text-[10px]">${p.origin} ➔ ${p.target}</span>
+        <div class="flex-1 font-mono">
+          <span class="block text-[10px] text-[--muted] bg-black/30 p-1.5 rounded mt-1 overflow-x-auto select-all">${JSON.stringify(p.payload)}</span>
+        </div>
+      `;
+      feed.prepend(div);
+      while (feed.children.length > 50) {
+        feed.removeChild(feed.lastChild);
+      }
+    }
+
+    window.executePanicPurgeCommand = function() {
+      const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
+      if (enteredPin === '6710') {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'admin_panic_purge' }));
+          alert('Emergency Panic Purge Challenge Dispatched!');
+        }
+      } else if (enteredPin !== null) {
+        alert('❌ AUTHORIZATION DENIED: Incorrect Security PIN.');
+      }
+    };
+
+    function initializeSystemClock() {
+      const el = document.getElementById('clock-ticker');
+      function update() { 
+        el.textContent = new Date().toLocaleTimeString([], { hour12: false }); 
+      }
+      update(); 
+      setInterval(update, 1000);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { 
+      pinInput.focus(); 
+    });
+  })();
+  </script>
 </body>
 </html>
