@@ -173,12 +173,14 @@ app.get('/guest', (req, res) => {
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    // Single-use token burn on first open
-    tokenMeta.burned = true;
-    dev.guestTokens.set(token, tokenMeta);
-    broadcastTopology();
-
-    res.sendFile(path.join(__dirname, 'guest.html'));
+    // Serve the file first, then burn the token upon successful transmission
+    res.sendFile(path.join(__dirname, 'guest.html'), (err) => {
+        if (!err) {
+            tokenMeta.burned = true;
+            dev.guestTokens.set(token, tokenMeta);
+            broadcastTopology();
+        }
+    });
 });
 
 app.get('/summary', (req, res) => {
@@ -195,11 +197,13 @@ app.get('/summary', (req, res) => {
         return res.status(403).send(ACCESS_DENIED_HTML);
     }
 
-    tokenMeta.burned = true;
-    dev.guestTokens.set(token, tokenMeta);
-    broadcastTopology();
-
-    res.sendFile(path.join(__dirname, 'summary.html'));
+    res.sendFile(path.join(__dirname, 'summary.html'), (err) => {
+        if (!err) {
+            tokenMeta.burned = true;
+            dev.guestTokens.set(token, tokenMeta);
+            broadcastTopology();
+        }
+    });
 });
 
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
