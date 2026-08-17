@@ -1058,10 +1058,24 @@
       } catch (e) {}
     }
 
+    // 🔥 Telemetry intercept logging with high-frequency noise filter
     function appendWiretapInterceptLog(p) {
-      if (p.payload && p.payload.type === 'ping') return;
-      const isState = p.payload && (p.payload.type === 'state' || p.payload.type === 'companion_state');
-      if (isState && streamToggle && !streamToggle.checked) return;
+      if (!p || !p.payload) return;
+      const type = p.payload.type;
+
+      // Identify high frequency routine broadcasts (pings, state, ticks)
+      const isFrequentTickOrState = (
+        type === 'ping' || 
+        type === 'state' || 
+        type === 'companion_state' || 
+        type === 'telemetry_tick' ||
+        (p.payload.distance === 0 && p.payload.duration === 0)
+      );
+
+      // Skip rendering if it is high frequency AND the toggle switch is off
+      if (isFrequentTickOrState && streamToggle && !streamToggle.checked) {
+        return;
+      }
 
       const feed = document.getElementById('log-feed');
       if (feed.querySelector('.text-center')) {
@@ -1081,6 +1095,7 @@
         </div>
       `;
       feed.prepend(div);
+      
       while (feed.children.length > 50) {
         feed.removeChild(feed.lastChild);
       }
