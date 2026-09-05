@@ -193,7 +193,7 @@ const ACCESS_DENIED_HTML = `
 
 app.get('/spotify/login', (req, res) => {
     const deviceId = req.query.device || 'myaura001';
-    const scope = 'streaming user-read-email user-read-private-profile';
+    const scope = 'streaming';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${deviceId}`;
     res.redirect(authUrl);
 });
