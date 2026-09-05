@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<!-- VERSION: 3.1.0 (Robust Iframe Mode) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveOS · Audio Stream Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07070a;
+    --card: #0e1118;
+    --cyan: #00F5FF;
+    --cyan-glow: rgba(0, 245, 255, 0.25);
+    --gold: #FFD700;
+    --muted: #5C7480;
+    --border: #182632;
+    --font: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(circle at 50% 10%, rgba(0, 245, 255, 0.08), transparent 70%), var(--bg);
+    color: #fff;
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .deck-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 0 40px var(--cyan-glow);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .deck-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+
+  .deck-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+
+  .status-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .player-cover-wrap {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #spotify-embed-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  .meta-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .meta-artist {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .log-box {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 9px;
+    color: var(--muted);
+    height: 90px;
+    overflow-y: auto;
+  }
+
+  .log-line { margin-bottom: 4px; }
+  .log-line.cmd { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="deck-card">
+  <div class="deck-header">
+    <div class="deck-title">DriveOS · Audio Stream Deck</div>
+    <div class="status-badge" id="conn-badge">Connecting...</div>
+  </div>
+
+  <div class="player-cover-wrap">
+    <iframe id="spotify-embed-frame" src="https://open.spotify.com/embed/track/7MXVkk9YMctZqd1Srtv4MB?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  </div>
+
+  <div>
+    <div class="meta-title" id="now-title">Ready for Stream</div>
+    <div class="meta-artist" id="now-artist">Awaiting command from Cockpit Admin...</div>
+  </div>
+
+  <div class="log-box" id="player-log">
+    <div class="log-line">[SYS]: Audio playback receiver node initialized.</div>
+  </div>
+</div>
+
+<script>
+const WS_PROTOCOL = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const params = new URLSearchParams(location.search);
+const deviceId = params.get('device') || 'myaura001';
+
+const embedFrame = document.getElementById('spotify-embed-frame');
+const nowTitle = document.getElementById('now-title');
+const nowArtist = document.getElementById('now-artist');
+const connBadge = document.getElementById('conn-badge');
+const logBox = document.getElementById('player-log');
+
+function log(msg, isCmd) {
+  const div = document.createElement('div');
+  div.className = 'log-line' + (isCmd ? ' cmd' : '');
+  div.textContent = `[${new Date().toLocaleTimeString()}]: ${msg}`;
+  logBox.prepend(div);
+}
+
+// Use role=player to avoid "Takeover" conflicts if both Headunit and Companion use this page
+const ws = new WebSocket(`${WS_PROTOCOL}${location.host}?role=player&device=${encodeURIComponent(deviceId)}&secret=driveos2secret`);
+
+ws.onopen = () => {
+  connBadge.textContent = 'RECEIVER ONLINE';
+  connBadge.style.borderColor = '#00FF9C';
+  connBadge.style.color = '#00FF9C';
+  log(`Linked to Cluster Rig [${deviceId}] as Audio Output`);
+};
+
+ws.onmessage = (e) => {
+  try {
+    const data = JSON.parse(e.data);
+
+    if (data.type === 'cmd_spotify_play') {
+      const track = data.track || {};
+      const uri = data.uri || track.uri || '';
+
+      // Extract track ID robustly (handles spotify:track:ID or just ID)
+      const trackId = uri.split(':').pop();
+
+      if (trackId) {
+        nowTitle.textContent = track.title || 'Playing Track';
+        nowArtist.textContent = track.artist || 'Spotify Stream';
+
+        // Dynamically load track with autoplay and theme
+        embedFrame.src = `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0&autoplay=1`;
+
+        log(`⚡ PLAY COMMAND EXECUTED: ${track.title || 'Track'}`, true);
+      }
+    }
+  } catch (err) {
+    console.error('WS Message Error:', err);
+  }
+};
+
+ws.onclose = () => {
+  connBadge.textContent = 'OFFLINE';
+  connBadge.style.borderColor = '#FF3B5C';
+  connBadge.style.color = '#FF3B5C';
+  log('Connection lost. Reconnect when ready.');
+};
+</script>
+</body>
+</html>
