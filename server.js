@@ -609,6 +609,9 @@ wss.on('connection', (ws, req) => {
                                 ws.send(JSON.stringify({ type: 'secure_purge_success', message: 'Wipe executed.' }));
                             } else {
                                 ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. Please wait for telemetry capture.' }));
+                                if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                    targetDev.companion.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. System wipe delayed.' }));
+                                }
                             }
                         } else {
                              targetDev.pendingWipe.active = false;
