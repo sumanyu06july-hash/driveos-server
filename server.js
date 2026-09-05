@@ -201,8 +201,14 @@ app.get('/spotify/login', (req, res) => {
 app.get('/spotify/callback', async (req, res) => {
     const code = req.query.code;
     const deviceId = req.query.state || 'myaura001';
+    const error = req.query.error;
+    const errorDescription = req.query.error_description;
 
-    if (!code) return res.status(400).send('Missing code');
+    if (error) {
+        return res.status(400).send(`Spotify Auth Error: ${error} - ${errorDescription || 'No description provided'}`);
+    }
+
+    if (!code) return res.status(400).send('Missing code: Spotify did not provide an authorization code. Check if you accepted the permissions.');
 
     try {
         const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
@@ -226,10 +232,10 @@ app.get('/spotify/callback', async (req, res) => {
             dev.spotifyUserRefreshToken = data.refresh_token;
             res.redirect(`/player?device=${deviceId}&auth=success`);
         } else {
-            res.status(500).send('Authentication failed');
+            res.status(500).send(`Authentication failed: ${JSON.stringify(data)}`);
         }
     } catch (err) {
-        res.status(500).send('Server error during Spotify auth');
+        res.status(500).send(`Server error during Spotify auth: ${err.message}`);
     }
 });
 
