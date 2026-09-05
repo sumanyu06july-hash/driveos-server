@@ -198,6 +198,10 @@ async function initSpotifyPlayer() {
 
         log('Connecting to Spotify SDK...', false);
 
+        if (typeof Spotify === 'undefined') {
+            throw new Error('Spotify SDK script not loaded yet. Retrying in 1s...');
+        }
+
         spotifyPlayer = new Spotify.Player({
             name: `DriveOS Headunit [${deviceId}]`,
             getToken: async () => token,
@@ -223,6 +227,9 @@ async function initSpotifyPlayer() {
         await spotifyPlayer.connect();
     } catch (err) {
         log(`SDK Error: ${err.message}`, false);
+        if (err.message.includes('not loaded')) {
+            setTimeout(initSpotifyPlayer, 1000);
+        }
     }
 }
 
