@@ -815,6 +815,15 @@
             appendWiretapInterceptLog(packet);
           } else if (packet.type === 'purge_request_approval') {
               securePurgeOverlay.classList.remove('hidden');
+          } else if (packet.type === 'secure_purge_code_a') {
+              // Display Code A to the Admin so they can give it to the user
+              const la = document.getElementById('challenge-overlay');
+              if (la) {
+                  la.classList.remove('hidden');
+                  la.querySelector('h2').textContent = `CODE A GENERATED: ${packet.code_a}`;
+                  la.querySelector('p').textContent = 'Communicate this 6-digit code to the Companion user to verify their identity.';
+                  la.querySelector('.flex').innerHTML = '<button class="btn btn-cyan w-32 py-2" onclick="document.getElementById(\'challenge-overlay\').classList.add(\'hidden\')">DISMISS</button>';
+              }
           } else if (packet.type === 'secure_purge_code_b') {
               securePurgeOverlay.classList.add('hidden');
               document.getElementById('code-b-display').textContent = `CODE B: ${packet.code_b}`;
