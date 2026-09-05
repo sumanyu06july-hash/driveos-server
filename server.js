@@ -290,13 +290,17 @@ app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html'
 app.get('/spotify-sdk', (req, res) => {
     const https = require('https');
     const options = {
+        hostname: 'sdk.spotify.com',
+        path: '/api/web-playback-sdk.js',
+        port: 443,
+        family: 4, // Force IPv4 to resolve DNS issues on cloud providers
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
             'Accept': '*/*'
         }
     };
 
-    https.get('https://sdk.spotify.com/api/web-playback-sdk.js', options, (response) => {
+    https.get(options, (response) => {
         if (response.statusCode !== 200) {
             console.error(`[SDK PROXY] Spotify returned ${response.statusCode}`);
             return res.status(502).send(`Spotify returned ${response.statusCode}`);
