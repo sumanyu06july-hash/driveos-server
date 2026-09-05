@@ -20,9 +20,6 @@ const SPOTIFY_REDIRECT_URI = 'https://driveos-relay-v2.onrender.com/spotify/call
 let spotifyToken = null;
 let spotifyTokenExpiresAt = 0;
 
-let spotifyToken = null;
-let spotifyTokenExpiresAt = 0;
-
 async function getSpotifyToken() {
     const now = Date.now();
     if (spotifyToken && now < spotifyTokenExpiresAt) return spotifyToken;
