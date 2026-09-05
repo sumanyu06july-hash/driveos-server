@@ -182,9 +182,22 @@ function log(msg, isCmd) {
 }
 
 // Handle Spotify Auth Redirect
-authBtn.onclick = () => {
-    log('Redirecting to Spotify auth...', false);
-    window.location.href = `/spotify/login?device=${encodeURIComponent(deviceId)}`;
+authBtn.onclick = async () => {
+    log('Requesting auth URL...', false);
+    try {
+        const res = await fetch(`/spotify/login?device=${encodeURIComponent(deviceId)}`);
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+        const data = await res.json();
+        if (data.url) {
+            log(`Redirecting to: ${data.url}`, false);
+            window.location.href = data.url;
+        } else {
+            throw new Error('No URL returned from server');
+        }
+    } catch (err) {
+        log(`Auth Redirect Error: ${err.message}`, false);
+    }
 };
 
 async function loadSpotifySDK() {

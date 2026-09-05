@@ -195,7 +195,10 @@ app.get('/spotify/login', (req, res) => {
     const deviceId = req.query.device || 'myaura001';
     const scope = 'streaming';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${deviceId}`;
-    res.redirect(authUrl);
+
+    // Return the URL as JSON instead of redirecting server-side
+    // This prevents the "blinking/reboot" crash in Android WebViews
+    res.json({ url: authUrl });
 });
 
 app.get('/spotify/callback', async (req, res) => {
