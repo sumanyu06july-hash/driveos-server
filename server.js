@@ -79,7 +79,12 @@ function generateCodeA() {
 }
 
 function generateCodeB() {
-    return Math.random().toString(36).substring(2, 18).toUpperCase().padEnd(16, 'X'); // 16 chars
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 16; i++) {
+        result += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return result;
 }
 
 function generateRecoveryCode() {
@@ -568,7 +573,12 @@ wss.on('connection', (ws, req) => {
                              targetDev.pendingWipe.approved = true;
                              // Send Code B back to Admin HTML on separate channel
                              ws.send(JSON.stringify({ type: 'secure_purge_code_b', code_b: targetDev.pendingWipe.codeB, device: command.device }));
-                             
+
+                             // Signal companion to open the Code B entry page
+                             if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                 targetDev.companion.send(JSON.stringify({ type: 'request_code_b_entry' }));
+                             }
+
                              // Initiate backup loop
                              if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
                                   targetDev.headunit.send(JSON.stringify({ type: 'request_backup' }));
