@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://* wss://* ws://*;">
 <title>DriveOS · Web Audio Receiver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -194,12 +195,13 @@ async function loadSpotifySDK() {
         const script = document.createElement('script');
         script.src = 'https://sdk.spotify.com/api/web-playback-sdk.js';
         script.async = true;
+        script.crossOrigin = 'anonymous'; // Added to avoid CORS issues in WebView
         script.onload = () => {
             log('Spotify SDK script loaded successfully', false);
             resolve();
         };
         script.onerror = () => {
-            reject(new Error('Failed to download Spotify SDK script'));
+            reject(new Error('Failed to download Spotify SDK script. Possible network or CSP block.'));
         };
         document.head.appendChild(script);
     });
