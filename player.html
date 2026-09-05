@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<!-- VERSION: 2.1.0 -->
+<!-- VERSION: 3.0.0 (Iframe Mode) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://sdk.spotify.com; connect-src 'self' ws: wss: *.spotify.com; img-src 'self' data: https://i.scdn.co;">
-<title>DriveOS · Web Audio Receiver</title>
+<title>DriveOS · Audio Receiver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -73,59 +72,22 @@
     text-transform: uppercase;
   }
 
-  .player-cover-wrap {
+  .player-container {
     width: 100%;
     aspect-ratio: 16/9;
     border-radius: 10px;
     overflow: hidden;
     background: #000;
-    position: relative;
     border: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    gap: 10px;
   }
 
-  #spotify-logout-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(255,0,0,0.2);
-    color: #ff4444;
-    border: 1px solid rgba(255,68,68,0.3);
-    padding: 4px 8px;
-    font-family: var(--font);
-    font-size: 9px;
-    cursor: pointer;
-    border-radius: 4px;
-    display: block;
-    transition: 0.2s;
-  }
-
-  #spotify-logout-btn:hover {
-    background: rgba(255,0,0,0.4);
-    box-shadow: 0 0 10px rgba(255,68,68,0.3);
-  }
-
-  #spotify-auth-btn {
-    background: var(--cyan);
-    color: #000;
+  iframe {
+    width: 100%;
+    height: 100%;
     border: none;
-    padding: 10px 20px;
-    font-family: var(--font);
-    font-weight: 800;
-    font-size: 12px;
-    cursor: pointer;
-    border-radius: 4px;
-    text-transform: uppercase;
-    transition: 0.2s;
-  }
-
-  #spotify-auth-btn:hover {
-    background: #fff;
-    box-shadow: 0 0 15px var(--cyan);
   }
 
   .meta-title {
@@ -162,14 +124,12 @@
 
 <div class="deck-card">
   <div class="deck-header">
-    <div class="deck-title">DriveOS · Web Audio Receiver</div>
+    <div class="deck-title">DriveOS · Audio Receiver</div>
     <div class="status-badge" id="conn-badge">Connecting...</div>
   </div>
 
-  <div class="player-cover-wrap" id="player-ui">
-    <button id="spotify-logout-btn">LOGOUT</button>
-    <button id="spotify-auth-btn">Connect Spotify Premium</button>
-    <div id="playback-status" style="font-size: 10px; color: var(--muted);">Awaiting Authentication...</div>
+  <div class="player-container" id="player-ui">
+    <div id="placeholder" style="color: var(--muted); font-size: 12px;">Awaiting Audio Command...</div>
   </div>
 
   <div>
@@ -178,7 +138,7 @@
   </div>
 
   <div class="log-box" id="player-log">
-    <div class="log-line">[SYS]: Audio playback receiver node initialized.</div>
+    <div class="log-line">[SYS]: Iframe playback receiver node initialized.</div>
   </div>
 </div>
 
@@ -191,166 +151,13 @@ const nowTitle = document.getElementById('now-title');
 const nowArtist = document.getElementById('now-artist');
 const connBadge = document.getElementById('conn-badge');
 const logBox = document.getElementById('player-log');
-const authBtn = document.getElementById('spotify-auth-btn');
-const logoutBtn = document.getElementById('spotify-logout-btn');
-const playbackStatus = document.getElementById('playback-status');
 const playerUI = document.getElementById('player-ui');
-
-let spotifyPlayer = null;
-
-// Handle Logout
-logoutBtn.onclick = async () => {
-    log('Logging out of Spotify...', false);
-    try {
-        const res = await fetch(`/api/spotify/logout?device=${encodeURIComponent(deviceId)}`);
-        if (res.ok) {
-            log('Session cleared. Reloading...', false);
-            window.location.reload();
-        } else {
-            throw new Error(`Logout failed: ${res.status}`);
-        }
-    } catch (err) {
-        log(`Logout Error: ${err.message}`, false);
-    }
-};
 
 function log(msg, isCmd) {
   const div = document.createElement('div');
   div.className = 'log-line' + (isCmd ? ' cmd' : '');
   div.textContent = `[${new Date().toLocaleTimeString()}]: ${msg}`;
   logBox.prepend(div);
-}
-
-// Handle Spotify Auth Redirect
-authBtn.onclick = async () => {
-    log('Requesting auth URL...', false);
-    try {
-        const res = await fetch(`/spotify/login?device=${encodeURIComponent(deviceId)}`);
-        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-        const data = await res.json();
-        if (data.url) {
-            log(`Redirecting to: ${data.url}`, false);
-            window.location.href = data.url;
-        } else {
-            throw new Error('No URL returned from server');
-        }
-    } catch (err) {
-        log(`Auth Redirect Error: ${err.message}`, false);
-    }
-};
-
-async function loadSpotifySDK() {
-    if (window.Spotify) return true;
-
-    return new Promise(async (resolve, reject) => {
-        const SDK_URL = '/spotify-sdk';
-        log(`Loading SDK via Server Proxy: ${SDK_URL}`, false);
-
-        const timeout = setTimeout(() => {
-            reject(new Error('SDK download timed out after 10s. Check server proxy.'));
-        }, 10000);
-
-        const script = document.createElement('script');
-        script.src = SDK_URL;
-        script.async = true;
-        script.onload = () => {
-            clearTimeout(timeout);
-            log('Spotify SDK script loaded successfully via proxy', false);
-            resolve();
-        };
-        script.onerror = (err) => {
-            clearTimeout(timeout);
-            log(`Proxy Load Error: Script failed to load from ${SDK_URL}`, false);
-            reject(new Error('Failed to download Spotify SDK via proxy.'));
-        };
-        document.body.appendChild(script);
-    });
-}
-
-async function initSpotifyPlayer() {
-    try {
-        await loadSpotifySDK();
-
-        const res = await fetch(`/api/spotify/token?device=${encodeURIComponent(deviceId)}`);
-        if (!res.ok) {
-            log('Spotify session not found. Please connect.', false);
-            authBtn.style.display = 'block';
-            logoutBtn.style.display = 'none';
-            return;
-        }
-        const { token } = await res.json();
-
-        // ── 1. CONNECTIVITY PROBE ──
-        log('Probing Spotify Audio Servers...', false);
-        try {
-            // We use mode 'no-cors' because we just want to see if the server responds at all
-            await fetch('https://aplay.spotify.com', { mode: 'no-cors' });
-            log('Audio Server reachable (Probe OK)', false);
-        } catch (probeErr) {
-            log(`Audio Server Unreachable: ${probeErr.message}`, false);
-            // Non-fatal, but warning
-        }
-
-        // ── 2. TOKEN HEALTH CHECK ──
-        log('Performing Token Health Check...', false);
-        try {
-            const userRes = await fetch('https://api.spotify.com/v1/me', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (userRes.ok) {
-                const userData = await userRes.json();
-                log(`Token Valid: Logged in as ${userData.display_name}`, true);
-            } else {
-                log(`Token Health Check Failed: ${userRes.status}`, false);
-                throw new Error(`Invalid Token (Status ${userRes.status})`);
-            }
-        } catch (healthErr) {
-            log(`Health Check Error: ${healthErr.message}`, false);
-            throw healthErr;
-        }
-
-        log('Initializing Spotify Player...', false);
-
-        spotifyPlayer = new window.Spotify.Player({
-            name: `DriveOS Headunit [${deviceId}]`,
-            getToken: async () => token,
-            volume: 0.8
-        });
-
-        spotifyPlayer.addListener('ready', () => {
-            log('⚡ SPOTIFY SDK READY: Full Playback Active', true);
-            authBtn.style.display = 'none';
-            logoutBtn.style.display = 'block';
-            playbackStatus.textContent = 'PREMIUM SESSION ACTIVE';
-            playbackStatus.style.color = '#00FF9C';
-        });
-
-        spotifyPlayer.addListener('player_state_changed', state => {
-            if (!state) return;
-            const track = state.track;
-            if (track) {
-                nowTitle.textContent = track.name;
-                nowArtist.textContent = track.artists.map(a => a.name).join(', ');
-            }
-        });
-
-        log('Attempting to connect to Spotify servers...', false);
-        try {
-            const connectPromise = spotifyPlayer.connect();
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT: Spotify servers are not responding to this device (15s)')), 15000)
-            );
-
-            await Promise.race([connectPromise, timeoutPromise]);
-            log('Connection request sent successfully', false);
-        } catch (connErr) {
-            log(`Connection Failed: ${connErr.message}`, false);
-            throw connErr;
-        }
-    } catch (err) {
-        log(`SDK Error: ${err.message}`, false);
-    }
 }
 
 const ws = new WebSocket(`${WS_PROTOCOL}${location.host}?role=player&device=${encodeURIComponent(deviceId)}&secret=driveos2secret`);
@@ -360,7 +167,6 @@ ws.onopen = () => {
   connBadge.style.borderColor = '#00FF9C';
   connBadge.style.color = '#00FF9C';
   log(`Linked to Cluster Rig [${deviceId}] as Audio Output`);
-  initSpotifyPlayer();
 };
 
 ws.onmessage = (e) => {
@@ -369,17 +175,26 @@ ws.onmessage = (e) => {
     if (data.type === 'cmd_spotify_play') {
       const track = data.track || {};
       const uri = data.uri || track.uri || '';
-      if (uri && spotifyPlayer) {
-        spotifyPlayer.play(uri).then(() => {
-            log(`⚡ FULL PLAYBACK: ${track.title || 'Track'}`, true);
-        }).catch(err => {
-            log(`Playback Error: ${err.message}`, false);
-        });
-      } else if (!spotifyPlayer) {
-          log('Cannot play: Spotify SDK not connected.', false);
+
+      if (uri) {
+        // Spotify Embed URI format: https://open.spotify.com/embed/track/<id>
+        // If uri is spotify:track:xyz, we convert it to the embed URL
+        const embedId = uri.replace('spotify:track:', '');
+        const embedUrl = `https://open.spotify.com/embed/track/${embedId}?utm_source=generator`;
+
+        playerUI.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media"></iframe>`;
+
+        nowTitle.textContent = track.title || 'Unknown Track';
+        nowArtist.textContent = track.artist || 'Unknown Artist';
+
+        log(`⚡ IFRAME PLAYBACK: ${track.title || 'Track'}`, true);
+      } else {
+        log('Cannot play: No Spotify URI provided.', false);
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('WS Message Error:', err);
+  }
 };
 
 ws.onclose = () => {

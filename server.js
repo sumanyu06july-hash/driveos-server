@@ -12,10 +12,9 @@ const GLOBAL_SECRET = 'driveos2secret';
 const ADMIN_PIN = '6710';
 const MASTER_PIN = '060710'; // Added for Secure Purge
 
-// ── SPOTIFY WEB API CREDENTIALS & TOKEN CACHE ──
+// ── SPOTIFY WEB API CREDENTIALS ──
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'ab1ac94c94a3451cbddd86b234590838';
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '651ff56202254b71bac158bbb2f7b3e4';
-const SPOTIFY_REDIRECT_URI = 'https://driveos-relay-v2.onrender.com/spotify/callback';
 
 let spotifyToken = null;
 let spotifyTokenExpiresAt = 0;
@@ -191,78 +190,6 @@ const ACCESS_DENIED_HTML = `
 
 // ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & LOGGING ──
 
-app.get('/spotify/login', (req, res) => {
-    const deviceId = req.query.device || 'myaura001';
-    const scope = 'streaming';
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${deviceId}`;
-
-    // Return the URL as JSON instead of redirecting server-side
-    // This prevents the "blinking/reboot" crash in Android WebViews
-    res.json({ url: authUrl });
-});
-
-app.get('/spotify/callback', async (req, res) => {
-    const code = req.query.code;
-    const deviceId = req.query.state || 'myaura001';
-    const error = req.query.error;
-    const errorDescription = req.query.error_description;
-
-    if (error) {
-        return res.status(400).send(`Spotify Auth Error: ${error} - ${errorDescription || 'No description provided'}`);
-    }
-
-    if (!code) return res.status(400).send('Missing code: Spotify did not provide an authorization code. Check if you accepted the permissions.');
-
-    try {
-        const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
-        const response = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${authHeader}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: SPOTIFY_REDIRECT_URI
-            })
-        });
-
-        const data = await response.json();
-        if (data.access_token) {
-            const dev = getDevice(deviceId);
-            dev.spotifyUserToken = data.access_token;
-            dev.spotifyUserRefreshToken = data.refresh_token;
-            res.redirect(`/player?device=${deviceId}&auth=success`);
-        } else {
-            res.status(500).send(`Authentication failed: ${JSON.stringify(data)}`);
-        }
-    } catch (err) {
-        res.status(500).send(`Server error during Spotify auth: ${err.message}`);
-    }
-});
-
-app.get('/api/spotify/token', (req, res) => {
-    const deviceId = req.query.device || 'myaura001';
-    const dev = getDevice(deviceId);
-    if (dev.spotifyUserToken) {
-        res.json({ token: dev.spotifyUserToken });
-    } else {
-        res.status(401).json({ error: 'No active Spotify session' });
-    }
-});
-
-app.get('/api/spotify/logout', (req, res) => {
-    const deviceId = req.query.device || 'myaura001';
-    const dev = getDevice(deviceId);
-
-    dev.spotifyUserToken = null;
-    dev.spotifyUserRefreshToken = null;
-
-    console.log(`[SPOTIFY]: Session cleared for device ${deviceId}`);
-    res.json({ success: true, message: 'Spotify session cleared.' });
-});
-
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.get('/guest', (req, res) => {
@@ -301,38 +228,6 @@ app.get('/summary', (req, res) => {
 
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 
-app.get('/spotify-sdk', (req, res) => {
-    const https = require('https');
-    const options = {
-        hostname: 'sdk.scdn.co',
-        path: '/spotify-player.js',
-        port: 443,
-        family: 4,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            'Accept': '*/*'
-        }
-    };
-
-    https.get(options, (response) => {
-        if (response.statusCode !== 200) {
-            console.error(`[SDK PROXY] Spotify CDN returned ${response.statusCode}`);
-            return res.status(502).send(`Spotify CDN returned ${response.statusCode}`);
-        }
-
-        let data = '';
-        response.on('data', (chunk) => { data += chunk; });
-        response.on('end', () => {
-            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-            res.setHeader('X-Content-Type-Options', 'nosniff');
-            res.send(data);
-        });
-    }).on('error', (error) => {
-        console.error('[SDK PROXY ERROR]:', error.message);
-        res.status(500).send(`Internal Proxy Error: ${error.message}`);
-    });
-});
-
 app.get('/api/unban-all', (req, res) => {
     blacklist.clear();
     fingerprintBlacklist.clear();
@@ -363,7 +258,7 @@ function broadcastTopology() {
         for (const [deviceId, dev] of devices.entries()) {
             const huActive = !!dev.headunit && dev.headunit.readyState === WebSocket.OPEN;
             const compActive = !!dev.companion && dev.companion.readyState === WebSocket.OPEN;
-            
+
             let hudLatency = dev.hudState?.latency ? parseInt(dev.hudState.latency) || 0 : (huActive ? 35 + Math.floor(Math.random() * 10) : 0);
             let compLatency = dev.companionState?.latency ? parseInt(dev.companionState.latency) || 0 : (compActive ? 40 + Math.floor(Math.random() * 12) : 0);
 
@@ -416,15 +311,15 @@ function broadcastTopology() {
         }
 
         const avgLatency = computedCount ? Math.round(absoluteLatencySum / computedCount) : 0;
-        const packet = JSON.stringify({ 
-            type: 'topology_update', 
-            data, 
+        const packet = JSON.stringify({
+            type: 'topology_update',
+            data,
             metrics: { avgLatency },
             bannedFingerprints: Array.from(fingerprintBlacklist)
         });
 
-        adminClients.forEach(admin => { 
-            if (admin.readyState === WebSocket.OPEN) admin.send(packet); 
+        adminClients.forEach(admin => {
+            if (admin.readyState === WebSocket.OPEN) admin.send(packet);
         });
     } catch (err) {
         console.error('[TOPO ERROR]:', err.message);
@@ -488,12 +383,12 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
                         const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
-                        
+
                         if (tokenMeta) {
                             tokenMeta.burned = true;
                             targetDev.guestTokens.set(command.token, tokenMeta);
                         }
-                        
+
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                             targetDev.companion.send(JSON.stringify({
                                 type: 'token_burned',
@@ -867,24 +762,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🎧 WEB PLAYER RECEIVER PIPELINE ──
-    if (role === 'player') {
-        const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
-
-        // Players are read-only receivers; they don't take over the headunit slot
-        dev.players = dev.players || new Set();
-        dev.players.add(ws);
-
-        console.log(`[WEB PLAYER] Audio Receiver connected: ${deviceId}`);
-        broadcastTopology();
-
-        ws.on('close', () => {
-            if (dev.players) dev.players.delete(ws);
-            broadcastTopology();
-        });
-        return;
-    }
+    // ── 🏎️ HEADUNIT TELEMETRY CORE ──
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
@@ -942,7 +820,7 @@ wss.on('connection', (ws, req) => {
                     dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(msg)); });
                     broadcastTopology();
                 }
-                
+
                 // ── BACKUP LOGIC (ADDITIVE) ──
                 if (msg.type === 'backup_data') {
                     dev.pendingWipe.huBackupReceived = true;
@@ -1018,7 +896,7 @@ wss.on('connection', (ws, req) => {
                         interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
                     }
                 }
-                
+
                 // ── SECURE PURGE CODE A VERIFICATION (ADDITIVE) ──
                 if (msg.type === 'verify_purge_code_a') {
                      if (dev.pendingWipe.active && msg.code_a === dev.pendingWipe.codeA) {
@@ -1030,49 +908,6 @@ wss.on('connection', (ws, req) => {
                      } else {
                          triggerLockout(dev, deviceId);
                      }
-                }
-
-                if (msg.type === 'verify_purge_code_b') {
-                    const targetDev = devices.get(deviceId);
-                    if (!targetDev) {
-                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Device not found in nexus.' }));
-                        return;
-                    }
-                    if (!targetDev.pendingWipe.active) {
-                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'No active purge sequence initialized.' }));
-                        return;
-                    }
-                    if (!targetDev.pendingWipe.approved) {
-                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Purge not yet approved by administrator.' }));
-                        return;
-                    }
-
-                    if (msg.code_b === targetDev.pendingWipe.codeB) {
-                        // CRITICAL: Verify backups are received BEFORE executing wipe
-                        if (targetDev.pendingWipe.huBackupReceived && targetDev.pendingWipe.compBackupReceived) {
-                            if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
-                                targetDev.headunit.send(JSON.stringify({ type: 'execute_wipe' }));
-                            }
-                            if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-                                targetDev.companion.send(JSON.stringify({ type: 'execute_wipe' }));
-                            }
-                            targetDev.pendingWipe.active = false;
-                            // Notify admin of success
-                            adminClients.forEach(admin => {
-                                if (admin.readyState === WebSocket.OPEN) {
-                                    admin.send(JSON.stringify({ type: 'secure_purge_success', message: 'Wipe executed for ' + deviceId }));
-                                }
-                            });
-                        } else {
-                            ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. Please wait for telemetry capture.' }));
-                            if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-                                targetDev.companion.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. System wipe delayed.' }));
-                            }
-                        }
-                    } else {
-                        targetDev.pendingWipe.active = false;
-                        triggerLockout(targetDev, deviceId);
-                    }
                 }
 
                 // ── LOCKOUT RECOVERY (ADDITIVE) ──
