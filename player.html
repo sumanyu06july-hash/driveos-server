@@ -198,11 +198,13 @@ async function initSpotifyPlayer() {
 
         log('Connecting to Spotify SDK...', false);
 
-        if (typeof Spotify === 'undefined') {
+        // Root cause fix: Use window.Spotify to avoid scope issues in certain WebView versions
+        const SpotifySDK = window.Spotify;
+        if (!SpotifySDK) {
             throw new Error('Spotify SDK script not loaded yet. Retrying in 1s...');
         }
 
-        spotifyPlayer = new Spotify.Player({
+        spotifyPlayer = new SpotifySDK.Player({
             name: `DriveOS Headunit [${deviceId}]`,
             getToken: async () => token,
             volume: 0.8
