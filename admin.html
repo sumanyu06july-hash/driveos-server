@@ -348,20 +348,12 @@
   <div id="code-b-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
     <div class="panel glow-amber rounded-md w-[min(95vw,440px)] p-6 text-center">
       <div class="tag text-[--amber] mb-3" style="border-color:var(--amber)">AWAITING CODE B</div>
-      <h2 class="font-display text-base font-bold text-white mb-2">ENTER CODE B TO EXECUTE WIPE</h2>
+      <h2 class="font-display text-base font-bold text-white mb-2">CODE B GENERATED</h2>
       <p class="text-xs text-[--muted] mb-5 leading-relaxed">
-        Backups are being collected. To finalize the wipe, enter the 12-character Code B generated for this session.
+        The Companion app must now enter this key to finalize the system wipe.
       </p>
-      <div id="code-b-display" class="font-mono text-lg font-bold text-[--cyan] mb-4"></div>
-      <input 
-        id="code-b-input" 
-        type="text" 
-        placeholder="XXXXXXXXXXXX" 
-        maxlength="12"
-        class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-xl tracking-widest font-display text-[--amber] py-2 mb-3 outline-none focus:border-[--amber]" 
-        autocomplete="off"
-      >
-      <button class="btn btn-rose w-full py-3 mb-3 font-bold" onclick="window.submitCodeB()">EXECUTE WIPE</button>
+      <div id="code-b-display" class="font-mono text-2xl font-bold text-[--cyan] mb-6 tracking-widest"></div>
+      <button class="btn btn-ghost w-full py-2" onclick="window.closeCodeBOverlay()">DISMISS</button>
     </div>
   </div>
 
@@ -1266,6 +1258,10 @@
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'admin_approve_purge', device: userSelectedId, decision: decision }));
         }
+    }
+
+    window.closeCodeBOverlay = function() {
+        codeBOverlay.classList.add('hidden');
     }
 
     window.submitCodeB = function() {

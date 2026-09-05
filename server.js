@@ -547,7 +547,9 @@ wss.on('connection', (ws, req) => {
                         }));
 
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-                            targetDev.companion.send(JSON.stringify({ type: 'purge_handshake_challenge', code_a: targetDev.pendingWipe.codeA }));
+                            // SECURITY FIX: Do NOT send code_a to the companion app.
+                            // Only send the challenge signal.
+                            targetDev.companion.send(JSON.stringify({ type: 'purge_handshake_challenge' }));
                         }
                     } else {
                          ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Invalid Master PIN or Device' }));
