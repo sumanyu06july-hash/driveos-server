@@ -188,16 +188,16 @@
       gap: 0.35rem;
     }
 
-    #log-feed {
+    #log-feed, #backup-feed {
       scrollbar-width: thin;
       scrollbar-color: #1C3038 transparent;
     }
 
-    #log-feed::-webkit-scrollbar {
+    #log-feed::-webkit-scrollbar, #backup-feed::-webkit-scrollbar {
       width: 6px;
     }
 
-    #log-feed::-webkit-scrollbar-thumb {
+    #log-feed::-webkit-scrollbar-thumb, #backup-feed::-webkit-scrollbar-thumb {
       background: #1C3038;
       border-radius: 4px;
     }
@@ -313,6 +313,58 @@
       <p id="pin-error" class="text-[--rose] text-xs h-4 text-center font-display uppercase tracking-wider font-semibold"></p>
     </div>
   </div>
+
+  <!-- ===================== 🛑 DYNAMIC CHALLENGE OVERLAYS ===================== -->
+  <div id="challenge-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div class="panel glow-rose rounded-md w-[min(95vw,440px)] p-6 text-center">
+      <div class="tag text-[--rose] mb-3" style="border-color:var(--rose)">SECURITY HANDSHAKE CHALLENGE</div>
+      <h2 class="font-display text-base font-bold text-white mb-2">PURGE ATTEMPT INTERCEPTED</h2>
+      <p class="text-xs text-[--muted] mb-5 leading-relaxed">
+        A remote device connected as a Companion app is currently requesting authority to execute an infrastructure system purge. Are you the one initializing this transaction?
+      </p>
+      <div class="flex gap-3 justify-center">
+        <button class="btn btn-cyan w-32 py-2" onclick="window.submitChallengeDecision('approve')">YES, APPROVE</button>
+        <button class="btn btn-rose w-32 py-2" onclick="window.submitChallengeDecision('deny')">NO, DENY ACC</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secure Purge Approval Overlay -->
+  <div id="secure-purge-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div class="panel glow-rose rounded-md w-[min(95vw,440px)] p-6 text-center">
+      <div class="tag text-[--rose] mb-3" style="border-color:var(--rose)">SECURE PURGE INITIATED</div>
+      <h2 class="font-display text-base font-bold text-white mb-2">COMPANION VERIFIED CODE A</h2>
+      <p class="text-xs text-[--muted] mb-5 leading-relaxed">
+        The companion app has successfully verified Code A. Do you approve the execution of the Backup & Wipe protocol?
+      </p>
+      <div class="flex gap-3 justify-center">
+        <button class="btn btn-cyan w-32 py-2" onclick="window.submitSecurePurgeApproval('YES')">YES, APPROVE</button>
+        <button class="btn btn-rose w-32 py-2" onclick="window.submitSecurePurgeApproval('NO')">NO, CANCEL & LOCK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code B Input Overlay -->
+  <div id="code-b-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div class="panel glow-amber rounded-md w-[min(95vw,440px)] p-6 text-center">
+      <div class="tag text-[--amber] mb-3" style="border-color:var(--amber)">AWAITING CODE B</div>
+      <h2 class="font-display text-base font-bold text-white mb-2">ENTER CODE B TO EXECUTE WIPE</h2>
+      <p class="text-xs text-[--muted] mb-5 leading-relaxed">
+        Backups are being collected. To finalize the wipe, enter the 12-character Code B generated for this session.
+      </p>
+      <div id="code-b-display" class="font-mono text-lg font-bold text-[--cyan] mb-4"></div>
+      <input 
+        id="code-b-input" 
+        type="text" 
+        placeholder="XXXXXXXXXXXX" 
+        maxlength="12"
+        class="w-full bg-black/40 border border-[--border-hi] rounded text-center text-xl tracking-widest font-display text-[--amber] py-2 mb-3 outline-none focus:border-[--amber]" 
+        autocomplete="off"
+      >
+      <button class="btn btn-rose w-full py-3 mb-3 font-bold" onclick="window.submitCodeB()">EXECUTE WIPE</button>
+    </div>
+  </div>
+
 
   <!-- ===================== CORE MONITORING DESK WORKSPACE ===================== -->
   <div id="app" class="hidden max-w-7xl mx-auto px-5 py-6">
@@ -523,7 +575,13 @@
                 <button id="comp-kill-btn" class="w-full mt-2.5 font-display text-[9px] py-1 transition rounded font-bold"></button>
               </div>
             </div>
-            <button id="mirror-action-ban-btn" class="btn w-full font-bold py-2.5"></button>
+            <button id="mirror-action-ban-btn" class="btn w-full font-bold py-2.5 mb-2"></button>
+            <button id="mirror-action-full-ban-btn" class="btn btn-rose w-full font-bold py-2.5 mb-2">Permanently Ban Device</button>
+            <div id="recovery-info" class="hidden p-2 border border-[--amber]/30 bg-[--amber]/5 rounded mb-2 text-center">
+              <p class="kv-label text-[8px]">DEVICE RECOVERY KEY</p>
+              <p id="recovery-code-val" class="font-mono text-sm font-bold text-[--amber]"></p>
+            </div>
+            <button id="mirror-action-force-unlock-btn" class="btn btn-amber w-full font-bold py-2.5 hidden">Force Unlock Device</button>
           </div>
         </div>
 
@@ -533,6 +591,17 @@
             <div class="text-center py-4 text-[--muted]">Memory registers clear.</div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Backup Log Stream -->
+    <section class="panel rounded-md p-5 mb-6">
+       <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-sm font-bold tracking-wide text-[--cyan]">BACKUP DATA STREAM</h2>
+        <span class="tag" style="color:#00FF9C; border-color:rgba(0,255,156,0.25);">Pre-Wipe Capture</span>
+      </div>
+      <div id="backup-feed" class="font-mono text-xs space-y-2 h-40 overflow-y-auto pr-2 bg-black/40 p-4 border border-[--border] rounded">
+        <div class="text-[--muted] text-center py-8">Waiting for node backups...</div>
       </div>
     </section>
 
@@ -558,11 +627,11 @@
       <!-- Emergency Reset Confirmation Bar -->
       <div class="mt-4 p-4 border border-dashed border-[--rose]/40 bg-[--rose]/5 rounded flex flex-wrap items-center justify-between gap-4">
         <div class="text-xs text-[--muted]">
-          <span class="text-[--rose] font-bold font-display">⚠️ [CRITICAL RESET SWITCH]:</span> Protected by 4-digit PIN verification gate.
+          <span class="text-[--rose] font-bold font-display">⚠️ [SECURE PURGE SWITCH]:</span> Initiates Backup-then-Wipe. Protected by Master PIN.
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executePanicPurgeCommand()">
-            Initialize Command Purge Handshake
+          <button class="btn btn-rose font-bold px-6 py-2.5" onclick="window.executeSecurePurgeCommand()">
+            INITIATE SECURE PURGE
           </button>
         </div>
       </div>
@@ -586,6 +655,8 @@
     const pinError = document.getElementById('pin-error');
     const appShell = document.getElementById('app');
     const streamToggle = document.getElementById('state-stream-toggle');
+    const securePurgeOverlay = document.getElementById('secure-purge-overlay');
+    const codeBOverlay = document.getElementById('code-b-overlay');
 
     pinInput.addEventListener('keydown', e => { 
       if (e.key === 'Enter') {
@@ -750,6 +821,27 @@
             handleIncomingSongSuggestion(packet);
           } else if (packet.type === 'wiretap_intercept') {
             appendWiretapInterceptLog(packet);
+          } else if (packet.type === 'purge_request_approval') {
+              securePurgeOverlay.classList.remove('hidden');
+          } else if (packet.type === 'secure_purge_code_b') {
+              securePurgeOverlay.classList.add('hidden');
+              document.getElementById('code-b-display').textContent = `CODE B: ${packet.code_b}`;
+              codeBOverlay.classList.remove('hidden');
+          } else if (packet.type === 'lockout_recovery_code') {
+              const recInfo = document.getElementById('recovery-info');
+              const recVal = document.getElementById('recovery-code-val');
+              if (recInfo && recVal) {
+                  recInfo.classList.remove('hidden');
+                  recVal.textContent = packet.code;
+                  playAlertChime();
+              }
+          } else if (packet.type === 'device_backup') {
+              appendBackupLog(packet);
+          } else if (packet.type === 'secure_purge_success') {
+              codeBOverlay.classList.add('hidden');
+              alert('SECURE PURGE EXECUTED.');
+          } else if (packet.type === 'secure_purge_error') {
+              alert(packet.message);
           }
         } catch (err) {}
       });
@@ -915,12 +1007,17 @@
           
           let borderClass = 'device-card rounded p-4 cursor-pointer flex justify-between items-center';
           if (isSelected) borderClass += ' is-selected';
-          if (dev.isBlacklisted) borderClass += ' banned';
+          if (dev.isBlacklisted || dev.permanently_banned) borderClass += ' banned';
 
           const hudDot = dev.hud.connected ? '<span class="status-dot bg-[--green]"></span> HUD ON' : '<span class="status-dot bg-slate-600"></span> HUD OFF';
           const compDot = dev.companion.connected ? '<span class="status-dot bg-[--green]"></span> PHONE ON' : '<span class="status-dot bg-slate-600"></span> PHONE OFF';
 
           card.className = borderClass;
+          let statusText = '<span class="text-[--green]">CLEAR</span>';
+          if (dev.permanently_banned) statusText = '<span class="text-[--rose]">PERM BANNED</span>';
+          else if (dev.isBlacklisted) statusText = '<span class="text-[--rose]">BANNED</span>';
+          else if (dev.lockout_active) statusText = '<span class="text-[--amber]">LOCKED</span>';
+
           card.innerHTML = `
             <div>
               <p class="font-display text-xs font-bold text-white uppercase">Cluster Rig: ${dev.id}</p>
@@ -928,7 +1025,7 @@
             </div>
             <div class="text-right text-[10px] text-[--muted] font-mono">
               <div>Guests: <span class="text-[--cyan]">${dev.activeGuests}</span></div>
-              <div>${dev.isBlacklisted ? '<span class="text-[--rose]">BANNED</span>':'<span class="text-[--green]">CLEAR</span>'}</div>
+              <div>${statusText}</div>
             </div>
           `;
 
@@ -953,6 +1050,8 @@
         const actionBtn = document.getElementById('mirror-action-ban-btn');
         const hudBtn = document.getElementById('hud-kill-btn');
         const compBtn = document.getElementById('comp-kill-btn');
+        const fullBanBtn = document.getElementById('mirror-action-full-ban-btn');
+        const forceUnlockBtn = document.getElementById('mirror-action-force-unlock-btn');
 
         const node = serverClusterArray.find(c => c.id === userSelectedId);
         if (!node) {
@@ -1015,13 +1114,43 @@
 
         if (node.isBlacklisted) {
           actionBtn.textContent = 'Revoke Cluster Firewall Block';
-          actionBtn.className = 'btn w-full btn-cyan font-bold py-2.5';
+          actionBtn.className = 'btn w-full btn-cyan font-bold py-2.5 mb-2';
           actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_allow_device', device: userSelectedId }));
         } else {
           actionBtn.textContent = 'Firewall Block Entire Cluster';
-          actionBtn.className = 'btn w-full btn-rose font-bold py-2.5';
+          actionBtn.className = 'btn w-full btn-rose font-bold py-2.5 mb-2';
           actionBtn.onclick = () => socket.send(JSON.stringify({ type: 'admin_block_device', device: userSelectedId }));
         }
+
+        if (node.permanently_banned) {
+             fullBanBtn.textContent = "Revoke Permanent Device Ban";
+             fullBanBtn.className = "btn w-full btn-cyan font-bold py-2.5 mb-2";
+             fullBanBtn.onclick = () => socket.send(JSON.stringify({ type: 'revoke_node_ban', device: userSelectedId, node: 'full_ban'}));
+        } else {
+             fullBanBtn.textContent = "Permanently Ban Device";
+             fullBanBtn.className = "btn w-full btn-rose font-bold py-2.5 mb-2";
+             fullBanBtn.onclick = () => socket.send(JSON.stringify({ type: 'kill_node', device: userSelectedId, node: 'full_ban'}));
+        }
+
+        if(node.lockout_active) {
+            forceUnlockBtn.classList.remove('hidden');
+            forceUnlockBtn.onclick = () => socket.send(JSON.stringify({ type: 'force_unlock', device: userSelectedId }));
+
+            const recInfo = document.getElementById('recovery-info');
+            const recVal = document.getElementById('recovery-code-val');
+            if (recInfo && recVal) {
+                recInfo.classList.remove('hidden');
+                // The recovery code is sent via the WebSocket packet, but to keep it visible
+                // when switching devices, the server should include it in the topology_update.
+                // For now, we will rely on the last received packet or a placeholder.
+                recVal.textContent = node.recovery_code || 'AWAITING KEY...';
+            }
+        } else {
+            forceUnlockBtn.classList.add('hidden');
+            document.getElementById('recovery-info')?.classList.add('hidden');
+        }
+
+
       } catch (e) {}
     }
 
@@ -1056,6 +1185,26 @@
           hook.appendChild(item);
         });
       } catch (e) {}
+    }
+
+    function appendBackupLog(p) {
+        const feed = document.getElementById('backup-feed');
+        if (feed.querySelector('.text-center')) {
+          feed.innerHTML = '';
+        }
+
+        const div = document.createElement('div');
+        div.className = 'flex items-start gap-3 border-b border-[--border] pb-1.5 text-[11px]';
+        const ts = new Date().toLocaleTimeString([], { hour12: false });
+        
+        div.innerHTML = `
+          <span class="text-[--muted] tabular-nums">${ts}</span>
+          <span class="text-[--green] font-bold font-display border border-[--border-hi] px-1 rounded text-[10px]">${p.device} [${p.node}]</span>
+          <div class="flex-1 font-mono">
+            <span class="block text-[10px] text-[--muted] bg-black/30 p-1.5 rounded mt-1 overflow-x-auto select-all">${JSON.stringify(p.data)}</span>
+          </div>
+        `;
+        feed.prepend(div);
     }
 
     // 🔥 Telemetry intercept logging with high-frequency noise filter
@@ -1101,6 +1250,35 @@
       }
     }
 
+    window.executeSecurePurgeCommand = function() {
+      const enteredPin = prompt('🚨 SECURE PURGE GATEKEEPER\nEnter 6-digit MASTER PIN to initiate Secure Purge:');
+      if (enteredPin === '060710') {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'admin_init_purge', device: userSelectedId, master_pin: enteredPin }));
+        }
+      } else if (enteredPin !== null) {
+        alert('❌ AUTHORIZATION DENIED: Incorrect MASTER PIN.');
+      }
+    };
+
+    window.submitSecurePurgeApproval = function(decision) {
+        securePurgeOverlay.classList.add('hidden');
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'admin_approve_purge', device: userSelectedId, decision: decision }));
+        }
+    }
+
+    window.submitCodeB = function() {
+        const codeB = document.getElementById('code-b-input').value;
+        if(codeB) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'verify_purge_code_b', device: userSelectedId, code_b: codeB }));
+            }
+        }
+    }
+
+
+    // Existing basic panic purge (kept for backward compatibility if needed, though secure purge is better)
     window.executePanicPurgeCommand = function() {
       const enteredPin = prompt('🚨 SECURITY GATEKEEPER\nEnter 4-digit Overlord PIN to execute Emergency Panic Purge:');
       if (enteredPin === '6710') {

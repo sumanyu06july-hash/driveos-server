@@ -10,6 +10,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const GLOBAL_SECRET = 'driveos2secret';
 const ADMIN_PIN = '6710';
+const MASTER_PIN = '060710'; // Added for Secure Purge
 
 // ── SPOTIFY WEB API CREDENTIALS & TOKEN CACHE ──
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'ab1ac94c94a3451cbddd86b234590838';
@@ -72,6 +73,19 @@ async function querySpotifyTracks(query) {
     }
 }
 
+// ── UTILITY FUNCTIONS FOR SECURE PURGE ──
+function generateCodeA() {
+    return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+}
+
+function generateCodeB() {
+    return Math.random().toString(36).substring(2, 18).toUpperCase().padEnd(16, 'X'); // 16 chars
+}
+
+function generateRecoveryCode() {
+     return Math.floor(100000000000 + Math.random() * 900000000000).toString(); // 12 digits
+}
+
 // ── CENTRAL VOLATILE IN-MEMORY REGISTERS ──
 const devices = new Map();
 const adminClients = new Set();
@@ -103,7 +117,20 @@ function getDevice(id) {
             hud_banned: false,
             companion_banned: false,
             parkedGuardActive: false,
-            parkedCoords: null
+            parkedCoords: null,
+            // ── SECURE PURGE STATE ──
+            pendingWipe: {
+                active: false,
+                codeA: null,
+                codeB: null,
+                approved: false,
+                huBackupReceived: false,
+                compBackupReceived: false
+            },
+            // ── LOCKOUT & BANNING STATE ──
+            lockout_active: false,
+            recovery_code: null,
+            permanently_banned: false
         });
     }
     return devices.get(id);
@@ -201,6 +228,8 @@ app.get('/api/unban-all', (req, res) => {
     for (const [, dev] of devices.entries()) {
         dev.hud_banned = false;
         dev.companion_banned = false;
+        dev.permanently_banned = false; // Added
+        dev.lockout_active = false; // Added
     }
     broadcastTopology();
     res.send('<h1 style="font-family:sans-serif;color:#00c853;">✅ SUCCESS: All device bans, node lockdowns, and fingerprint quarantines cleared from memory!</h1>');
@@ -251,6 +280,9 @@ function broadcastTopology() {
             data.push({
                 id: deviceId,
                 isBlacklisted: blacklist.has(deviceId),
+                permanently_banned: dev.permanently_banned, // Included in topology
+                lockout_active: dev.lockout_active, // Included in topology
+                recovery_code: dev.recovery_code, // Added for Admin recovery visibility
                 hud_banned: dev.hud_banned,
                 companion_banned: dev.companion_banned,
                 parkedGuardActive: dev.parkedGuardActive,
@@ -309,6 +341,18 @@ wss.on('connection', (ws, req) => {
     if (deviceId && blacklist.has(deviceId)) return reject(ws, 'AUTHENTICATION_REVOKED', 'Blacklisted profile.');
 
     const dev = getDevice(deviceId);
+
+    // ── PERMANENT BAN & LOCKOUT CHECK ──
+    if (role !== 'admin' && role !== 'guest' && role !== 'summary_client') {
+        if (dev.permanently_banned) {
+            ws.send(JSON.stringify({ type: 'ERROR_BANNED', message: 'Device permanently banned.' }));
+            setTimeout(() => { try{ws.close();}catch(e){} }, 500);
+            return;
+        }
+        if (dev.lockout_active) {
+            return reject(ws, 'SECURITY_LOCKOUT', 'Administrative lockout active.');
+        }
+    }
 
     // ── 🔐 ADMIN OVERLORD PIPELINE ──
     if (role === 'admin') {
@@ -397,6 +441,8 @@ wss.on('connection', (ws, req) => {
                     for (const [, d] of devices.entries()) {
                         d.hud_banned = false;
                         d.companion_banned = false;
+                        d.permanently_banned = false;
+                        d.lockout_active = false;
                     }
                 }
 
@@ -437,16 +483,34 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'admin_block_device') blacklist.add(command.device);
                 if (command.type === 'admin_allow_device') blacklist.delete(command.device);
 
+                // Modified kill_node
                 if (command.type === 'kill_node') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                         if (command.node === 'hud') {
                             targetDev.hud_banned = true;
-                            if (targetDev.headunit) targetDev.headunit.close();
+                            if (targetDev.headunit) {
+                                targetDev.headunit.send(JSON.stringify({type: 'ERROR_BANNED', message: 'HUD node banned'}));
+                                setTimeout(() => targetDev.headunit?.close(), 100);
+                            }
                         }
                         if (command.node === 'companion') {
                             targetDev.companion_banned = true;
-                            if (targetDev.companion) targetDev.companion.close();
+                            if (targetDev.companion) {
+                                targetDev.companion.send(JSON.stringify({type: 'ERROR_BANNED', message: 'Companion node banned'}));
+                                setTimeout(() => targetDev.companion?.close(), 100);
+                            }
+                        }
+                        if (command.node === 'full_ban') {
+                            targetDev.permanently_banned = true;
+                            if (targetDev.headunit) {
+                                targetDev.headunit.send(JSON.stringify({type: 'ERROR_BANNED', message: 'Device permanently banned'}));
+                                setTimeout(() => targetDev.headunit?.close(), 100);
+                            }
+                            if (targetDev.companion) {
+                                targetDev.companion.send(JSON.stringify({type: 'ERROR_BANNED', message: 'Device permanently banned'}));
+                                setTimeout(() => targetDev.companion?.close(), 100);
+                            }
                         }
                     }
                 }
@@ -456,9 +520,78 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                         if (command.node === 'hud') targetDev.hud_banned = false;
                         if (command.node === 'companion') targetDev.companion_banned = false;
+                        if (command.node === 'full_ban') targetDev.permanently_banned = false;
                     }
                 }
 
+                // ── SECURE PURGE ADDITIVE HANDLERS ──
+                if (command.type === 'admin_init_purge') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev && command.master_pin === MASTER_PIN) {
+                        targetDev.pendingWipe.active = true;
+                        targetDev.pendingWipe.codeA = generateCodeA();
+                        targetDev.pendingWipe.codeB = generateCodeB();
+                        targetDev.pendingWipe.approved = false;
+                        targetDev.pendingWipe.huBackupReceived = false;
+                        targetDev.pendingWipe.compBackupReceived = false;
+                        
+                        console.log(`[SECURE PURGE] Init. Code A: ${targetDev.pendingWipe.codeA}`);
+                        // Notify companion to show Code A verification screen (concept)
+                        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                            targetDev.companion.send(JSON.stringify({ type: 'purge_handshake_challenge', code_a: targetDev.pendingWipe.codeA }));
+                        }
+                    } else {
+                         ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Invalid Master PIN or Device' }));
+                    }
+                }
+
+                if (command.type === 'admin_approve_purge') {
+                     const targetDev = devices.get(command.device);
+                     if (targetDev && targetDev.pendingWipe.active) {
+                         if (command.decision === 'YES') {
+                             targetDev.pendingWipe.approved = true;
+                             // Send Code B back to Admin HTML on separate channel
+                             ws.send(JSON.stringify({ type: 'secure_purge_code_b', code_b: targetDev.pendingWipe.codeB, device: command.device }));
+                             
+                             // Initiate backup loop
+                             if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+                                  targetDev.headunit.send(JSON.stringify({ type: 'request_backup' }));
+                             }
+                             if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                  targetDev.companion.send(JSON.stringify({ type: 'request_backup' }));
+                             }
+                         } else {
+                             targetDev.pendingWipe.active = false;
+                             triggerLockout(targetDev, command.device);
+                         }
+                     }
+                }
+
+                if (command.type === 'verify_purge_code_b') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev && targetDev.pendingWipe.active && targetDev.pendingWipe.approved) {
+                        if (command.code_b === targetDev.pendingWipe.codeB) {
+                            // CRITICAL: Verify backups are received BEFORE executing wipe
+                            if (targetDev.pendingWipe.huBackupReceived && targetDev.pendingWipe.compBackupReceived) {
+                                if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+                                    targetDev.headunit.send(JSON.stringify({ type: 'execute_wipe' }));
+                                }
+                                if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                    targetDev.companion.send(JSON.stringify({ type: 'execute_wipe' }));
+                                }
+                                targetDev.pendingWipe.active = false;
+                                ws.send(JSON.stringify({ type: 'secure_purge_success', message: 'Wipe executed.' }));
+                            } else {
+                                ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. Please wait for telemetry capture.' }));
+                            }
+                        } else {
+                             targetDev.pendingWipe.active = false;
+                             triggerLockout(targetDev, command.device);
+                        }
+                    }
+                }
+
+                // Unrelated to purge, existing panic_purge
                 if (command.type === 'admin_panic_purge') {
                     for (const [, targetDev] of devices.entries()) {
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
@@ -466,12 +599,44 @@ wss.on('connection', (ws, req) => {
                         }
                     }
                 }
+
+                // ── LOCKOUT RECOVERY ──
+                if (command.type === 'force_unlock') {
+                    const targetDev = devices.get(command.device);
+                    if (targetDev) {
+                         targetDev.lockout_active = false;
+                         targetDev.recovery_code = null;
+                         broadcastTopology();
+                    }
+                }
+
                 broadcastTopology();
             } catch (err) {}
         });
 
         ws.on('close', () => adminClients.delete(ws));
         return;
+    }
+
+    // Helper for lockout
+    function triggerLockout(targetDev, deviceId) {
+        targetDev.lockout_active = true;
+        targetDev.recovery_code = generateRecoveryCode();
+        
+        // Notify admin of recovery code
+        adminClients.forEach(admin => {
+            if (admin.readyState === WebSocket.OPEN) {
+                admin.send(JSON.stringify({ type: 'lockout_recovery_code', device: deviceId, code: targetDev.recovery_code }));
+            }
+        });
+
+        if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+            targetDev.headunit.send(JSON.stringify({ type: 'trigger_lockout' }));
+        }
+        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+            targetDev.companion.send(JSON.stringify({ type: 'trigger_lockout' }));
+        }
+        broadcastTopology();
     }
 
     // ── 🎵 GUEST PASSENGER NEXUS ──
@@ -614,6 +779,16 @@ wss.on('connection', (ws, req) => {
                     dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(msg)); });
                     broadcastTopology();
                 }
+                
+                // ── BACKUP LOGIC (ADDITIVE) ──
+                if (msg.type === 'backup_data') {
+                    dev.pendingWipe.huBackupReceived = true;
+                    adminClients.forEach(admin => {
+                        if (admin.readyState === WebSocket.OPEN) {
+                            admin.send(JSON.stringify({ type: 'device_backup', device: deviceId, node: 'headunit', data: msg.data }));
+                        }
+                    });
+                }
             } catch (err) {}
         });
 
@@ -668,6 +843,46 @@ wss.on('connection', (ws, req) => {
                         interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
                     }
                 }
+                
+                // ── SECURE PURGE CODE A VERIFICATION (ADDITIVE) ──
+                if (msg.type === 'verify_purge_code_a') {
+                     if (dev.pendingWipe.active && msg.code_a === dev.pendingWipe.codeA) {
+                         adminClients.forEach(admin => {
+                             if (admin.readyState === WebSocket.OPEN) {
+                                 admin.send(JSON.stringify({ type: 'purge_request_approval', device: deviceId }));
+                             }
+                         });
+                     } else {
+                         triggerLockout(dev, deviceId);
+                     }
+                }
+
+                // ── LOCKOUT RECOVERY (ADDITIVE) ──
+                if (msg.type === 'verify_recovery_code') {
+                    if (dev.lockout_active) {
+                        if (msg.code === dev.recovery_code) {
+                            dev.lockout_active = false;
+                            dev.recovery_code = null;
+                            ws.send(JSON.stringify({type: 'lockout_cleared'}));
+                            broadcastTopology();
+                        } else {
+                            if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                                dev.headunit.send(JSON.stringify({ type: 'trigger_siren' }));
+                            }
+                        }
+                    }
+                }
+
+                // ── BACKUP LOGIC (ADDITIVE) ──
+                if (msg.type === 'backup_data') {
+                    dev.pendingWipe.compBackupReceived = true;
+                    adminClients.forEach(admin => {
+                        if (admin.readyState === WebSocket.OPEN) {
+                            admin.send(JSON.stringify({ type: 'device_backup', device: deviceId, node: 'companion', data: msg.data }));
+                        }
+                    });
+                }
+
             } catch (err) {}
         });
 
