@@ -287,33 +287,32 @@ app.get('/summary', (req, res) => {
 
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 
-app.get('/spotify-sdk', async (req, res) => {
-    try {
-        const response = await fetch('https://sdk.spotify.com/api/web-playback-sdk.js', {
-            headers: {
-                // Spoof a standard browser to prevent Spotify CDN blocks
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-                'Accept': '*/*'
-            }
-        });
+app.get('/spotify-sdk', (req, res) => {
+    const https = require('https');
+    const options = {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+        }
+    };
 
-        if (!response.ok) {
-            console.error(`[SDK PROXY] Spotify returned ${response.status}: ${response.statusText}`);
-            return res.status(502).send(`Spotify returned ${response.status}`);
+    https.get('https://sdk.spotify.com/api/web-playback-sdk.js', options, (response) => {
+        if (response.statusCode !== 200) {
+            console.error(`[SDK PROXY] Spotify returned ${response.statusCode}`);
+            return res.status(502).send(`Spotify returned ${response.statusCode}`);
         }
 
-        const scriptText = await response.text();
-
-        // Force strict MIME type to satisfy Android WebView security
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-
-        res.send(scriptText);
-
-    } catch (error) {
+        let data = '';
+        response.on('data', (chunk) => { data += chunk; });
+        response.on('end', () => {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.send(data);
+        });
+    }).on('error', (error) => {
         console.error('[SDK PROXY ERROR]:', error.message);
-        res.status(500).send('Internal Proxy Error');
-    }
+        res.status(500).send(`Internal Proxy Error: ${error.message}`);
+    });
 });
 
 app.get('/api/unban-all', (req, res) => {
