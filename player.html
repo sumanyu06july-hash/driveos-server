@@ -284,6 +284,25 @@ async function initSpotifyPlayer() {
         authBtn.style.display = 'none';
         const { token } = await res.json();
 
+        // ── TOKEN HEALTH CHECK ──
+        log('Performing Token Health Check...', false);
+        try {
+            const userRes = await fetch('https://api.spotify.com/v1/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (userRes.ok) {
+                const userData = await userRes.json();
+                log(`Token Valid: Logged in as ${userData.display_name}`, true);
+            } else {
+                log(`Token Health Check Failed: ${userRes.status}`, false);
+                throw new Error(`Invalid Token (Status ${userRes.status})`);
+            }
+        } catch (healthErr) {
+            log(`Health Check Error: ${healthErr.message}`, false);
+            throw healthErr;
+        }
+        // ── END HEALTH CHECK ──
+
         log('Initializing Spotify Player...', false);
 
         spotifyPlayer = new window.Spotify.Player({
