@@ -440,12 +440,17 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'admin_unban_all_fingerprints') {
                     blacklist.clear();
                     fingerprintBlacklist.clear();
-                    for (const [, d] of devices.entries()) {
+                    for (const [deviceId, d] of devices.entries()) {
                         d.hud_banned = false;
                         d.companion_banned = false;
                         d.permanently_banned = false;
                         d.lockout_active = false;
+
+                        if (d.companion && d.companion.readyState === WebSocket.OPEN) {
+                            d.companion.send(JSON.stringify({ type: 'lockout_cleared' }));
+                        }
                     }
+                    broadcastTopology();
                 }
 
                 if (command.type === 'admin_kick_all_guests') {
@@ -617,6 +622,12 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                          targetDev.lockout_active = false;
                          targetDev.recovery_code = null;
+
+                         // Notify companion to clear local lockout state
+                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                             targetDev.companion.send(JSON.stringify({ type: 'lockout_cleared' }));
+                         }
+
                          broadcastTopology();
                     }
                 }
