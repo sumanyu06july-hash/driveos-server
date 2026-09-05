@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- VERSION: 2.1.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -308,7 +309,19 @@ async function initSpotifyPlayer() {
             }
         });
 
-        await spotifyPlayer.connect();
+        log('Attempting to connect to Spotify servers...', false);
+        try {
+            const connectPromise = spotifyPlayer.connect();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT: Spotify servers are not responding to this device (10s)')), 10000)
+            );
+
+            await Promise.race([connectPromise, timeoutPromise]);
+            log('Connection request sent successfully', false);
+        } catch (connErr) {
+            log(`Connection Failed: ${connErr.message}`, false);
+            throw connErr;
+        }
     } catch (err) {
         log(`SDK Error: ${err.message}`, false);
     }
