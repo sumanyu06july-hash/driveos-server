@@ -191,18 +191,11 @@ async function loadSpotifySDK() {
     if (window.Spotify) return true;
 
     return new Promise(async (resolve, reject) => {
-        const SDK_URL = 'https://sdk.spotify.com/api/web-playback-sdk.js';
-        log(`Checking network access to SDK...`, false);
-
-        try {
-            const testFetch = await fetch(SDK_URL, { mode: 'no-cors' });
-            log(`Network check: Success (opaque response)`, false);
-        } catch (e) {
-            log(`Network check: Failed - ${e.message}`, false);
-        }
+        const SDK_URL = '/spotify-sdk';
+        log(`Loading SDK via Server Proxy: ${SDK_URL}`, false);
 
         const timeout = setTimeout(() => {
-            reject(new Error('SDK download timed out after 10s. Check network connectivity.'));
+            reject(new Error('SDK download timed out after 10s. Check server proxy.'));
         }, 10000);
 
         const script = document.createElement('script');
@@ -210,13 +203,13 @@ async function loadSpotifySDK() {
         script.async = true;
         script.onload = () => {
             clearTimeout(timeout);
-            log('Spotify SDK script loaded successfully', false);
+            log('Spotify SDK script loaded successfully via proxy', false);
             resolve();
         };
         script.onerror = (err) => {
             clearTimeout(timeout);
-            log(`Network Error: Script failed to load. src=${script.src}`, false);
-            reject(new Error('Failed to download Spotify SDK script. Possible network or CSP block.'));
+            log(`Proxy Load Error: Script failed to load from ${SDK_URL}`, false);
+            reject(new Error('Failed to download Spotify SDK via proxy.'));
         };
         document.body.appendChild(script);
     });

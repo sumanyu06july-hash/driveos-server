@@ -287,6 +287,18 @@ app.get('/summary', (req, res) => {
 
 app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 
+app.get('/spotify-sdk', async (req, res) => {
+    try {
+        const response = await fetch('https://sdk.spotify.com/api/web-playback-sdk.js');
+        const script = await response.text();
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send(script);
+    } catch (err) {
+        console.error('[SDK PROXY ERROR]:', err.message);
+        res.status(500).send('Error fetching Spotify SDK');
+    }
+});
+
 app.get('/api/unban-all', (req, res) => {
     blacklist.clear();
     fingerprintBlacklist.clear();
