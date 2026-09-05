@@ -183,13 +183,17 @@ function log(msg, isCmd) {
 
 // Handle Spotify Auth Redirect
 authBtn.onclick = () => {
+    log('Redirecting to Spotify auth...', false);
     window.location.href = `/spotify/login?device=${encodeURIComponent(deviceId)}`;
 };
 
 async function initSpotifyPlayer() {
     try {
         const res = await fetch(`/api/spotify/token?device=${encodeURIComponent(deviceId)}`);
-        if (!res.ok) throw new Error('No active session');
+        if (!res.ok) {
+            log('Spotify session not found. Please connect.', false);
+            return;
+        }
         const { token } = await res.json();
 
         log('Connecting to Spotify SDK...', false);
@@ -218,7 +222,7 @@ async function initSpotifyPlayer() {
 
         await spotifyPlayer.connect();
     } catch (err) {
-        log('Spotify SDK not initialized. Please connect.', false);
+        log(`SDK Error: ${err.message}`, false);
     }
 }
 
