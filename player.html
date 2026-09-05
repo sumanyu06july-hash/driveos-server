@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://sdk.spotify.com; connect-src 'self' ws: wss: https://api.spotify.com https://accounts.spotify.com; img-src 'self' data: https://i.scdn.co;">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://sdk.spotify.com; connect-src 'self' ws: wss: *.spotify.com; img-src 'self' data: https://i.scdn.co;">
 <title>DriveOS · Web Audio Receiver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -279,12 +279,20 @@ async function initSpotifyPlayer() {
             logoutBtn.style.display = 'none';
             return;
         }
-        // Token exists! Show the logout button immediately, even before SDK is "ready"
-        logoutBtn.style.display = 'block';
-        authBtn.style.display = 'none';
         const { token } = await res.json();
 
-        // ── TOKEN HEALTH CHECK ──
+        // ── 1. CONNECTIVITY PROBE ──
+        log('Probing Spotify Audio Servers...', false);
+        try {
+            // We use mode 'no-cors' because we just want to see if the server responds at all
+            await fetch('https://aplay.spotify.com', { mode: 'no-cors' });
+            log('Audio Server reachable (Probe OK)', false);
+        } catch (probeErr) {
+            log(`Audio Server Unreachable: ${probeErr.message}`, false);
+            // Non-fatal, but warning
+        }
+
+        // ── 2. TOKEN HEALTH CHECK ──
         log('Performing Token Health Check...', false);
         try {
             const userRes = await fetch('https://api.spotify.com/v1/me', {
@@ -301,7 +309,6 @@ async function initSpotifyPlayer() {
             log(`Health Check Error: ${healthErr.message}`, false);
             throw healthErr;
         }
-        // ── END HEALTH CHECK ──
 
         log('Initializing Spotify Player...', false);
 
@@ -332,7 +339,7 @@ async function initSpotifyPlayer() {
         try {
             const connectPromise = spotifyPlayer.connect();
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT: Spotify servers are not responding to this device (10s)')), 10000)
+                setTimeout(() => reject(new Error('TIMEOUT: Spotify servers are not responding to this device (15s)')), 15000)
             );
 
             await Promise.race([connectPromise, timeoutPromise]);
