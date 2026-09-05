@@ -99,7 +99,7 @@
     font-size: 9px;
     cursor: pointer;
     border-radius: 4px;
-    display: none;
+    display: block;
     transition: 0.2s;
   }
 
@@ -278,6 +278,9 @@ async function initSpotifyPlayer() {
             logoutBtn.style.display = 'none';
             return;
         }
+        // Token exists! Show the logout button immediately, even before SDK is "ready"
+        logoutBtn.style.display = 'block';
+        authBtn.style.display = 'none';
         const { token } = await res.json();
 
         log('Initializing Spotify Player...', false);
