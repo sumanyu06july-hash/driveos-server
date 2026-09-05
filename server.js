@@ -906,6 +906,49 @@ wss.on('connection', (ws, req) => {
                      }
                 }
 
+                if (msg.type === 'verify_purge_code_b') {
+                    const targetDev = devices.get(deviceId);
+                    if (!targetDev) {
+                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Device not found in nexus.' }));
+                        return;
+                    }
+                    if (!targetDev.pendingWipe.active) {
+                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'No active purge sequence initialized.' }));
+                        return;
+                    }
+                    if (!targetDev.pendingWipe.approved) {
+                        ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Purge not yet approved by administrator.' }));
+                        return;
+                    }
+
+                    if (msg.code_b === targetDev.pendingWipe.codeB) {
+                        // CRITICAL: Verify backups are received BEFORE executing wipe
+                        if (targetDev.pendingWipe.huBackupReceived && targetDev.pendingWipe.compBackupReceived) {
+                            if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+                                targetDev.headunit.send(JSON.stringify({ type: 'execute_wipe' }));
+                            }
+                            if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                targetDev.companion.send(JSON.stringify({ type: 'execute_wipe' }));
+                            }
+                            targetDev.pendingWipe.active = false;
+                            // Notify admin of success
+                            adminClients.forEach(admin => {
+                                if (admin.readyState === WebSocket.OPEN) {
+                                    admin.send(JSON.stringify({ type: 'secure_purge_success', message: 'Wipe executed for ' + deviceId }));
+                                }
+                            });
+                        } else {
+                            ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. Please wait for telemetry capture.' }));
+                            if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                                targetDev.companion.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. System wipe delayed.' }));
+                            }
+                        }
+                    } else {
+                        targetDev.pendingWipe.active = false;
+                        triggerLockout(targetDev, deviceId);
+                    }
+                }
+
                 // ── LOCKOUT RECOVERY (ADDITIVE) ──
                 if (msg.type === 'verify_recovery_code') {
                     if (dev.lockout_active) {
