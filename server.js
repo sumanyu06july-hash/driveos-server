@@ -478,6 +478,9 @@ wss.on('connection', (ws, req) => {
                         targetDev.currentTrack = command.track || { uri: command.uri };
                         if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) targetDev.headunit.send(JSON.stringify(command));
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) targetDev.companion.send(JSON.stringify(command));
+                        if (targetDev.players) {
+                            targetDev.players.forEach(p => { if (p.readyState === WebSocket.OPEN) p.send(JSON.stringify(command)); });
+                        }
                         targetDev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(command)); });
                     }
                 }
@@ -758,7 +761,24 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // ── 🏎️ HEADUNIT TELEMETRY CORE ──
+    // ── 🎧 WEB PLAYER RECEIVER PIPELINE ──
+    if (role === 'player') {
+        const secret = urlParams.get('secret');
+        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
+
+        // Players are read-only receivers; they don't take over the headunit slot
+        dev.players = dev.players || new Set();
+        dev.players.add(ws);
+
+        console.log(`[WEB PLAYER] Audio Receiver connected: ${deviceId}`);
+        broadcastTopology();
+
+        ws.on('close', () => {
+            if (dev.players) dev.players.delete(ws);
+            broadcastTopology();
+        });
+        return;
+    }
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
         if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');

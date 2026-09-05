@@ -161,7 +161,7 @@ function log(msg, isCmd) {
 }
 
 // Connect as headunit listener
-const ws = new WebSocket(`${WS_PROTOCOL}${location.host}?role=headunit&device=${encodeURIComponent(deviceId)}&secret=driveos2secret`);
+const ws = new WebSocket(`${WS_PROTOCOL}${location.host}?role=player&device=${encodeURIComponent(deviceId)}&secret=driveos2secret`);
 
 ws.onopen = () => {
   connBadge.textContent = 'RECEIVER ONLINE';
