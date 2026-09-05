@@ -87,6 +87,27 @@
     gap: 10px;
   }
 
+  #spotify-logout-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,0,0,0.2);
+    color: #ff4444;
+    border: 1px solid rgba(255,68,68,0.3);
+    padding: 4px 8px;
+    font-family: var(--font);
+    font-size: 9px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: none;
+    transition: 0.2s;
+  }
+
+  #spotify-logout-btn:hover {
+    background: rgba(255,0,0,0.4);
+    box-shadow: 0 0 10px rgba(255,68,68,0.3);
+  }
+
   #spotify-auth-btn {
     background: var(--cyan);
     color: #000;
@@ -145,6 +166,7 @@
   </div>
 
   <div class="player-cover-wrap" id="player-ui">
+    <button id="spotify-logout-btn">LOGOUT</button>
     <button id="spotify-auth-btn">Connect Spotify Premium</button>
     <div id="playback-status" style="font-size: 10px; color: var(--muted);">Awaiting Authentication...</div>
   </div>
@@ -169,10 +191,27 @@ const nowArtist = document.getElementById('now-artist');
 const connBadge = document.getElementById('conn-badge');
 const logBox = document.getElementById('player-log');
 const authBtn = document.getElementById('spotify-auth-btn');
+const logoutBtn = document.getElementById('spotify-logout-btn');
 const playbackStatus = document.getElementById('playback-status');
 const playerUI = document.getElementById('player-ui');
 
 let spotifyPlayer = null;
+
+// Handle Logout
+logoutBtn.onclick = async () => {
+    log('Logging out of Spotify...', false);
+    try {
+        const res = await fetch(`/api/spotify/logout?device=${encodeURIComponent(deviceId)}`);
+        if (res.ok) {
+            log('Session cleared. Reloading...', false);
+            window.location.reload();
+        } else {
+            throw new Error(`Logout failed: ${res.status}`);
+        }
+    } catch (err) {
+        log(`Logout Error: ${err.message}`, false);
+    }
+};
 
 function log(msg, isCmd) {
   const div = document.createElement('div');
@@ -235,6 +274,8 @@ async function initSpotifyPlayer() {
         const res = await fetch(`/api/spotify/token?device=${encodeURIComponent(deviceId)}`);
         if (!res.ok) {
             log('Spotify session not found. Please connect.', false);
+            authBtn.style.display = 'block';
+            logoutBtn.style.display = 'none';
             return;
         }
         const { token } = await res.json();
@@ -250,6 +291,7 @@ async function initSpotifyPlayer() {
         spotifyPlayer.addListener('ready', () => {
             log('⚡ SPOTIFY SDK READY: Full Playback Active', true);
             authBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
             playbackStatus.textContent = 'PREMIUM SESSION ACTIVE';
             playbackStatus.style.color = '#00FF9C';
         });

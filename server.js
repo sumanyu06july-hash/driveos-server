@@ -252,6 +252,17 @@ app.get('/api/spotify/token', (req, res) => {
     }
 });
 
+app.get('/api/spotify/logout', (req, res) => {
+    const deviceId = req.query.device || 'myaura001';
+    const dev = getDevice(deviceId);
+
+    dev.spotifyUserToken = null;
+    dev.spotifyUserRefreshToken = null;
+
+    console.log(`[SPOTIFY]: Session cleared for device ${deviceId}`);
+    res.json({ success: true, message: 'Spotify session cleared.' });
+});
+
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.get('/guest', (req, res) => {
