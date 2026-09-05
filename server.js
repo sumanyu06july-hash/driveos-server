@@ -15,6 +15,10 @@ const MASTER_PIN = '060710'; // Added for Secure Purge
 // ── SPOTIFY WEB API CREDENTIALS & TOKEN CACHE ──
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'ab1ac94c94a3451cbddd86b234590838';
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '651ff56202254b71bac158bbb2f7b3e4';
+const SPOTIFY_REDIRECT_URI = 'https://driveos-relay-v2.onrender.com/spotify/callback';
+
+let spotifyToken = null;
+let spotifyTokenExpiresAt = 0;
 
 let spotifyToken = null;
 let spotifyTokenExpiresAt = 0;
@@ -189,6 +193,59 @@ const ACCESS_DENIED_HTML = `
 `;
 
 // ── SECURE ROUTE MIDDLEWARE: STRICT TOKEN GATING & LOGGING ──
+
+app.get('/spotify/login', (req, res) => {
+    const deviceId = req.query.device || 'myaura001';
+    const scope = 'streaming user-read-email user-read-private-profile';
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${deviceId}`;
+    res.redirect(authUrl);
+});
+
+app.get('/spotify/callback', async (req, res) => {
+    const code = req.query.code;
+    const deviceId = req.query.state || 'myaura001';
+
+    if (!code) return res.status(400).send('Missing code');
+
+    try {
+        const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${authHeader}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: SPOTIFY_REDIRECT_URI
+            })
+        });
+
+        const data = await response.json();
+        if (data.access_token) {
+            const dev = getDevice(deviceId);
+            dev.spotifyUserToken = data.access_token;
+            dev.spotifyUserRefreshToken = data.refresh_token;
+            res.redirect(`/player?device=${deviceId}&auth=success`);
+        } else {
+            res.status(500).send('Authentication failed');
+        }
+    } catch (err) {
+        res.status(500).send('Server error during Spotify auth');
+    }
+});
+
+app.get('/api/spotify/token', (req, res) => {
+    const deviceId = req.query.device || 'myaura001';
+    const dev = getDevice(deviceId);
+    if (dev.spotifyUserToken) {
+        res.json({ token: dev.spotifyUserToken });
+    } else {
+        res.status(401).json({ error: 'No active Spotify session' });
+    }
+});
+
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.get('/guest', (req, res) => {
