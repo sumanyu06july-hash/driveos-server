@@ -836,6 +836,12 @@ wss.on('connection', (ws, req) => {
 
         dev.companion = ws;
         console.log(`[COMPANION MOBILE] Remote Deck Sync: ${deviceId}`);
+
+        // Sync lockout state immediately on connection
+        if (!dev.lockout_active) {
+            ws.send(JSON.stringify({ type: 'lockout_cleared' }));
+        }
+
         broadcastTopology();
 
         ws.on('message', (message) => {
