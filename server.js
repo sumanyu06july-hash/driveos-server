@@ -349,7 +349,9 @@ wss.on('connection', (ws, req) => {
             setTimeout(() => { try{ws.close();}catch(e){} }, 500);
             return;
         }
-        if (dev.lockout_active) {
+        // Allow companion to connect even during lockout to send recovery code,
+        // but the app should be told it is locked.
+        if (dev.lockout_active && role !== 'companion') {
             return reject(ws, 'SECURITY_LOCKOUT', 'Administrative lockout active.');
         }
     }
@@ -534,9 +536,16 @@ wss.on('connection', (ws, req) => {
                         targetDev.pendingWipe.approved = false;
                         targetDev.pendingWipe.huBackupReceived = false;
                         targetDev.pendingWipe.compBackupReceived = false;
-                        
+
                         console.log(`[SECURE PURGE] Init. Code A: ${targetDev.pendingWipe.codeA}`);
-                        // Notify companion to show Code A verification screen (concept)
+
+                        // Notify admin of the generated Code A so they can communicate it
+                        ws.send(JSON.stringify({
+                            type: 'secure_purge_code_a',
+                            code_a: targetDev.pendingWipe.codeA,
+                            device: command.device
+                        }));
+
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                             targetDev.companion.send(JSON.stringify({ type: 'purge_handshake_challenge', code_a: targetDev.pendingWipe.codeA }));
                         }
@@ -622,7 +631,7 @@ wss.on('connection', (ws, req) => {
     function triggerLockout(targetDev, deviceId) {
         targetDev.lockout_active = true;
         targetDev.recovery_code = generateRecoveryCode();
-        
+
         // Notify admin of recovery code
         adminClients.forEach(admin => {
             if (admin.readyState === WebSocket.OPEN) {
@@ -630,11 +639,13 @@ wss.on('connection', (ws, req) => {
             }
         });
 
+        const lockoutPacket = JSON.stringify({ type: 'trigger_lockout', recovery_code: targetDev.recovery_code });
+
         if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
-            targetDev.headunit.send(JSON.stringify({ type: 'trigger_lockout' }));
+            targetDev.headunit.send(lockoutPacket);
         }
         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-            targetDev.companion.send(JSON.stringify({ type: 'trigger_lockout' }));
+            targetDev.companion.send(lockoutPacket);
         }
         broadcastTopology();
     }
@@ -818,6 +829,12 @@ wss.on('connection', (ws, req) => {
             try {
                 const msg = JSON.parse(message);
                 interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER', msg);
+
+                // ── LOCKOUT RESTRICTION ──
+                if (dev.lockout_active && msg.type !== 'verify_recovery_code') {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Device is locked. Recovery code required.' }));
+                    return;
+                }
 
                 if (msg.type === 'toggle_parked_guard') {
                     dev.parkedGuardActive = msg.active;
