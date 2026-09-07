@@ -819,6 +819,15 @@ wss.on('connection', (ws, req) => {
 
                     dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(msg)); });
                     broadcastTopology();
+                } else if (msg.type === 'speed_update') {
+                    // Update internal state for topology visibility
+                    if (dev.hudState) {
+                        dev.hudState.speed = msg.speed;
+                    }
+                    // Relay directly to Companion App
+                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                        dev.companion.send(JSON.stringify(msg));
+                    }
                 }
 
                 // ── BACKUP LOGIC (ADDITIVE) ──
