@@ -641,6 +641,8 @@
     let userSelectedId = 'myaura001';
     let validatedPasscode = '';
     let pendingSongRequests = [];
+    let burnedAndHidden = new Set();
+
 
     const pinGate = document.getElementById('pin-gate');
     const pinInput = document.getElementById('pin-input');
@@ -1160,7 +1162,7 @@
         const hook = document.getElementById('vault-token-hook-rows');
         hook.innerHTML = '';
         const node = serverClusterArray.find(c => c.id === userSelectedId);
-        
+
         if (!node || !node.activeSummaryTokens || node.activeSummaryTokens.length === 0) {
           hook.innerHTML = '<div class="text-center py-4 text-[--muted] uppercase tracking-wider text-[10px]">No active authorization tokens loaded in local registries.</div>';
           return;
@@ -1168,22 +1170,36 @@
 
         node.activeSummaryTokens.forEach(itemData => {
           const tokenStr = (typeof itemData === 'object' && itemData.token) ? itemData.token : itemData;
+          if (burnedAndHidden.has(tokenStr)) return;
+
           const tokenType = (typeof itemData === 'object' && itemData.type) ? itemData.type : 'guest';
-          
+          const isBurned = typeof itemData === 'object' && itemData.burned === true;
+
           const isSummary = tokenType === 'summary';
           const badgeLabel = isSummary ? '[SUMMARY LINK]' : '[GUEST PASS]';
           const badgeColor = isSummary ? 'text-[--cyan] border-[--cyan]/40' : 'text-[--amber] border-[--amber]/40';
 
           const item = document.createElement('div');
-          item.className = 'flex items-center justify-between border-b border-[--border] py-2';
+          item.className = `flex items-center justify-between border-b border-[--border] py-2 ${isBurned ? 'stale-text' : ''}`;
           item.innerHTML = `
             <div class="flex items-center gap-2 font-mono">
               <span class="text-[9px] px-1.5 py-0.5 border rounded font-display font-bold ${badgeColor}">${badgeLabel}</span>
               <code class="text-[--amber] text-sm font-bold tracking-wider">${tokenStr}</code>
             </div>
-            <button class="text-[--rose] hover:underline font-bold text-[10px]" onclick="window.burnToken('${userSelectedId}', '${tokenStr}')">[BURN ACCESS]</button>
+            <button
+              class="${isBurned ? 'text-[--muted] cursor-default' : 'text-[--rose] hover:underline'} font-bold text-[10px]"
+              ${isBurned ? 'disabled' : ''}
+              onclick="window.burnToken('${userSelectedId}', '${tokenStr}')"
+            >${isBurned ? '[ACCESS BURNED]' : '[BURN ACCESS]'}</button>
           `;
           hook.appendChild(item);
+
+          if (isBurned) {
+            setTimeout(() => {
+              burnedAndHidden.add(tokenStr);
+              renderTokenVaultElements();
+            }, 10000);
+          }
         });
       } catch (e) {}
     }
