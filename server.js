@@ -202,6 +202,9 @@ function persistSecurityFlag(deviceId, flag, value) {
 
     // Atomic write to lowdb
     const currentDevices = db.get('devices').value() || {};
+    if (Object.prototype.hasOwnProperty.call(currentDevices, deviceId) && typeof currentDevices[deviceId] !== 'object') {
+        return;
+    }
     if (!currentDevices[deviceId]) {
         currentDevices[deviceId] = {};
     }
@@ -319,7 +322,14 @@ console.log(`📦  Blacklisted Clusters:       ${blacklist.size}`);
 console.log(`🔒  Quarantined Fingerprints:   ${fingerprintBlacklist.size}`);
 console.log('====================================================');
 
+function isValidDeviceId(id) {
+  const blocked = new Set(['__proto__', 'constructor', 'prototype', 'toString', 'valueOf']);
+  return typeof id === 'string'
+      && /^[A-Za-z0-9_-]{3,64}$/.test(id)
+      && !blocked.has(id);
+}
 function getDevice(id) {
+    if (!isValidDeviceId(id)) return null;
     if (!devices.has(id)) {
         devices.set(id, {
             headunit: null,
@@ -623,15 +633,8 @@ function broadcastTopology() {
                 }
             }
 
-            const activeGuestsList = [];
-            if (dev.guestMetadata) {
-                for (const [, gMeta] of dev.guestMetadata.entries()) {
-                    activeGuestsList.push({
-                        connectedAt: gMeta.connectedAt || null,
-                        isOwner: gMeta.isOwner === true
-                    });
-                }
-            }
+            // Security: do not expose any connected guest metadata beyond a count.
+            const activeGuestsCount = dev.guestMetadata ? dev.guestMetadata.size : 0;
 
             data.push({
                 id: deviceId,
@@ -641,8 +644,7 @@ function broadcastTopology() {
                 hud_banned: dev.hud_banned,
                 companion_banned: dev.companion_banned,
                 parkedGuardActive: dev.parkedGuardActive,
-                activeGuests: dev.guests ? dev.guests.size : 0,
-                connectedGuestsList: activeGuestsList,
+                activeGuests: activeGuestsCount,
                 guestPermissions: dev.guestPermissions,
                 activeSummaryTokens: tokenList,
                 hud: {
@@ -685,10 +687,12 @@ function broadcastTopology() {
 }
 
 function interceptTelemetryTransaction(origin, target, payload) {
+    // Security: do not forward unfiltered payload content to the admin wiretap views.
+    const safePayload = { event: typeof payload?.type === 'string' ? payload.type : 'unknown', origin: 'server-redacted' };
     const packet = JSON.stringify({
         type: 'wiretap_intercept',
         sequence: String(globalLogSequence++).padStart(4, '0'),
-        origin, target, payload
+        origin, target, payload: safePayload
     });
     adminClients.forEach(admin => { if (admin.readyState === WebSocket.OPEN) admin.send(packet); });
 }
@@ -705,6 +709,7 @@ wss.on('connection', (ws, req) => {
     if (deviceId && blacklist.has(deviceId)) return reject(ws, 'AUTHENTICATION_REVOKED', 'Blacklisted profile.');
 
     const dev = getDevice(deviceId);
+    if (!dev) return reject(ws, 'INVALID_DEVICE', 'Device identifier rejected by server policy.');
 
     // ── PERMANENT BAN & LOCKOUT CHECK ──
     if (role !== 'admin' && role !== 'guest' && role !== 'summary_client') {
@@ -1104,6 +1109,7 @@ wss.on('connection', (ws, req) => {
         ws.on('message', async (message) => {
             try {
                 const msg = JSON.parse(message);
+                if (!msg || typeof msg !== 'object' || Array.isArray(msg)) throw new Error('bad event');
 
                 // JIT Validation: Check if token has expired while connected
                 if (ws.guestToken) {
@@ -1157,8 +1163,33 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (msg.type === 'cmd_music' || msg.type === 'cmd_panic' || msg.type === 'cmd_volume' || msg.type === 'cmd_trigger_failover' || msg.type === 'toggle_parked_guard') {
+                    if (!dev.guestPermissions.allowPlayback) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Guest permission denied.' }));
+                        return;
+                    }
                     if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) dev.headunit.send(JSON.stringify(msg));
                     if (dev.companion && dev.companion.readyState === WebSocket.OPEN) dev.companion.send(JSON.stringify(msg));
+                    return;
+                }
+
+                if (msg.type === 'cmd_guest_suggest_song') {
+                    if (!dev.guestPermissions.allowSuggestions) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Guest permission denied.' }));
+                        return;
+                    }
+                    // Forward only the curated subset of the request body.
+                    const forwarded = {
+                        type: msg.type,
+                        suggestion: msg.suggestion,
+                        track: msg.track,
+                        uri: msg.uri
+                    };
+                    adminClients.forEach(admin => {
+                        if (admin.readyState === WebSocket.OPEN) admin.send(JSON.stringify(forwarded));
+                    });
+                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                        dev.companion.send(JSON.stringify(forwarded));
+                    }
                     return;
                 }
             } catch (err) {}
