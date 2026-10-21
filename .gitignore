@@ -1,1 +1,11 @@
-node_modules
+node_modules/
+/runtime-secrets.json
+/db.json
+/server_stress.log
+/*.log
+*.log
+/.env
+/.env.*
+/*.bak
+graphify-out/
+!doctype html.txt

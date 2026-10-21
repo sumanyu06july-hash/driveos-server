@@ -2,19 +2,85 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const crypto = require('crypto');
+const low = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
-const GLOBAL_SECRET = 'driveos2secret';
-const ADMIN_PIN = '6710';
-const MASTER_PIN = '060710'; // Added for Secure Purge
+
+// ── LOCAL RUNTIME SECRET STORAGE ──
+const fs = require('fs');
+const STORAGE_PATH = process.env.DRIVEOS_STORAGE_PATH || '.';
+const RUNTIME_SECRET_FILE = require('path').resolve(STORAGE_PATH, 'runtime-secrets.json');
+
+function ensureRuntimeSecrets() {
+  let config = {};
+  try {
+    if (fs.existsSync(RUNTIME_SECRET_FILE)) {
+      config = JSON.parse(fs.readFileSync(RUNTIME_SECRET_FILE, 'utf8')) || {};
+    }
+  } catch (err) {
+    console.error('CONFIG parse failed, falling back to empty config.', err.message);
+    config = {};
+  }
+
+  let dirty = false;
+
+  if (!config.globalSecret) { config.globalSecret = crypto.randomBytes(32).toString('hex'); dirty = true; }
+  if (!config.adminPin) { config.adminPin = '' + (100000 + crypto.randomInt(900000)); dirty = true; }
+  if (!config.masterPin) { config.masterPin = ('' + (10000 + crypto.randomInt(999900))).padStart(6, '0'); dirty = true; }
+  if (!config.adminApiToken) { config.adminApiToken = crypto.randomBytes(48).toString('hex'); dirty = true; }
+
+  if (dirty) {
+    fs.mkdirSync(STORAGE_PATH, { recursive: true });
+    fs.writeFileSync(RUNTIME_SECRET_FILE, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
+    console.log('CONFIG: New runtime secrets generated once. Keep the persistent storage safe.');
+  }
+
+  return config;
+}
+
+const runtimeSecrets = ensureRuntimeSecrets();
+const GLOBAL_SECRET = process.env.RELAY_SECRET || runtimeSecrets.globalSecret;
+const ADMIN_PIN = process.env.ADMIN_PIN || runtimeSecrets.adminPin;
+const MASTER_PIN = process.env.MASTER_PIN || runtimeSecrets.masterPin;
+function safeStringEqual(a, b) {
+  const left = Buffer.from(String(a || ''));
+  const right = Buffer.from(String(b || ''));
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+// ── ADMIN AUTH STATE ──
+let previousADMIN_TOKEN = null;
+let rotationTimestamp = 0;
+let adminTokenExpiresAt = 0;
+const TOKEN_GRACE_PERIOD_MS = 60 * 1000; // 60s grace period
+
+let ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || runtimeSecrets.adminApiToken;
+
+// ── PERSISTENCE SETUP ──
+const adapter = new FileSync(path.resolve(STORAGE_PATH, 'db.json'))
+const db = low(adapter);
+
+// Initialize database defaults
+db.defaults({
+    devices: {},
+    blacklist: [],
+    fingerprintBlacklist: []
+}).write();
 
 // ── SPOTIFY WEB API CREDENTIALS ──
-const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'ab1ac94c94a3451cbddd86b234590838';
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '651ff56202254b71bac158bbb2f7b3e4';
+// Do not expose credentials to URLs or logs. Spotify is optional.
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || null;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || null;
+if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+    console.warn('[SPOTIFY] Not configured; Spotify search is disabled.');
+}
 
 let spotifyToken = null;
 let spotifyTokenExpiresAt = 0;
@@ -74,6 +140,35 @@ async function querySpotifyTracks(query) {
 }
 
 // ── UTILITY FUNCTIONS FOR SECURE PURGE ──
+function validateSpotifyUri(value) {
+  if (typeof value !== 'string') return null;
+  const uri = value.trim();
+
+  if (/^spotify:(track|album|artist|playlist|episode|show):[A-Za-z0-9]+$/i.test(uri)) {
+    return uri;
+  }
+
+  try {
+    const url = new URL(uri);
+    if (
+      url.protocol !== 'https:' ||
+      !['open.spotify.com', 'www.open.spotify.com'].includes(url.hostname)
+    ) return null;
+
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    const type = parts[0];
+    const id = parts[1];
+
+    if (!/^(track|album|artist|playlist|episode|show)$/i.test(type)) return null;
+    if (!/^[A-Za-z0-9]+$/.test(id)) return null;
+
+    return `spotify:${type}:${id}`;
+  } catch {
+    return null;
+  }
+}
+
 function generateCodeA() {
     return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
 }
@@ -98,6 +193,126 @@ const blacklist = new Set();
 const fingerprintBlacklist = new Set();
 let globalLogSequence = 1;
 
+function persistSecurityFlag(deviceId, flag, value) {
+    const dev = devices.get(deviceId);
+    if (!dev) return;
+
+    // Update in-memory first
+    dev[flag] = value;
+
+    // Atomic write to lowdb
+    const currentDevices = db.get('devices').value() || {};
+    if (!currentDevices[deviceId]) {
+        currentDevices[deviceId] = {};
+    }
+    currentDevices[deviceId][flag] = value;
+
+    db.set('devices', currentDevices).write();
+    console.log(`🔒 [ATOMIC PERSISTENCE]: Device ${deviceId} flag ${flag} set to ${value}`);
+}
+
+function saveState() {
+    const persistedDevices = {};
+    for (const [id, dev] of devices.entries()) {
+        // Convert Map/Set to plain objects/arrays for JSON serialization
+        const serializedGuestTokens = {};
+        if (dev.guestTokens) {
+            for (const [token, meta] of dev.guestTokens.entries()) {
+                serializedGuestTokens[token] = meta;
+            }
+        }
+
+        persistedDevices[id] = {
+            hud_banned: dev.hud_banned,
+            companion_banned: dev.companion_banned,
+            permanently_banned: dev.permanently_banned,
+            lockout_active: dev.lockout_active,
+            recovery_code: dev.recovery_code,
+            parkedGuardActive: dev.parkedGuardActive,
+            parkedCoords: dev.parkedCoords,
+            guestPermissions: dev.guestPermissions,
+            guestTokens: serializedGuestTokens,
+            pendingWipe: dev.pendingWipe
+        };
+    }
+
+    db.set('devices', persistedDevices)
+      .set('blacklist', Array.from(blacklist))
+      .set('fingerprintBlacklist', Array.from(fingerprintBlacklist))
+      .write();
+
+    console.log('💾 [PERSISTENCE]: System state synchronized to disk.');
+    broadcastPersistenceStatus();
+}
+
+function broadcastPersistenceStatus() {
+    const packet = JSON.stringify({ type: 'persistence_status', status: 'synced' });
+    adminClients.forEach(admin => {
+        if (admin.readyState === WebSocket.OPEN) admin.send(packet);
+    });
+}
+
+function loadState() {
+    const data = db.value();
+
+    // Load blacklist
+    if (data.blacklist) {
+        data.blacklist.forEach(id => blacklist.add(id));
+    }
+
+    // Load fingerprint blacklist
+    if (data.fingerprintBlacklist) {
+        data.fingerprintBlacklist.forEach(fp => fingerprintBlacklist.add(fp));
+    }
+
+    // Load devices
+    if (data.devices) {
+        for (const [id, state] of Object.entries(data.devices)) {
+            const dev = {
+                headunit: null,
+                companion: null,
+                guests: new Set(),
+                guestMetadata: new Map(),
+                guestPermissions: state.guestPermissions || { allowPlayback: true, allowSuggestions: true },
+                summaryClients: new Map(),
+                summaryTokens: new Map(),
+                guestTokens: new Map(),
+                hudState: null,
+                hudLastSeen: null,
+                companionState: null,
+                currentTrack: null,
+                hud_banned: state.hud_banned || false,
+                companion_banned: state.companion_banned || false,
+                parkedGuardActive: state.parkedGuardActive || false,
+                parkedCoords: state.parkedCoords || null,
+                pendingWipe: state.pendingWipe || {
+                    active: false,
+                    codeA: null,
+                    codeB: null,
+                    approved: false,
+                    huBackupReceived: false,
+                    compBackupReceived: false
+                },
+                lockout_active: state.lockout_active || false,
+                recovery_code: state.recovery_code || null,
+                permanently_banned: state.permanently_banned || false
+            };
+
+            if (state.guestTokens) {
+                for (const [token, meta] of Object.entries(state.guestTokens)) {
+                    dev.guestTokens.set(token, meta);
+                }
+            }
+
+            devices.set(id, dev);
+        }
+    }
+    console.log(`🛡️ [PERSISTENCE]: Loaded ${devices.size} devices, ${blacklist.size} blacklist entries, and ${fingerprintBlacklist.size} fingerprints.`);
+}
+
+// Initial load
+loadState();
+
 console.log('====================================================');
 console.log('🛡️  [DRIVEOS HYBRID CORE]: Initializing Secured State');
 console.log(`📦  Blacklisted Clusters:       ${blacklist.size}`);
@@ -114,7 +329,7 @@ function getDevice(id) {
             guestPermissions: { allowPlayback: true, allowSuggestions: true },
             summaryClients: new Map(),
             summaryTokens: new Map(),
-            guestTokens: new Map(), // token -> { type, burned }
+            guestTokens: new Map(), // token -> { type, burned, expiresAt, createdBy }
             hudState: null,
             hudLastSeen: null,
             companionState: null,
@@ -137,11 +352,37 @@ function getDevice(id) {
             recovery_code: null,
             permanently_banned: false
         });
+        saveState(); // Persist new device creation
     }
     return devices.get(id);
 }
 
-app.use(express.static(path.join(__dirname)));
+const protectedNames = new Set([
+  '.env', '.secret', 'db.json', 'package.json', 'package-lock.json',
+  'server.js', 'server_stress.log', 'runtime-secrets.json'
+]);
+
+app.use((req, res, next) => {
+  const pathname = decodeURIComponent(req.path || '');
+  const basename = path.basename(pathname).toLowerCase();
+  if (pathname.includes('/node_modules/')
+      || pathname.startsWith('/node_modules')
+      || basename.startsWith('.')
+      || protectedNames.has(basename)
+      || pathname.toLowerCase().endsWith('.map')
+      || pathname.toLowerCase().endsWith('.mjs')
+      || pathname.toLowerCase().endsWith('.cjs')) {
+    return res.status(403).send('Protected application path.');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname), {
+  dotfiles: 'deny',
+  index: false,
+  redirect: false
+}));
+app.use(express.json());
+
 
 // ── ACCESS DENIED HTML TEMPLATE ──
 const ACCESS_DENIED_HTML = `
@@ -226,9 +467,115 @@ app.get('/summary', (req, res) => {
     res.sendFile(path.join(__dirname, 'summary.html'));
 });
 
-app.get('/player', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
+app.post('/admin/rotate-token', requireAdmin, (req, res) => {
+  const newToken = require('crypto').randomBytes(32).toString('hex');
 
-app.get('/api/unban-all', (req, res) => {
+  previousADMIN_TOKEN = ADMIN_API_TOKEN;
+  ADMIN_API_TOKEN = newToken;
+  rotationTimestamp = Date.now();
+
+  console.log('🔑 [AUTH]: Admin token rotated (new token value redacted).');
+
+  // Broadcast rotation event (WITHOUT newToken) to admin clients
+  const packet = JSON.stringify({ type: 'admin_token_rotated' });
+  adminClients.forEach(admin => {
+    if (admin.readyState === WebSocket.OPEN) admin.send(packet);
+  });
+
+  res.json({ ok: true, newToken });
+});
+
+function requireAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ ok: false, error: 'Missing Authorization header' });
+
+  const token = authHeader.replace('Bearer ', '').trim();
+
+  // Check current token
+  if (token === ADMIN_API_TOKEN) {
+    return next();
+  }
+
+  // Check previous token within grace period
+  if (previousADMIN_TOKEN && token === previousADMIN_TOKEN) {
+    const now = Date.now();
+    if (now - rotationTimestamp < TOKEN_GRACE_PERIOD_MS) {
+      return next();
+    }
+  }
+
+  res.status(403).json({ ok: false, error: 'Invalid Admin Token' });
+}
+app.post('/admin/play-spotify', requireAdmin, (req, res) => {
+  const deviceId = req.body.device;
+  const uri = validateSpotifyUri(req.body.uri);
+
+  if (!deviceId || !uri) {
+    return res.status(400).json({ ok: false, error: 'Invalid deviceId or Spotify URI.' });
+  }
+
+  const delivered = sendToHeadunits(deviceId, 'cmd_spotify_play', {
+    uri,
+    track: { uri },
+    source: 'admin_direct_control',
+    requestedAt: new Date().toISOString()
+  });
+
+  if (delivered === 0) {
+    return res.status(503).json({ ok: false, error: 'No connected nodes for this device.', delivered: 0 });
+  }
+
+  res.json({ ok: true, message: 'Command sent to Headunit.', uri, delivered });
+});
+
+app.post('/admin/set-destination', requireAdmin, (req, res) => {
+  const deviceId = req.body.device;
+  const destination = req.body.destination;
+
+  if (!deviceId || !destination) {
+    return res.status(400).json({ ok: false, error: 'deviceId and destination are required.' });
+  }
+
+  const { lat, lng } = destination;
+  if (lat === undefined || lng === undefined) {
+    return res.status(400).json({ ok: false, error: 'Destination must contain lat and lng.' });
+  }
+
+  console.log(`📍 [DESTINATION]: Request for ${deviceId} to ${lat}, ${lng}`);
+
+  const delivered = sendToHeadunits(deviceId, 'cmd_set_destination', {
+    destination,
+    requestedAt: new Date().toISOString(),
+    source: 'admin_direct_control'
+  });
+
+  if (delivered === 0) {
+    return res.status(503).json({ ok: false, error: 'No connected nodes for this device.', delivered: 0 });
+  }
+
+  res.json({ ok: true, message: 'Destination set successfully.', destination, delivered });
+});
+
+app.post('/admin/pause', requireAdmin, (req, res) => {
+  const deviceId = req.body.device;
+  if (!deviceId) return res.status(400).json({ ok: false, error: 'deviceId is required.' });
+
+  const delivered = sendToHeadunits(deviceId, 'cmd_music', {
+    action: 'pause',
+    source: 'admin_direct_control',
+    requestedAt: new Date().toISOString()
+  });
+
+  if (delivered === 0) {
+    return res.status(503).json({ ok: false, error: 'No connected nodes for this device.', delivered: 0 });
+  }
+
+  res.json({ ok: true, message: 'Pause command sent.', delivered });
+});
+
+app.get('/api/unban-all', requireAdmin, (req, res) => {
+    console.warn(`🚨 [SECURITY]: Admin ${req.ip || 'unknown'} requested global unban-all.`);
+
     blacklist.clear();
     fingerprintBlacklist.clear();
     for (const [, dev] of devices.entries()) {
@@ -237,6 +584,7 @@ app.get('/api/unban-all', (req, res) => {
         dev.permanently_banned = false; // Added
         dev.lockout_active = false; // Added
     }
+    saveState();
     broadcastTopology();
     res.send('<h1 style="font-family:sans-serif;color:#00c853;">✅ SUCCESS: All device bans, node lockdowns, and fingerprint quarantines cleared from memory!</h1>');
 });
@@ -267,11 +615,10 @@ function broadcastTopology() {
 
             const tokenList = [];
             if (dev.guestTokens) {
-                for (const [tokenKey, meta] of dev.guestTokens.entries()) {
+                for (const [, meta] of dev.guestTokens.entries()) {
                     tokenList.push({
-                        token: tokenKey,
                         type: meta.type || 'guest',
-                        burned: meta.burned || false
+                        burned: meta.burned === true
                     });
                 }
             }
@@ -279,16 +626,18 @@ function broadcastTopology() {
             const activeGuestsList = [];
             if (dev.guestMetadata) {
                 for (const [, gMeta] of dev.guestMetadata.entries()) {
-                    activeGuestsList.push(gMeta);
+                    activeGuestsList.push({
+                        connectedAt: gMeta.connectedAt || null,
+                        isOwner: gMeta.isOwner === true
+                    });
                 }
             }
 
             data.push({
                 id: deviceId,
                 isBlacklisted: blacklist.has(deviceId),
-                permanently_banned: dev.permanently_banned, // Included in topology
-                lockout_active: dev.lockout_active, // Included in topology
-                recovery_code: dev.recovery_code, // Added for Admin recovery visibility
+                permanently_banned: dev.permanently_banned,
+                lockout_active: dev.lockout_active,
                 hud_banned: dev.hud_banned,
                 companion_banned: dev.companion_banned,
                 parkedGuardActive: dev.parkedGuardActive,
@@ -300,12 +649,21 @@ function broadcastTopology() {
                     connected: huActive,
                     latency: hudLatency,
                     lastSeen: dev.hudLastSeen,
-                    state: dev.hudState || { speed: 0, fuel_percent: 100, odometer: 0, battery_voltage: 12.6 }
+                    state: {
+                        // Do not forward device telemetry details unredacted to all admins.
+                        speed: dev.hudState ? dev.hudState.speed : 0,
+                        fuel_percent: dev.hudState ? dev.hudState.fuel_percent : 100,
+                        odometer: dev.hudState ? dev.hudState.odometer : 0,
+                        battery_voltage: dev.hudState ? dev.hudState.battery_voltage : 12.6
+                    }
                 },
                 companion: {
                     connected: compActive,
                     latency: compLatency,
-                    state: dev.companionState || { battery: 100, signal: "Excellent" }
+                    state: {
+                        battery: dev.companionState ? dev.companionState.battery : 100,
+                        signal: dev.companionState ? dev.companionState.signal || 'Good' : 'Excellent'
+                    }
                 }
             });
         }
@@ -315,7 +673,7 @@ function broadcastTopology() {
             type: 'topology_update',
             data,
             metrics: { avgLatency },
-            bannedFingerprints: Array.from(fingerprintBlacklist)
+            bannedFingerprintsCount: fingerprintBlacklist.size
         });
 
         adminClients.forEach(admin => {
@@ -364,8 +722,14 @@ wss.on('connection', (ws, req) => {
 
     // ── 🔐 ADMIN OVERLORD PIPELINE ──
     if (role === 'admin') {
-        const inputAuth = urlParams.get('auth');
-        if (inputAuth !== ADMIN_PIN) {
+        const protocols = (req.headers['sec-websocket-protocol'] || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+        const inputAuth = protocols.length > 1
+            ? decodeURIComponent(protocols[1])
+            : urlParams.get('auth');
+        if (!safeStringEqual(inputAuth, ADMIN_PIN)) {
             ws.send(JSON.stringify({ type: 'auth_error' }));
             setTimeout(() => { try{ws.close();}catch(e){} }, 200);
             return;
@@ -378,7 +742,9 @@ wss.on('connection', (ws, req) => {
             try {
                 const command = JSON.parse(message);
 
-                if (command.type === 'burn_access') {
+    if (command.type === 'rotate_admin_token') {
+        // REMOVED: rotate_admin_token moved to HTTPS POST endpoint
+    }
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
@@ -387,6 +753,7 @@ wss.on('connection', (ws, req) => {
                         if (tokenMeta) {
                             tokenMeta.burned = true;
                             targetDev.guestTokens.set(command.token, tokenMeta);
+                            saveState();
                         }
 
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
@@ -397,15 +764,15 @@ wss.on('connection', (ws, req) => {
                             }));
                         }
                     }
-                }
 
-                if (command.type === 'permissions_update') {
+                    if (command.type === 'permissions_update') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                         targetDev.guestPermissions = {
                             allowPlayback: command.allowPlayback !== false,
                             allowSuggestions: command.allowSuggestions !== false
                         };
+                        saveState();
                         targetDev.guests.forEach(g => {
                             if (g.readyState === WebSocket.OPEN) {
                                 g.send(JSON.stringify({
@@ -421,6 +788,7 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'admin_ban_fingerprint') {
                     if (command.deviceFingerprint) {
                         fingerprintBlacklist.add(command.deviceFingerprint);
+                        saveState();
                         const targetDev = devices.get(command.device);
                         if (targetDev) {
                             for (const [gWs, meta] of targetDev.guestMetadata.entries()) {
@@ -440,6 +808,7 @@ wss.on('connection', (ws, req) => {
                 if (command.type === 'admin_unban_fingerprint') {
                     if (command.deviceFingerprint) {
                         fingerprintBlacklist.delete(command.deviceFingerprint);
+                        saveState();
                     }
                 }
 
@@ -456,6 +825,7 @@ wss.on('connection', (ws, req) => {
                             d.companion.send(JSON.stringify({ type: 'lockout_cleared' }));
                         }
                     }
+                    saveState();
                     broadcastTopology();
                 }
 
@@ -493,11 +863,20 @@ wss.on('connection', (ws, req) => {
                         if (command.active && targetDev.hudState) {
                             targetDev.parkedCoords = { lat: targetDev.hudState.lat || 0, lng: targetDev.hudState.lng || 0 };
                         }
+                        saveState();
                     }
                 }
 
-                if (command.type === 'admin_block_device') blacklist.add(command.device);
-                if (command.type === 'admin_allow_device') blacklist.delete(command.device);
+                if (command.type === 'admin_block_device') {
+                    blacklist.add(command.device);
+                    persistSecurityFlag(command.device, 'permanently_banned', true);
+                    saveState();
+                }
+                if (command.type === 'admin_allow_device') {
+                    blacklist.delete(command.device);
+                    persistSecurityFlag(command.device, 'permanently_banned', false);
+                    saveState();
+                }
 
                 // Modified kill_node
                 if (command.type === 'kill_node') {
@@ -505,6 +884,7 @@ wss.on('connection', (ws, req) => {
                     if (targetDev) {
                         if (command.node === 'hud') {
                             targetDev.hud_banned = true;
+                            persistSecurityFlag(command.device, 'hud_banned', true);
                             if (targetDev.headunit) {
                                 targetDev.headunit.send(JSON.stringify({type: 'ERROR_BANNED', message: 'HUD node banned'}));
                                 setTimeout(() => targetDev.headunit?.close(), 100);
@@ -512,6 +892,7 @@ wss.on('connection', (ws, req) => {
                         }
                         if (command.node === 'companion') {
                             targetDev.companion_banned = true;
+                            persistSecurityFlag(command.device, 'companion_banned', true);
                             if (targetDev.companion) {
                                 targetDev.companion.send(JSON.stringify({type: 'ERROR_BANNED', message: 'Companion node banned'}));
                                 setTimeout(() => targetDev.companion?.close(), 100);
@@ -519,6 +900,7 @@ wss.on('connection', (ws, req) => {
                         }
                         if (command.node === 'full_ban') {
                             targetDev.permanently_banned = true;
+                            persistSecurityFlag(command.device, 'permanently_banned', true);
                             if (targetDev.headunit) {
                                 targetDev.headunit.send(JSON.stringify({type: 'ERROR_BANNED', message: 'Device permanently banned'}));
                                 setTimeout(() => targetDev.headunit?.close(), 100);
@@ -528,6 +910,7 @@ wss.on('connection', (ws, req) => {
                                 setTimeout(() => targetDev.companion?.close(), 100);
                             }
                         }
+                        saveState();
                     }
                 }
 
@@ -537,23 +920,24 @@ wss.on('connection', (ws, req) => {
                         if (command.node === 'hud') targetDev.hud_banned = false;
                         if (command.node === 'companion') targetDev.companion_banned = false;
                         if (command.node === 'full_ban') targetDev.permanently_banned = false;
+                        saveState();
                     }
                 }
 
                 // ── SECURE PURGE ADDITIVE HANDLERS ──
                 if (command.type === 'admin_init_purge') {
                     const targetDev = devices.get(command.device);
-                    if (targetDev && command.master_pin === MASTER_PIN) {
+                    if (targetDev && safeStringEqual(command.master_pin, MASTER_PIN)) {
                         targetDev.pendingWipe.active = true;
                         targetDev.pendingWipe.codeA = generateCodeA();
                         targetDev.pendingWipe.codeB = generateCodeB();
                         targetDev.pendingWipe.approved = false;
                         targetDev.pendingWipe.huBackupReceived = false;
                         targetDev.pendingWipe.compBackupReceived = false;
+                        saveState();
 
-                        console.log(`[SECURE PURGE] Init. Code A: ${targetDev.pendingWipe.codeA}`);
+                        console.log(`[SECURE PURGE] Initiated (code and sensitive details redacted).`);
 
-                        // Notify admin of the generated Code A so they can communicate it
                         ws.send(JSON.stringify({
                             type: 'secure_purge_code_a',
                             code_a: targetDev.pendingWipe.codeA,
@@ -561,8 +945,6 @@ wss.on('connection', (ws, req) => {
                         }));
 
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
-                            // SECURITY FIX: Do NOT send code_a to the companion app.
-                            // Only send the challenge signal.
                             targetDev.companion.send(JSON.stringify({ type: 'purge_handshake_challenge' }));
                         }
                     } else {
@@ -575,15 +957,13 @@ wss.on('connection', (ws, req) => {
                      if (targetDev && targetDev.pendingWipe.active) {
                          if (command.decision === 'YES') {
                              targetDev.pendingWipe.approved = true;
-                             // Send Code B back to Admin HTML on separate channel
+                             saveState();
                              ws.send(JSON.stringify({ type: 'secure_purge_code_b', code_b: targetDev.pendingWipe.codeB, device: command.device }));
 
-                             // Signal companion to open the Code B entry page
                              if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                                  targetDev.companion.send(JSON.stringify({ type: 'request_code_b_entry' }));
                              }
 
-                             // Initiate backup loop
                              if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
                                   targetDev.headunit.send(JSON.stringify({ type: 'request_backup' }));
                              }
@@ -592,6 +972,7 @@ wss.on('connection', (ws, req) => {
                              }
                          } else {
                              targetDev.pendingWipe.active = false;
+                             saveState();
                              triggerLockout(targetDev, command.device);
                          }
                      }
@@ -601,7 +982,6 @@ wss.on('connection', (ws, req) => {
                     const targetDev = devices.get(command.device);
                     if (targetDev && targetDev.pendingWipe.active && targetDev.pendingWipe.approved) {
                         if (command.code_b === targetDev.pendingWipe.codeB) {
-                            // CRITICAL: Verify backups are received BEFORE executing wipe
                             if (targetDev.pendingWipe.huBackupReceived && targetDev.pendingWipe.compBackupReceived) {
                                 if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
                                     targetDev.headunit.send(JSON.stringify({ type: 'execute_wipe' }));
@@ -610,6 +990,7 @@ wss.on('connection', (ws, req) => {
                                     targetDev.companion.send(JSON.stringify({ type: 'execute_wipe' }));
                                 }
                                 targetDev.pendingWipe.active = false;
+                                saveState();
                                 ws.send(JSON.stringify({ type: 'secure_purge_success', message: 'Wipe executed.' }));
                             } else {
                                 ws.send(JSON.stringify({ type: 'secure_purge_error', message: 'Backups incomplete. Please wait for telemetry capture.' }));
@@ -619,13 +1000,17 @@ wss.on('connection', (ws, req) => {
                             }
                         } else {
                              targetDev.pendingWipe.active = false;
+                             saveState();
                              triggerLockout(targetDev, command.device);
                         }
                     }
                 }
 
-                // Unrelated to purge, existing panic_purge
                 if (command.type === 'admin_panic_purge') {
+                    if (!safeStringEqual(command.master_pin, MASTER_PIN)) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Invalid admin PIN.' }));
+                        return;
+                    }
                     for (const [, targetDev] of devices.entries()) {
                         if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                             targetDev.companion.send(JSON.stringify({ type: 'purge_request_approved' }));
@@ -633,14 +1018,13 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                // ── LOCKOUT RECOVERY ──
                 if (command.type === 'force_unlock') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
                          targetDev.lockout_active = false;
                          targetDev.recovery_code = null;
+                         saveState();
 
-                         // Notify companion to clear local lockout state
                          if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
                              targetDev.companion.send(JSON.stringify({ type: 'lockout_cleared' }));
                          }
@@ -657,19 +1041,20 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // Helper for lockout
     function triggerLockout(targetDev, deviceId) {
         targetDev.lockout_active = true;
+        persistSecurityFlag(deviceId, 'lockout_active', true);
         targetDev.recovery_code = generateRecoveryCode();
+        saveState();
 
-        // Notify admin of recovery code
+
         adminClients.forEach(admin => {
             if (admin.readyState === WebSocket.OPEN) {
                 admin.send(JSON.stringify({ type: 'lockout_recovery_code', device: deviceId, code: targetDev.recovery_code }));
             }
         });
 
-        const lockoutPacket = JSON.stringify({ type: 'trigger_lockout', recovery_code: targetDev.recovery_code });
+        const lockoutPacket = JSON.stringify({ type: 'trigger_lockout', lockout_active: true });
 
         if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
             targetDev.headunit.send(lockoutPacket);
@@ -682,16 +1067,30 @@ wss.on('connection', (ws, req) => {
 
     // ── 🎵 GUEST PASSENGER NEXUS ──
     if (role === 'guest') {
-        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned guest token.');
+        if (!token || !dev.guestTokens.has(token)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid guest token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
+        if (tokenMeta.burned || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Guest token is burned or expired.');
+        }
+
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
+        saveState();
         broadcastTopology();
 
         dev.guests.add(ws);
+        // Store token on the socket for JIT validation
+        ws.guestToken = token;
+
+        ws.send(JSON.stringify({
+            type: 'permissions_update',
+            allowPlayback: dev.guestPermissions.allowPlayback,
+            allowSuggestions: dev.guestPermissions.allowSuggestions
+        }));
+
 
         ws.send(JSON.stringify({
             type: 'permissions_update',
@@ -705,7 +1104,18 @@ wss.on('connection', (ws, req) => {
         ws.on('message', async (message) => {
             try {
                 const msg = JSON.parse(message);
+
+                // JIT Validation: Check if token has expired while connected
+                if (ws.guestToken) {
+                    const tokenMeta = dev.guestTokens.get(ws.guestToken);
+                    if (!tokenMeta || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt) || tokenMeta.burned) {
+                        reject(ws, 'SECURITY_VIOLATION', 'Session token expired or revoked.');
+                        return;
+                    }
+                }
+
                 interceptTelemetryTransaction(`GUEST(${deviceId.substring(0,4)})`, 'SERVER', msg);
+
 
                 if (msg.type === 'guest_auth') {
                     const fp = msg.deviceFingerprint || '';
@@ -820,19 +1230,17 @@ wss.on('connection', (ws, req) => {
                     dev.guests.forEach(g => { if (g.readyState === WebSocket.OPEN) g.send(JSON.stringify(msg)); });
                     broadcastTopology();
                 } else if (msg.type === 'speed_update') {
-                    // Update internal state for topology visibility
                     if (dev.hudState) {
                         dev.hudState.speed = msg.speed;
                     }
-                    // Relay directly to Companion App
                     if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
                         dev.companion.send(JSON.stringify(msg));
                     }
                 }
 
-                // ── BACKUP LOGIC (ADDITIVE) ──
                 if (msg.type === 'backup_data') {
                     dev.pendingWipe.huBackupReceived = true;
+                    saveState();
                     adminClients.forEach(admin => {
                         if (admin.readyState === WebSocket.OPEN) {
                             admin.send(JSON.stringify({ type: 'device_backup', device: deviceId, node: 'headunit', data: msg.data }));
@@ -863,7 +1271,6 @@ wss.on('connection', (ws, req) => {
         dev.companion = ws;
         console.log(`[COMPANION MOBILE] Remote Deck Sync: ${deviceId}`);
 
-        // Sync lockout state immediately on connection
         if (!dev.lockout_active) {
             ws.send(JSON.stringify({ type: 'lockout_cleared' }));
         }
@@ -875,7 +1282,6 @@ wss.on('connection', (ws, req) => {
                 const msg = JSON.parse(message);
                 interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER', msg);
 
-                // ── LOCKOUT RESTRICTION ──
                 if (dev.lockout_active && msg.type !== 'verify_recovery_code') {
                     ws.send(JSON.stringify({ type: 'error', message: 'Device is locked. Recovery code required.' }));
                     return;
@@ -883,14 +1289,22 @@ wss.on('connection', (ws, req) => {
 
                 if (msg.type === 'toggle_parked_guard') {
                     dev.parkedGuardActive = msg.active;
+                    saveState();
                     broadcastTopology();
                     return;
                 }
 
                 if (msg.type === 'request_guest_token') {
-                    const guestToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const guestToken = crypto.randomBytes(32).toString('hex').toUpperCase();
                     const tokenCategory = msg.tokenType || 'guest';
-                    dev.guestTokens.set(guestToken, { type: tokenCategory, burned: false });
+                    const expiresAt = Date.now() + (30 * 60 * 1000); // 30 minutes
+                    dev.guestTokens.set(guestToken, {
+                        type: tokenCategory,
+                        burned: false,
+                        expiresAt,
+                        createdBy: 'companion'
+                    });
+                    saveState();
                     ws.send(JSON.stringify({ type: 'token_registered', token: guestToken, tokenType: tokenCategory }));
                     broadcastTopology();
                     return;
@@ -906,7 +1320,6 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                // ── SECURE PURGE CODE A VERIFICATION (ADDITIVE) ──
                 if (msg.type === 'verify_purge_code_a') {
                      if (dev.pendingWipe.active && msg.code_a === dev.pendingWipe.codeA) {
                          adminClients.forEach(admin => {
@@ -919,12 +1332,12 @@ wss.on('connection', (ws, req) => {
                      }
                 }
 
-                // ── LOCKOUT RECOVERY (ADDITIVE) ──
                 if (msg.type === 'verify_recovery_code') {
                     if (dev.lockout_active) {
                         if (msg.code === dev.recovery_code) {
                             dev.lockout_active = false;
                             dev.recovery_code = null;
+                            saveState();
                             ws.send(JSON.stringify({type: 'lockout_cleared'}));
                             broadcastTopology();
                         } else {
@@ -935,16 +1348,15 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                // ── BACKUP LOGIC (ADDITIVE) ──
                 if (msg.type === 'backup_data') {
                     dev.pendingWipe.compBackupReceived = true;
+                    saveState();
                     adminClients.forEach(admin => {
                         if (admin.readyState === WebSocket.OPEN) {
                             admin.send(JSON.stringify({ type: 'device_backup', device: deviceId, node: 'companion', data: msg.data }));
                         }
                     });
                 }
-
             } catch (err) {}
         });
 
@@ -957,17 +1369,40 @@ wss.on('connection', (ws, req) => {
 
     // ── 📊 SUMMARY CLIENT PIPELINE ──
     if (role === 'summary_client') {
-        if (!token || !dev.guestTokens.has(token) || dev.guestTokens.get(token).burned) {
-            return reject(ws, 'SECURITY_VIOLATION', 'Invalid or burned summary token.');
+        if (!token || !dev.guestTokens.has(token)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid summary token.');
         }
 
         const tokenMeta = dev.guestTokens.get(token);
+        if (tokenMeta.burned || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt)) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Summary token is burned or expired.');
+        }
+
         tokenMeta.burned = true;
         dev.guestTokens.set(token, tokenMeta);
+        saveState();
         broadcastTopology();
 
         dev.summaryClients.set(ws, token);
+        // Store token on the socket for JIT validation
+        ws.guestToken = token;
+
+        ws.on('message', async (message) => {
+            try {
+                // JIT Validation: Check if token has expired while connected
+                if (ws.guestToken) {
+                    const tokenMeta = dev.guestTokens.get(ws.guestToken);
+                    if (!tokenMeta || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt) || tokenMeta.burned) {
+                        reject(ws, 'SECURITY_VIOLATION', 'Session token expired or revoked.');
+                        return;
+                    }
+                }
+                // Summary clients normally don't send messages, but we validate if they do.
+            } catch (err) {}
+        });
+
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
+
 
         ws.on('close', () => {
             dev.summaryClients.delete(ws);
@@ -975,5 +1410,31 @@ wss.on('connection', (ws, req) => {
         return;
     }
 });
+
+// ── GUEST TOKEN GARBAGE COLLECTION ──
+setInterval(() => {
+    const now = Date.now();
+    let changed = false;
+    for (const [deviceId, dev] of devices.entries()) {
+        if (!dev.guestTokens) continue;
+        for (const [token, meta] of dev.guestTokens.entries()) {
+            if (meta.expiresAt && now > meta.expiresAt) {
+                dev.guestTokens.delete(token);
+                changed = true;
+
+                // Terminate any active session using this expired token
+                dev.guests.forEach(guestWs => {
+                    if (guestWs.guestToken === token) {
+                        reject(guestWs, 'SECURITY_VIOLATION', 'Session token expired.');
+                    }
+                });
+            }
+        }
+        if (changed) {
+            saveState();
+            changed = false;
+        }
+    }
+}, 5 * 60 * 1000); // Reduced to 5-minute GC interval
 
 server.listen(PORT, () => console.log(`🟢 DriveOS 2.0 Centralized Hybrid Cluster Network Core Online On: ${PORT}`));
