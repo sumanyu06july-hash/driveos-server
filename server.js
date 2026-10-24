@@ -45,7 +45,7 @@ function ensureRuntimeSecrets() {
 }
 
 const runtimeSecrets = ensureRuntimeSecrets();
-const GLOBAL_SECRET = process.env.RELAY_SECRET || runtimeSecrets.globalSecret;
+const GLOBAL_SECRET = process.env.RELAY_SECRET || runtimeSecrets?.globalSecret;
 const ADMIN_PIN = process.env.ADMIN_PIN || runtimeSecrets.adminPin;
 const MASTER_PIN = process.env.MASTER_PIN || runtimeSecrets.masterPin;
 function safeStringEqual(a, b) {
@@ -233,6 +233,22 @@ function saveState() {
             recovery_code: dev.recovery_code,
             parkedGuardActive: dev.parkedGuardActive,
             parkedCoords: dev.parkedCoords,
+            parkedGuardState: dev.parkedGuardState,
+            parkedGuardStateVersion: dev.parkedGuardStateVersion,
+            parkedGuardArmedAt: dev.parkedGuardArmedAt,
+            parkedGuardLastAckAt: dev.parkedGuardLastAckAt,
+            parkedGuardAnchor: dev.parkedGuardAnchor,
+            parkedGuardTelemetry: dev.parkedGuardTelemetry,
+            parkedGuardAuditTrail: dev.parkedGuardAuditTrail,
+            parkedGuardAlertCount: dev.parkedGuardAlertCount,
+            parkedGuardLastAlertAt: dev.parkedGuardLastAlertAt,
+            parkedGuardLastResult: dev.parkedGuardLastResult,
+            parkedGuardPairingSecret: dev.parkedGuardPairingSecret,
+            parkedGuardDisarmedAt: dev.parkedGuardDisarmedAt,
+            parkedGuardLastSirenAt: dev.parkedGuardLastSirenAt,
+            parkedGuardEscalationLevel: dev.parkedGuardEscalationLevel,
+            parkedGuardPairingCreatedAt: dev.parkedGuardPairingCreatedAt,
+            parkedGuardSigningEnabled: dev.parkedGuardSigningEnabled,
             guestPermissions: dev.guestPermissions,
             guestTokens: serializedGuestTokens,
             pendingWipe: dev.pendingWipe
@@ -288,6 +304,22 @@ function loadState() {
                 companion_banned: state.companion_banned || false,
                 parkedGuardActive: state.parkedGuardActive || false,
                 parkedCoords: state.parkedCoords || null,
+                parkedGuardState: state.parkedGuardState || (state.parkedGuardActive ? 'ARMED' : 'DISARMED'),
+                parkedGuardStateVersion: state.parkedGuardStateVersion || 0,
+                parkedGuardArmedAt: state.parkedGuardArmedAt || null,
+                parkedGuardLastAckAt: state.parkedGuardLastAckAt || null,
+                parkedGuardAnchor: state.parkedGuardAnchor || null,
+                parkedGuardTelemetry: state.parkedGuardTelemetry || null,
+                parkedGuardAuditTrail: Array.isArray(state.parkedGuardAuditTrail) ? state.parkedGuardAuditTrail.slice(0, 100) : [],
+                parkedGuardAlertCount: state.parkedGuardAlertCount || 0,
+                parkedGuardLastResult: state.parkedGuardLastResult || null,
+                parkedGuardLastAlertAt: state.parkedGuardLastAlertAt || null,
+                parkedGuardPairingSecret: state.parkedGuardPairingSecret || null,
+                parkedGuardDisarmedAt: state.parkedGuardDisarmedAt || null,
+                parkedGuardLastSirenAt: state.parkedGuardLastSirenAt || null,
+                parkedGuardEscalationLevel: state.parkedGuardEscalationLevel || 0,
+                parkedGuardPairingCreatedAt: state.parkedGuardPairingCreatedAt || null,
+                parkedGuardSigningEnabled: (state.parkedGuardPairingSecret || null) ? true : false,
                 pendingWipe: state.pendingWipe || {
                     active: false,
                     codeA: null,
@@ -334,6 +366,15 @@ function getDevice(id) {
         devices.set(id, {
             headunit: null,
             companion: null,
+            paired: false,
+            relayCredential: null,
+            pairCodeHash: null,
+            pairCodeExpiresAt: null,
+            linkedHeadunit: null,
+            linkedCompanion: null,
+            linkCodeHash: null,
+            linkCodeExpiresAt: null,
+            linkCodeUsed: false,
             guests: new Set(),
             guestMetadata: new Map(),
             guestPermissions: { allowPlayback: true, allowSuggestions: true },
@@ -348,6 +389,22 @@ function getDevice(id) {
             companion_banned: false,
             parkedGuardActive: false,
             parkedCoords: null,
+            parkedGuardState: 'DISARMED',
+            parkedGuardStateVersion: 0,
+            parkedGuardArmedAt: null,
+            parkedGuardLastAckAt: null,
+            parkedGuardAnchor: null,
+            parkedGuardTelemetry: null,
+            parkedGuardAuditTrail: [],
+            parkedGuardAlertCount: 0,
+            parkedGuardLastResult: null,
+            parkedGuardLastAlertAt: null,
+            parkedGuardPairingSecret: null,
+            parkedGuardDisarmedAt: null,
+            parkedGuardLastSirenAt: null,
+            parkedGuardEscalationLevel: 0,
+            parkedGuardPairingCreatedAt: null,
+            parkedGuardSigningEnabled: false,
             // ── SECURE PURGE STATE ──
             pendingWipe: {
                 active: false,
@@ -365,6 +422,20 @@ function getDevice(id) {
         saveState(); // Persist new device creation
     }
     return devices.get(id);
+}
+
+function sendToHeadunits(deviceId, type, payload = {}) {
+    const device = getDevice(deviceId);
+    if (!device || !device.headunit || device.headunit.readyState !== WebSocket.OPEN) {
+        return 0;
+    }
+    try {
+        device.headunit.send(JSON.stringify(Object.assign({}, payload, { type })));
+        return 1;
+    } catch (err) {
+        console.error('[SEND_TO_HEADUNITS] failed:', err);
+        return 0;
+    }
 }
 
 const protectedNames = new Set([
@@ -516,6 +587,153 @@ function requireAdmin(req, res, next) {
 
   res.status(403).json({ ok: false, error: 'Invalid Admin Token' });
 }
+// ── 48-DIGIT DEVICE PAIRING (opt-in; does not affect existing legacy connections unless enabled) ──
+app.post('/admin/pair-code', requireAdmin, (req, res) => {
+    const deviceId = req.body.device;
+    if (!isValidDeviceId(deviceId)) return res.status(400).json({ ok: false, error: 'Invalid device id.' });
+
+    const code = Array.from({ length: 48 }, () => Math.floor(Math.random() * 10)).join('');
+    const dev = getDevice(deviceId);
+    if (!dev) return res.status(404).json({ ok: false, error: 'Device not found.' });
+
+    dev.pairCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+    dev.pairCodeExpiresAt = Date.now() + 10 * 60 * 1000;
+    dev.paired = false;
+    saveState();
+
+    // The code is shown only once to the admin for handoff to the physical device.
+    res.json({ ok: true, deviceId, pairCode: code, expiresAt: dev.pairCodeExpiresAt });
+});
+
+app.post('/api/pair', (req, res) => {
+    const deviceId = req.body.device;
+    const pairCode = String(req.body.pairCode || '').trim();
+
+    if (!isValidDeviceId(deviceId) || !/^\d{48}$/.test(pairCode)) {
+        return res.status(400).json({ ok: false, error: 'Invalid device or pair code.' });
+    }
+
+    const dev = getDevice(deviceId);
+    if (!dev || !dev.pairCodeHash || !dev.pairCodeExpiresAt || Date.now() > dev.pairCodeExpiresAt) {
+        return res.status(403).json({ ok: false, error: 'No valid pairing in progress.' });
+    }
+
+    const suppliedHash = crypto.createHash('sha256').update(pairCode).digest('hex');
+    if (suppliedHash !== dev.pairCodeHash) {
+        return res.status(403).json({ ok: false, error: 'Invalid pair code.' });
+    }
+
+    const credential = crypto.randomBytes(32).toString('hex');
+    dev.relayCredential = credential;
+    dev.paired = true;
+    dev.pairCodeHash = null;
+    dev.pairCodeExpiresAt = null;
+    saveState();
+
+    res.json({ ok: true, deviceId, relayCredential: credential });
+});
+
+app.post('/api/link-code', (req, res) => {
+    const deviceId = req.body.device;
+    const credential = String(req.body.credential || '').trim();
+
+    if (!isValidDeviceId(deviceId)) return res.status(400).json({ ok: false, error: 'Invalid device id.' });
+
+    const dev = getDevice(deviceId);
+    if (!dev || !dev.paired || !dev.relayCredential || credential !== dev.relayCredential) {
+        return res.status(403).json({ ok: false, error: 'Unpaired or unauthorized device.' });
+    }
+
+    const code = Array.from({ length: 48 }, () => Math.floor(Math.random() * 10)).join('');
+    dev.linkCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+    dev.linkCodeExpiresAt = Date.now() + 8 * 60 * 1000;
+    dev.linkCodeUsed = false;
+    saveState();
+    res.json({ ok: true, deviceId, linkCode: code, expiresAt: dev.linkCodeExpiresAt });
+});
+
+app.post('/api/link', (req, res) => {
+    const companionDevice = req.body.companionDevice;
+    const companionCredential = String(req.body.companionCredential || '').trim();
+    const headunitLinkCode = String(req.body.linkCode || '').trim();
+
+    if (!isValidDeviceId(companionDevice) || !/^\d{48}$/.test(headunitLinkCode)) {
+        return res.status(400).json({ ok: false, error: 'Invalid companion device or link code.' });
+    }
+
+    const companionDev = getDevice(companionDevice);
+    if (!companionDev || !companionDev.paired || !companionDev.relayCredential || companionCredential !== companionDev.relayCredential) {
+        return res.status(403).json({ ok: false, error: 'Unpaired or unauthorized companion.' });
+    }
+
+    // Find the headunit associated with this code without trusting freeform input.
+    let headunitDev = null;
+    for (const [id, dev] of devices.entries()) {
+        if (dev.linkCodeHash) {
+            const suppliedHash = crypto.createHash('sha256').update(headunitLinkCode).digest('hex');
+            if (suppliedHash === dev.linkCodeHash && !dev.linkCodeUsed && Date.now() <= dev.linkCodeExpiresAt) {
+                headunitDev = dev;
+                // consume immediately
+                dev.linkCodeUsed = true;
+                dev.linkCodeHash = null;
+                dev.linkCodeExpiresAt = null;
+                break;
+            }
+        }
+    }
+
+    if (!headunitDev) {
+        return res.status(403).json({ ok: false, error: 'Invalid, expired, or already used link code.' });
+    }
+
+    headunitDev.linkedCompanion = companionDevice;
+    companionDev.linkedHeadunit = [...devices.entries()].find(([id, d]) => d === headunitDev)?.[0] || null;
+    saveState();
+
+    res.json({ ok: true, linkedHeadunit: companionDev.linkedHeadunit, linkedCompanion: headunitDev.linkedCompanion });
+});
+
+// ---------- Unpair endpoint ----------
+// Revokes a device's relay credential and clears any companion link.
+app.post('/api/unpair', (req, res) => {
+    const deviceId = String(req.body.device || '').trim();
+    const credential = String(req.body.credential || '').trim();
+
+    if (!isValidDeviceId(deviceId)) {
+        return res.status(400).json({ ok: false, error: 'invalid' });
+    }
+
+    if (!devices.has(deviceId)) {
+        return res.status(403).json({ ok: false, error: 'unpaired' });
+    }
+
+    const dev = devices.get(deviceId);
+    if (!dev || !dev.paired || !dev.relayCredential || credential !== dev.relayCredential) {
+        return res.status(403).json({ ok: false, error: 'unpaired' });
+    }
+
+    // Clear reverse links on the counterpart(s).
+    if (dev.linkedCompanion && devices.has(dev.linkedCompanion)) {
+        const companion = devices.get(dev.linkedCompanion);
+        if (companion) companion.linkedHeadunit = null;
+    }
+    if (dev.linkedHeadunit && devices.has(dev.linkedHeadunit)) {
+        const headunit = devices.get(dev.linkedHeadunit);
+        if (headunit) headunit.linkedCompanion = null;
+    }
+
+    dev.paired = false;
+    dev.relayCredential = null;
+    dev.linkedHeadunit = null;
+    dev.linkedCompanion = null;
+    dev.linkCodeHash = null;
+    dev.linkCodeExpiresAt = null;
+    dev.linkCodeUsed = false;
+    saveState();
+
+    res.json({ ok: true, device: deviceId, serverTime: Date.now() });
+});
+
 app.post('/admin/play-spotify', requireAdmin, (req, res) => {
   const deviceId = req.body.device;
   const uri = validateSpotifyUri(req.body.uri);
@@ -697,6 +915,148 @@ function interceptTelemetryTransaction(origin, target, payload) {
     adminClients.forEach(admin => { if (admin.readyState === WebSocket.OPEN) admin.send(packet); });
 }
 
+// Registered companion-to-headunit directives. Hoisted to module scope so
+// the WebSocket frame hot path never allocates this Set per message.
+const COMPANION_TO_HEADUNIT_TYPES = new Set([
+    'backup_data',
+    'cmd_bind',
+    'cmd_bind_device',
+    'cmd_diagnostic',
+    'cmd_display',
+    'cmd_export_data',
+    'cmd_export_fuel_only',
+    'cmd_failover',
+    'cmd_fuel_entry',
+    'cmd_fuel_push',
+    'cmd_generate_test_data',
+    'cmd_generate_web_summary',
+    'cmd_get_last_odo',
+    'cmd_mode',
+    'cmd_music',
+    'cmd_open',
+    'cmd_open_module',
+    'cmd_panic',
+    'cmd_set_destination',
+    'cmd_spotify_play',
+    'cmd_theme',
+    'cmd_theme_sync',
+    'cmd_trigger_failover',
+    'cmd_trip',
+    'cmd_vol',
+    'cmd_volume'
+]);
+
+// ── PARKED GUARD S7-S10 SECURITY CONTRACT ──
+const PARKED_GUARD_SIGNATURE_WINDOW_MS = 90 * 1000;
+const PARKED_GUARD_NONCE_CACHE_TTL_MS = 5 * 60 * 1000;
+const PARKED_GUARD_AUDIT_LIMIT = 250;
+const PARKED_GUARD_ALERT_CLEAR_MS = 60 * 1000 * 10;
+const PARKED_GUARD_SIREN_ESCALATION_LEVELS = Object.freeze(['companion_passthrough', 'movement_alert', 'escalating_auto_siren']);
+
+function enqueueParkedGuardAudit(dev, entry) {
+    if (!dev) return;
+    const safeEntry = Object.assign({
+        at: Date.now(),
+        result: 'unknown',
+        detail: '',
+        request_id: null,
+        action: 'unknown',
+        actor: 'unknown',
+        state_version: dev.parkedGuardStateVersion || 0
+    }, entry || {});
+    dev.parkedGuardAuditTrail = (dev.parkedGuardAuditTrail || []).concat([safeEntry]).slice(-PARKED_GUARD_AUDIT_LIMIT);
+    try { dev.parkedGuardLastResult = Object.assign({}, safeEntry); } catch (e) {}
+}
+
+function parkedGuardPairSecret(dev) {
+    if (dev.parkedGuardPairingSecret) return dev.parkedGuardPairingSecret;
+    if (!crypto) return null;
+    const generated = crypto.randomBytes(32).toString('base64url');
+    dev.parkedGuardPairingSecret = generated;
+    dev.parkedGuardPairingCreatedAt = Date.now();
+    dev.parkedGuardSigningEnabled = true;
+    return generated;
+}
+
+function hasParkedGuardSigningSupport() {
+    try { return typeof crypto.createHmac === 'function'; }
+    catch (e) { return false; }
+}
+
+function validateParkedGuardSignature(dev, msg) {
+    const pairingSecret = dev.parkedGuardPairingSecret;
+    if (!pairingSecret || !hasParkedGuardSigningSupport()) return { ok: false, error: 'Pairing key unavailable.' };
+
+    const action = (msg.action == null) ? '' : String(msg.action);
+    const commandType = String(msg.type || '');
+    const requestId = String(msg.request_id || '');
+    const commandTimestamp = Number(msg.timestamp);
+    const nonce = (msg.nonce == null) ? '' : String(msg.nonce);
+    const stateVersionTarget = Number.isFinite(msg.state_version_expected)
+        ? Number(msg.state_version_expected)
+        : (dev.parkedGuardStateVersion || 0);
+    const signatureBase64 = (msg.signature == null) ? '' : String(msg.signature);
+
+    if (!requestId || requestId.length > 128) return { ok: false, error: 'request_id is required.' };
+    if (!nonce || nonce.length > 128) return { ok: false, error: 'nonce is required.' };
+    if (!Number.isFinite(commandTimestamp)) return { ok: false, error: 'timestamp is required.' };
+    const now = Date.now();
+    if (Math.abs(now - commandTimestamp) > PARKED_GUARD_SIGNATURE_WINDOW_MS) return { ok: false, error: 'command timestamp outside replay window.' };
+    if (!action) return { ok: false, error: 'signed action is required.' };
+
+    // Enforce nonce uniqueness / basic replay protection across any currently tracked key.
+    if (!Array.isArray(dev.parkedGuardNonceJournal)) dev.parkedGuardNonceJournal = [];
+    const nonceDigest = crypto.createHash('sha256').update(`${nonce}:${dev.parkedGuardPairingCreatedAt || 0}`).digest('hex');
+    const expiredNonceWindowStart = now - PARKED_GUARD_NONCE_CACHE_TTL_MS;
+    dev.parkedGuardNonceJournal = dev.parkedGuardNonceJournal.filter(item => item && item.expiresAt >= expiredNonceWindowStart);
+    if (dev.parkedGuardNonceJournal.some(item => item.nonceDigest === nonceDigest)) {
+        return { ok: false, error: 'Replay detected (duplicate nonce).' };
+    }
+
+    let canonicalPayload;
+    if (msg.canonical_payload == null) {
+        canonicalPayload = [
+            JSON.stringify({ action, nonce, commandType, requestId, payloadHash: msg.payload_hash || null }, sortKeysDeep),
+            requestId,
+            commandTimestamp,
+            action,
+            String(stateVersionTarget)
+        ].join(':');
+    } else {
+        canonicalPayload = String(msg.canonical_payload);
+    }
+
+    let signatureBuffer;
+    try {
+        signatureBuffer = Buffer.from(signatureBase64, 'base64');
+    } catch (e) {
+        return { ok: false, error: 'Signature decode failed.' };
+    }
+    if (signatureBuffer.length < 16) return { ok: false, error: 'Signature missing or unsupported.' };
+
+    const expected = crypto.createHmac('sha256', pairingSecret).update(canonicalPayload).digest();
+    if (expected.length !== signatureBuffer.length || !crypto.timingSafeEqual(expected, signatureBuffer)) {
+        return { ok: false, error: 'Signature verification failed.' };
+    }
+
+    dev.parkedGuardNonceJournal.push({ nonceDigest, expiresAt: commandTimestamp + PARKED_GUARD_NONCE_CACHE_TTL_MS });
+    return { ok: true, action, requestId, nonce, stateVersionTarget, timestamp: commandTimestamp };
+}
+
+function sortKeysDeep(value) {
+    if (Array.isArray(value)) return value.map(sortKeysDeep);
+    if (value && typeof value === 'object') {
+        const result = {};
+        for (const key of Object.keys(value).sort()) result[key] = sortKeysDeep(value[key]);
+        return result;
+    }
+    return value;
+}
+
+function ensureParkedGuardPairing(dev) {
+    return parkedGuardPairSecret(dev);
+}
+
 wss.on('connection', (ws, req) => {
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const role = urlParams.get('role');
@@ -731,12 +1091,30 @@ wss.on('connection', (ws, req) => {
             .split(',')
             .map(item => item.trim())
             .filter(Boolean);
-        const inputAuth = protocols.length > 1
-            ? decodeURIComponent(protocols[1])
-            : urlParams.get('auth');
-        if (!safeStringEqual(inputAuth, ADMIN_PIN)) {
+
+        const hasLeakyQueryAuth = urlParams.has('auth');
+        const hasRequiredSubprotocol =
+            protocols.length >= 2 &&
+            protocols[0].toLowerCase() === 'admin' &&
+            protocols[1].length > 0;
+
+        if (!hasRequiredSubprotocol || hasLeakyQueryAuth) {
             ws.send(JSON.stringify({ type: 'auth_error' }));
-            setTimeout(() => { try{ws.close();}catch(e){} }, 200);
+            setTimeout(() => { try { ws.close(); } catch (e) {} }, 200);
+            return;
+        }
+
+        let inputAuth = '';
+        let decodeFailed = false;
+        try {
+            inputAuth = decodeURIComponent(protocols[1]);
+        } catch (err) {
+            decodeFailed = true;
+        }
+
+        if (decodeFailed || inputAuth.length === 0 || !safeStringEqual(inputAuth, ADMIN_PIN)) {
+            ws.send(JSON.stringify({ type: 'auth_error' }));
+            setTimeout(() => { try { ws.close(); } catch (e) {} }, 200);
             return;
         }
         adminClients.add(ws);
@@ -747,11 +1125,9 @@ wss.on('connection', (ws, req) => {
             try {
                 const command = JSON.parse(message);
 
-    if (command.type === 'rotate_admin_token') {
-        // REMOVED: rotate_admin_token moved to HTTPS POST endpoint
-    }
-                    const targetDev = devices.get(command.device);
-                    if (targetDev) {
+    if (command.type === 'burn_token') {
+        const targetDev = devices.get(command.device);
+        if (targetDev) {
                         const tokenMeta = targetDev.guestTokens.get(command.token);
                         const tokenTypeLabel = (tokenMeta && tokenMeta.type === 'summary') ? 'SUMMARY LINK' : 'GUEST PASS';
 
@@ -769,6 +1145,7 @@ wss.on('connection', (ws, req) => {
                             }));
                         }
                     }
+    }
 
                     if (command.type === 'permissions_update') {
                     const targetDev = devices.get(command.device);
@@ -1023,6 +1400,31 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
+                if (command.type === 'admin_emergency_disarm_parked_guard') {
+                    const targetDev = devices.get(command.device);
+                    if (!targetDev) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Device not found.' }));
+                    } else if (!safeStringEqual(command.master_pin || '', MASTER_PIN)) {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Invalid master PIN for emergency disarm.' }));
+                    } else {
+                        targetDev.parkedGuardState = 'DISARMED';
+                        targetDev.parkedGuardActive = false;
+                        targetDev.parkedGuardDisarmedAt = Date.now();
+                        targetDev.parkedGuardStateVersion = (targetDev.parkedGuardStateVersion || 0) + 1;
+                        enqueueParkedGuardAudit(targetDev, { action: 'emergency_disarm', result: 'accepted', actor: 'admin', reason: 'master_pin_emergency_override', request_id: command.request_id || null });
+                        saveState();
+                        broadcastTopology();
+                        if (targetDev.companion && targetDev.companion.readyState === WebSocket.OPEN) {
+                            targetDev.companion.send(JSON.stringify({ type: 'parked_guard_state', device: command.device, active: false, state: 'DISARMED', emergency: true, security_status: 200, result: 'accepted', reason: 'Emergency disarm executed under admin authority.', request_id: command.request_id || null }));
+                        }
+                        if (targetDev.headunit && targetDev.headunit.readyState === WebSocket.OPEN) {
+                            targetDev.headunit.send(JSON.stringify({ type: 'parked_guard_state', device: command.device, active: false, state: 'DISARMED', emergency: true }));
+                        }
+                        ws.send(JSON.stringify({ type: 'secure_purge_success', message: 'Emergency Parked Guard disarm completed.', device: command.device }));
+                    }
+                    return;
+                }
+
                 if (command.type === 'force_unlock') {
                     const targetDev = devices.get(command.device);
                     if (targetDev) {
@@ -1039,7 +1441,7 @@ wss.on('connection', (ws, req) => {
                 }
 
                 broadcastTopology();
-            } catch (err) {}
+            } catch (err) { console.error("[SERVER] message handler error:", err); }
         });
 
         ws.on('close', () => adminClients.delete(ws));
@@ -1081,7 +1483,7 @@ wss.on('connection', (ws, req) => {
             return reject(ws, 'SECURITY_VIOLATION', 'Guest token is burned or expired.');
         }
 
-        tokenMeta.burned = true;
+        // Keep token valid for the session; do not burn on connect.
         dev.guestTokens.set(token, tokenMeta);
         saveState();
         broadcastTopology();
@@ -1152,15 +1554,6 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
-                if (msg.type === 'cmd_guest_suggest_song') {
-                    adminClients.forEach(admin => {
-                        if (admin.readyState === WebSocket.OPEN) admin.send(JSON.stringify(msg));
-                    });
-                    if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-                        dev.companion.send(JSON.stringify(msg));
-                    }
-                    return;
-                }
 
                 if (msg.type === 'cmd_music' || msg.type === 'cmd_panic' || msg.type === 'cmd_volume' || msg.type === 'cmd_trigger_failover' || msg.type === 'toggle_parked_guard') {
                     if (!dev.guestPermissions.allowPlayback) {
@@ -1192,7 +1585,7 @@ wss.on('connection', (ws, req) => {
                     }
                     return;
                 }
-            } catch (err) {}
+            } catch (err) { console.error("[SERVER] message handler error:", err); }
         });
 
         ws.on('close', () => {
@@ -1206,7 +1599,14 @@ wss.on('connection', (ws, req) => {
     // ── 🏎️ HEADUNIT TELEMETRY CORE ──
     if (role === 'headunit') {
         const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
+        const legacyAllowed = (process.env.PAIRING_REQUIRED !== 'true');
+        if (legacyAllowed && secret === GLOBAL_SECRET) {
+            // legacy path
+        } else if (process.env.PAIRING_REQUIRED === 'true') {
+            if (!dev.paired || secret !== dev.relayCredential) return reject(ws, 'SECURITY_VIOLATION', 'Unpaired or invalid headunit credential.');
+        } else if (secret !== GLOBAL_SECRET) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Invalid access token.');
+        }
         if (dev.hud_banned) return reject(ws, 'NODE_LOCKED', 'Headunit authorization suspended.');
 
         if (dev.headunit) {
@@ -1249,12 +1649,31 @@ wss.on('connection', (ws, req) => {
                         }));
                     }
 
-                    if (dev.parkedGuardActive && msg.speed > 5) {
-                        if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
-                            dev.companion.send(JSON.stringify({
-                                type: 'parked_guard_alert',
-                                message: `🚨 ANTI-THEFT ALERT: Vehicle movement detected (${msg.speed} km/h) while Parked Guard is ACTIVE!`
-                            }));
+                    if (dev.parkedGuardActive && isFinite(msg.speed) && Number(msg.speed) > 5) {
+                        const now = Date.now();
+                        if (!dev.parkedGuardLastAlertAt || now - dev.parkedGuardLastAlertAt >= 10000) {
+                            dev.parkedGuardLastAlertAt = now;
+                            dev.parkedGuardAlertCount = (dev.parkedGuardAlertCount || 0) + 1;
+                            dev.parkedGuardState = 'MOVEMENT_ALERT';
+                            dev.parkedGuardStateVersion = (dev.parkedGuardStateVersion || 0) + 1;
+                            if (dev.companion && dev.companion.readyState === WebSocket.OPEN) {
+                                dev.companion.send(JSON.stringify({
+                                    type: 'parked_guard_alert',
+                                    alert_id: `pga_${now}`,
+                                    state_version: dev.parkedGuardStateVersion,
+                                    server_now: now,
+                                    message: `🚨 ANTI-THEFT ALERT: Vehicle movement detected (${msg.speed} km/h) while Parked Guard is ACTIVE!`
+                                }));
+                            }
+                            if (!dev.parkedGuardLastSirenAt || now - dev.parkedGuardLastSirenAt >= 2000) {
+                                dev.parkedGuardLastSirenAt = now;
+                                dev.parkedGuardEscalationLevel = Math.min(3, (dev.parkedGuardEscalationLevel || 0) + 1);
+                                enqueueParkedGuardAudit(dev, { action: 'move_detected', result: 'accepted', reason: 'escalating_auto_siren', detail: `movement at ${msg.speed} km/h`, request_id: null });
+                                if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                                    dev.headunit.send(JSON.stringify({ type: 'trigger_siren', reason: 'PARKED_GUARD_MOVEMENT', alert_id: `pga_${now}` }));
+                                }
+                            }
+                            saveState();
                         }
                     }
 
@@ -1278,7 +1697,7 @@ wss.on('connection', (ws, req) => {
                         }
                     });
                 }
-            } catch (err) {}
+            } catch (err) { console.error("[SERVER] message handler error:", err); }
         });
 
         ws.on('close', () => {
@@ -1294,7 +1713,11 @@ wss.on('connection', (ws, req) => {
     // ── 📱 COMPANION CONTROLLER ──
     if (role === 'companion') {
         const secret = urlParams.get('secret');
-        if (secret !== GLOBAL_SECRET) return reject(ws, 'SECURITY_VIOLATION', 'Companion key missing.');
+        if (process.env.PAIRING_REQUIRED === 'true') {
+            if (!dev.paired || secret !== dev.relayCredential) return reject(ws, 'SECURITY_VIOLATION', 'Unpaired or invalid companion credential.');
+        } else if (secret !== GLOBAL_SECRET) {
+            return reject(ws, 'SECURITY_VIOLATION', 'Companion key missing.');
+        }
         if (dev.companion_banned) return reject(ws, 'NODE_LOCKED', 'Companion suspended.');
 
         if (dev.companion) { try { dev.companion.close(); } catch(e){} }
@@ -1306,6 +1729,28 @@ wss.on('connection', (ws, req) => {
             ws.send(JSON.stringify({ type: 'lockout_cleared' }));
         }
 
+        if (dev.parkedGuardSigningEnabled === false || !dev.parkedGuardPairingSecret) {
+            ensureParkedGuardPairing(dev);
+            if (dev.parkedGuardPairingSecret) {
+                ws.send(JSON.stringify({
+                    type: 'parked_guard_pairing',
+                    device: deviceId,
+                    signing_method: 'hmac-sha256',
+                    pairing_key: dev.parkedGuardPairingSecret,
+                    created_at: dev.parkedGuardPairingCreatedAt,
+                    warning: 'Pairing secret delivered only to the authenticated companion node.'
+                }));
+            }
+        } else {
+            ws.send(JSON.stringify({
+                type: 'parked_guard_pairing',
+                device: deviceId,
+                signing_method: 'hmac-sha256',
+                pairing_available: true,
+                rotated: false
+            }));
+        }
+
         broadcastTopology();
 
         ws.on('message', (message) => {
@@ -1313,14 +1758,234 @@ wss.on('connection', (ws, req) => {
                 const msg = JSON.parse(message);
                 interceptTelemetryTransaction(`PHONE_APP(${deviceId.substring(0,4)})`, 'SERVER', msg);
 
+                if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.type !== 'string' || msg.type.length === 0 || msg.type.length > 64) {
+                    console.warn('[COMPANION DROP] Rejected malformed control frame.');
+                    return;
+                }
+
                 if (dev.lockout_active && msg.type !== 'verify_recovery_code') {
                     ws.send(JSON.stringify({ type: 'error', message: 'Device is locked. Recovery code required.' }));
                     return;
                 }
 
-                if (msg.type === 'toggle_parked_guard') {
-                    dev.parkedGuardActive = msg.active;
+                const PARKED_GUARD_COMMANDS = new Set([
+                    'parked_guard_arm',
+                    'parked_guard_disarm',
+                    'parked_guard_ack',
+                    'parked_guard_alert_ack',
+                    'request_parked_guard_state',
+                    'toggle_parked_guard'
+                ]);
+
+                if (PARKED_GUARD_COMMANDS.has(msg.type)) {
+                    const companionAuthority = (dev.companion === ws);
+                    const requestId = 'pg_' + crypto.randomUUID();
+                    const requestedActive = (msg.type === 'parked_guard_disarm')
+                        ? false
+                        : (msg.type === 'parked_guard_arm' || msg.type === 'toggle_parked_guard' ? true : !!msg.active);
+
+                    const pushAudit = (result, detail) => {
+                        const entry = {
+                            at: Date.now(),
+                            actor: 'companion:' + deviceId.substring(0, 4),
+                            type: msg.type,
+                            result,
+                            detail: String(detail || '').slice(0, 300),
+                            request_id: requestId,
+                            state_version: dev.parkedGuardStateVersion || 0
+                        };
+                        dev.parkedGuardAuditTrail = (dev.parkedGuardAuditTrail || []).concat([entry]).slice(-100);
+                        try { dev.parkedGuardLastResult = Object.assign({}, entry); } catch (e) {}
+                    };
+
+                    const capabilities = {
+                        arm: companionAuthority,
+                        disarm: false,
+                        disarmRequiresSignature: true,
+                        guestCommandsAllowed: false,
+                        emergencyOverrideAdminOnly: true
+                    };
+
+                    const response = (result, status, reason, extra) => {
+                        const payload = Object.assign({
+                            type: 'parked_guard_state',
+                            device: deviceId,
+                            active: !!dev.parkedGuardActive,
+                            state: dev.parkedGuardState,
+                            state_version: dev.parkedGuardStateVersion || 0,
+                            changed_at: Date.now(),
+                            security_status: status,
+                            result,
+                            reason,
+                            request_id: requestId,
+                            capabilities,
+                            policy: {
+                                movementThresholdKph: 5,
+                                armingRequiresHudTelemetry: true,
+                                companionDisarmMode: 'signed_and_replay_protected'
+                            }
+                        }, extra || {});
+                        ws.send(JSON.stringify(payload));
+                        ws.send(JSON.stringify({ type: 'parked_guard_update', device: deviceId, active: !!dev.parkedGuardActive, state: dev.parkedGuardState, state_version: dev.parkedGuardStateVersion || 0, changed_at: Date.now() }));
+                        if (result === 'accepted') {
+                            if (dev.companion && dev.companion.readyState === WebSocket.OPEN && dev.companion !== ws) dev.companion.send(JSON.stringify(payload));
+                            if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) dev.headunit.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, active: !!dev.parkedGuardActive, state: dev.parkedGuardState, state_version: dev.parkedGuardStateVersion || 0 }));
+                        }
+                    };
+
+                    if (!companionAuthority) {
+                        pushAudit('rejected', 'Companion socket not authoritative');
+                        response('rejected', 403, 'Only the paired companion may issue Parked Guard commands.');
+                        broadcastTopology();
+                        return;
+                    }
+
+                    if (msg.type === 'request_parked_guard_state') {
+                        pushAudit('accepted', 'Companion requested authoritative snapshot.');
+                        saveState();
+                        response('accepted', 200, 'Authoritative Parked Guard snapshot.');
+                        broadcastTopology();
+                        return;
+                    }
+
+                    if (msg.type === 'parked_guard_alert_ack') {
+                        dev.parkedGuardLastAckAt = Date.now();
+                        pushAudit('accepted', 'software acknowledgement received (count: ' + (dev.parkedGuardAlertCount || 0) + ').');
+                        saveState();
+                        response('accepted', 200, 'Alert acknowledgement recorded.');
+                        dev.parkedGuardLastResult = { type: 'alert_ack', at: Date.now(), request_id: requestId, count: dev.parkedGuardAlertCount || 0 };
+                        broadcastTopology();
+                        return;
+                    }
+
+                    if (msg.type === 'parked_guard_ack') {
+                        dev.parkedGuardLastAckAt = Date.now();
+                        pushAudit('accepted', 'Software acknowledgement received.');
+                        saveState();
+                        response('accepted', 200, 'Guard acknowledgement recorded.');
+                        broadcastTopology();
+                        return;
+                    }
+
+                    if (msg.type === 'parked_guard_disarm' || (msg.type === 'toggle_parked_guard' && !requestedActive)) {
+                        pushAudit('rejected', 'Unsigned disarm blocked by server authority.');
+                        dev.parkedGuardLastResult = { type: msg.type, at: Date.now(), request_id: requestId, result: 'rejected_unsigned_disarm' };
+                        response('rejected', 403, 'Companion disarm requires a signed, replay-protected command (Phase 2B not yet enabled).');
+                        broadcastTopology();
+                        return;
+                    }
+
+                    if (requestedActive) {
+                        const speed = (dev.hudState && isFinite(dev.hudState.speed)) ? Number(dev.hudState.speed) : null;
+                        const latitude = (dev.hudState && isFinite(dev.hudState.lat)) ? Number(dev.hudState.lat) : null;
+                        const longitude = (dev.hudState && isFinite(dev.hudState.lng)) ? Number(dev.hudState.lng) : null;
+                        if (speed === null) {
+                            pushAudit('rejected', 'HUD telemetry unavailable.');
+                            response('rejected', 412, 'Move the HUD online before arming Parked Guard.');
+                            broadcastTopology();
+                            return;
+                        }
+                        if (speed > 5) {
+                            pushAudit('rejected', 'ignored guard arming because vehicle is moving at ' + speed + ' km/h.');
+                            response('rejected', 409, 'Parked Guard can only be armed while parked (threshold 5 km/h).', { telemetry: { speed, threshold: 5 } });
+                            broadcastTopology();
+                            return;
+                        }
+                        dev.parkedGuardState = 'ARMED';
+                        dev.parkedGuardActive = true;
+                        dev.parkedGuardArmedAt = Date.now();
+                        dev.parkedCoords = (latitude !== null && longitude !== null)
+                            ? { lat: latitude, lng: longitude, speed, capturedAt: Date.now() }
+                            : null;
+                        dev.parkedGuardAnchor = dev.parkedCoords;
+                        dev.parkedGuardStateVersion = (dev.parkedGuardStateVersion || 0) + 1;
+                        dev.parkedGuardLastResult = { type: 'arm', at: Date.now(), request_id: requestId, result: 'accepted', security_status: 'unsigned_arm_policy_phase_2a' };
+                        pushAudit('accepted', 'armed at ' + latitude + ',' + longitude + '; speed ' + speed + ' km/h.');
+                        saveState();
+                        response('accepted', 200, 'Parked Guard armed. Security status remains digest-aware and disarm is signed-only.');
+                        broadcastTopology();
+                        return;
+                    }
+
+                    pushAudit('accepted', 'No state transition requested.');
+                    response('accepted', 200, 'Authoritative Parked Guard snapshot.');
+                    broadcastTopology();
+                    return;
+                }
+
+                if (msg.type === 'parked_guard_signed_command') {
+                    const companionAuthority = dev.companion === ws;
+                    if (!companionAuthority) {
+                        enqueueParkedGuardAudit(dev, { action: msg.action || msg.type, result: 'rejected', reason: 'client_not_authoritative', detail: 'Signed command rejected: non-companion socket.' });
+                        ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, state: dev.parkedGuardState, security_status: 403, result: 'rejected', reason: 'Only the paired companion plane can issue commands.', request_id: msg.request_id || null }));
+                        broadcastTopology();
+                        return;
+                    }
+                    const verify = validateParkedGuardSignature(dev, msg);
+                    if (!verify.ok) {
+                        enqueueParkedGuardAudit(dev, { action: msg.action || msg.type, result: 'rejected', reason: 'signature_failure', detail: verify.error, request_id: msg.request_id || null });
+                        ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, active: !!dev.parkedGuardActive, state: dev.parkedGuardState, state_version: dev.parkedGuardStateVersion || 0, security_status: 403, result: 'rejected', reason: verify.error, request_id: msg.request_id || null }));
+                        broadcastTopology();
+                        return;
+                    }
+
+                    const action = verify.action;
+                    const requestId = verify.requestId;
+                    dev.parkedGuardStateVersion = (dev.parkedGuardStateVersion || 0) + 1;
+                    if (action === 'disarm' || action === 'off') {
+                        dev.parkedGuardState = 'DISARMED';
+                        dev.parkedGuardActive = false;
+                        dev.parkedGuardDisarmedAt = Date.now();
+                        enqueueParkedGuardAudit(dev, { action, result: 'accepted', reason: 'signed_disarm_accepted', request_id: requestId });
+                    } else if (action === 'arm' || action === 'enforce_current' || action === 'on') {
+                        if (!dev.hudState || !isFinite(dev.hudState.speed) || Number(dev.hudState.speed) > 5) {
+                            enqueueParkedGuardAudit(dev, { action, result: 'rejected', reason: 'arming_policy_violation', detail: 'Telemetry required', request_id: requestId });
+                            ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, active: !!dev.parkedGuardActive, state: dev.parkedGuardState, state_version: dev.parkedGuardStateVersion || 0, security_status: 409, result: 'rejected', reason: 'Park state requires speed <= 5km/h and active HUD telemetry.', request_id: requestId }));
+                            broadcastTopology();
+                            return;
+                        }
+                        dev.parkedGuardState = 'ARMED';
+                        dev.parkedGuardActive = true;
+                        dev.parkedGuardArmedAt = Date.now();
+                        enqueueParkedGuardAudit(dev, { action, result: 'accepted', reason: 'signed_arm_accepted', request_id: requestId });
+                    }
                     saveState();
+                    ws.send(JSON.stringify({
+                        type: 'parked_guard_state',
+                        device: deviceId,
+                        active: !!dev.parkedGuardActive,
+                        state: dev.parkedGuardState,
+                        state_version: dev.parkedGuardStateVersion || 0,
+                        security_status: 200,
+                        result: 'accepted',
+                        reason: 'Signed command accepted.',
+                        request_id: requestId,
+                        audit_id: dev.parkedGuardLastResult && dev.parkedGuardLastResult.at
+                    }));
+                    broadcastTopology();
+                    return;
+                }
+
+                // Legacy unsigned arm only. Signed disarm remains through `parked_guard_signed_command`.
+                if (msg.type === 'parked_guard_arm' || msg.type === 'parked_guard_arm_unsigned') {
+                    const companionAuthority = dev.companion === ws;
+                    if (!companionAuthority) {
+                        enqueueParkedGuardAudit(dev, { action: msg.type, result: 'rejected', reason: 'client_not_authoritative' });
+                        ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, state: dev.parkedGuardState, security_status: 403, result: 'rejected', reason: 'Only the paired companion plane can issue commands.', request_id: msg.request_id || null }));
+                        return;
+                    }
+                    if (!dev.hudState || !isFinite(dev.hudState.speed) || Number(dev.hudState.speed) > 5) {
+                        enqueueParkedGuardAudit(dev, { action: msg.type, result: 'rejected', reason: 'arming_policy_violation' });
+                        ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, active: !!dev.parkedGuardActive, state: dev.parkedGuardState, state_version: dev.parkedGuardStateVersion || 0, security_status: 409, result: 'rejected', reason: 'Park state requires speed <= 5 km/h', request_id: msg.request_id || null }));
+                        return;
+                    }
+                    dev.parkedGuardState = 'ARMED';
+                    dev.parkedGuardActive = true;
+                    dev.parkedGuardArmedAt = Date.now();
+                    dev.parkedGuardStateVersion = (dev.parkedGuardStateVersion || 0) + 1;
+                    saveState();
+                    enqueueParkedGuardAudit(dev, { action: msg.type, result: 'accepted', reason: 'unsigned_arm_policy_2a', request_id: msg.request_id || null });
+                    ws.send(JSON.stringify({ type: 'parked_guard_state', device: deviceId, active: true, state: 'ARMED', security_status: 200, result: 'accepted', request_id: msg.request_id || null }));
                     broadcastTopology();
                     return;
                 }
@@ -1342,13 +2007,22 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (msg.type === 'state' || msg.type === 'companion_state') {
+                    // Track companion state locally; never echo arbitrary peer traffic directly.
                     dev.companionState = msg;
                     broadcastTopology();
-                } else {
-                    if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
-                        dev.headunit.send(JSON.stringify(msg));
-                        interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
+                } else if (COMPANION_TO_HEADUNIT_TYPES.has(msg.type)) {
+                    // Registered companion directives only.
+                    try {
+                        if (dev.headunit && dev.headunit.readyState === WebSocket.OPEN) {
+                            dev.headunit.send(JSON.stringify(msg));
+                            interceptTelemetryTransaction('SERVER', `HUD_UNIT(${deviceId.substring(0,4)})`, msg);
+                        }
+                    } catch (err) {
+                        console.error('[COMPANION FORWARD ERROR]:', err.message);
                     }
+                } else {
+                    // No silent catch-all passthrough remains.
+                    console.warn(`[COMPANION BLOCKED] Unknown forwarded type: ${msg.type}`);
                 }
 
                 if (msg.type === 'verify_purge_code_a') {
@@ -1388,7 +2062,7 @@ wss.on('connection', (ws, req) => {
                         }
                     });
                 }
-            } catch (err) {}
+            } catch (err) { console.error("[SERVER] message handler error:", err); }
         });
 
         ws.on('close', () => {
@@ -1405,38 +2079,55 @@ wss.on('connection', (ws, req) => {
         }
 
         const tokenMeta = dev.guestTokens.get(token);
+
+        // 1. Strict category check
+        if (!tokenMeta || tokenMeta.type !== 'summary') {
+            return reject(ws, 'SECURITY_VIOLATION', 'Summary token category mismatch.');
+        }
+
+        // 2. Expiration and revocation checks (No persistent active flag)
         if (tokenMeta.burned || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt)) {
             return reject(ws, 'SECURITY_VIOLATION', 'Summary token is burned or expired.');
         }
 
-        tokenMeta.burned = true;
-        dev.guestTokens.set(token, tokenMeta);
-        saveState();
+        // 3. Concurrency check: Disconnect stale session if same token reconnects
+        for (const [activeWs, activeToken] of dev.summaryClients.entries()) {
+            if (activeToken === token) {
+                try {
+                    activeWs.terminate();
+                } catch (e) {}
+                dev.summaryClients.delete(activeWs);
+            }
+        }
+
+        // 4. Register active session
+        dev.summaryClients.set(ws, token);
+        ws.guestToken = token;
         broadcastTopology();
 
-        dev.summaryClients.set(ws, token);
-        // Store token on the socket for JIT validation
-        ws.guestToken = token;
-
+        // 5. Per-message runtime validation
         ws.on('message', async (message) => {
             try {
-                // JIT Validation: Check if token has expired while connected
                 if (ws.guestToken) {
-                    const tokenMeta = dev.guestTokens.get(ws.guestToken);
-                    if (!tokenMeta || (tokenMeta.expiresAt && Date.now() > tokenMeta.expiresAt) || tokenMeta.burned) {
+                    const currentMeta = dev.guestTokens.get(ws.guestToken);
+                    if (
+                        !currentMeta ||
+                        currentMeta.type !== 'summary' ||
+                        currentMeta.burned ||
+                        (currentMeta.expiresAt && Date.now() > currentMeta.expiresAt)
+                    ) {
                         reject(ws, 'SECURITY_VIOLATION', 'Session token expired or revoked.');
                         return;
                     }
                 }
-                // Summary clients normally don't send messages, but we validate if they do.
-            } catch (err) {}
+            } catch (err) { console.error("[SERVER] message handler error:", err); }
         });
 
         ws.send(JSON.stringify({ type: 'handshake_ok', status: 'awaiting_companion_approval' }));
 
-
         ws.on('close', () => {
             dev.summaryClients.delete(ws);
+            broadcastTopology();
         });
         return;
     }
@@ -1459,12 +2150,22 @@ setInterval(() => {
                         reject(guestWs, 'SECURITY_VIOLATION', 'Session token expired.');
                     }
                 });
+
+                dev.summaryClients.forEach((activeToken, activeWs) => {
+                    if (activeToken === token) {
+                        try {
+                            reject(activeWs, 'SECURITY_VIOLATION', 'Summary session token expired.');
+                        } catch (e) {}
+                        dev.summaryClients.delete(activeWs);
+                    }
+                });
             }
         }
-        if (changed) {
-            saveState();
-            changed = false;
-        }
+    }
+    if (changed) {
+        saveState();
+        broadcastTopology();
+        changed = false;
     }
 }, 5 * 60 * 1000); // Reduced to 5-minute GC interval
 
